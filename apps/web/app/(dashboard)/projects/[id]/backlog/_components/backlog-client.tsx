@@ -1,0 +1,151 @@
+'use client'; // DnD reorder + status filters
+
+import { useState } from 'react';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useAuth } from '@/components/providers/auth-provider';
+import { api } from '@/lib/api';
+import { BacklogRow } from './backlog-row';
+import { TaskCreateDialog } from '../../kanban/_components/task-create-dialog';
+import { TaskEditDialog } from '../../kanban/_components/task-edit-dialog';
+import type { TaskDto as Task } from '@bioinfood/shared';
+
+const PRIORITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL',         label: 'Todas' },
+  { value: 'TODO',        label: 'A fazer' },
+  { value: 'IN_PROGRESS', label: 'Em andamento' },
+  { value: 'DONE',        label: 'Concluído' },
+];
+
+interface BacklogClientProps {
+  projectId: string;
+  initialTasks: Task[];
+}
+
+export function BacklogClient({ projectId, initialTasks }: BacklogClientProps) {
+  const { token } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>(
+    [...initialTasks.filter((t) => !t.deletedAt)].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]),
+  );
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [editingTask, setEditingTask]   = useState<Task | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  async function onDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const oldIdx = tasks.findIndex((t) => t.id === active.id);
+    const newIdx = tasks.findIndex((t) => t.id === over.id);
+    const reordered = arrayMove(tasks, oldIdx, newIdx);
+    setTasks(reordered);
+
+    await api.patch(`/projects/${projectId}/tasks/reorder`, { items: reordered.map((t, i) => ({ id: t.id, order: i })) }, token);
+  }
+
+  function onTaskCreated(task: Task) {
+    setTasks((prev) => [...prev, task]);
+  }
+
+  function onTaskUpdated(updated: Task) {
+    setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+  }
+
+  function onTaskDeleted(taskId: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }
+
+  const visible = statusFilter === 'ALL' ? tasks : tasks.filter((t) => t.status === statusFilter);
+
+  const stats = {
+    todo: tasks.filter((t) => t.status === 'TODO').length,
+    inProgress: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
+    done: tasks.filter((t) => t.status === 'DONE').length,
+    points: tasks.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0),
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-[#1D1D1B]">Backlog</h2>
+          <p className="text-sm text-[#706F6F] mt-0.5">{tasks.length} itens · {stats.points} story points</p>
+        </div>
+        <TaskCreateDialog projectId={projectId} onCreated={onTaskCreated} />
+      </div>
+
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'A fazer',      value: stats.todo,       color: '#575756' },
+          { label: 'Em andamento', value: stats.inProgress, color: '#147F23' },
+          { label: 'Concluído',    value: stats.done,        color: '#156D1D' },
+          { label: 'Story Points', value: stats.points,      color: '#C16C06' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-xs text-[#706F6F] mb-1">{label}</p>
+            <p className="text-2xl font-bold" style={{ color }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setStatusFilter(value)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={statusFilter === value
+              ? { backgroundColor: '#147F23', color: '#FFFFFF' }
+              : { backgroundColor: '#F3F4F6', color: '#575756' }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="grid grid-cols-[auto_1fr_120px_100px_90px_90px_36px] gap-4 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-[#706F6F]">
+          <span />
+          <span>Tarefa</span>
+          <span>Status</span>
+          <span>Prioridade</span>
+          <span className="text-right">Pts</span>
+          <span className="text-right">Prazo</span>
+          <span />
+        </div>
+
+        {visible.length === 0 && (
+          <div className="py-16 text-center">
+            <p className="text-[#706F6F] text-sm">Nenhuma tarefa encontrada.</p>
+          </div>
+        )}
+
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={visible.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {visible.map((task) => (
+              <BacklogRow key={task.id} task={task} onEdit={setEditingTask} />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </div>
+
+      {editingTask && (
+        <TaskEditDialog
+          task={editingTask}
+          projectId={projectId}
+          onUpdated={onTaskUpdated}
+          onDeleted={onTaskDeleted}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
+    </div>
+  );
+}
