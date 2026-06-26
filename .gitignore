@@ -5,3 +5,5 @@ dist
 .env.local
 *.log
 .turbo
+*.tsbuildinfo
+next-env.d.ts
