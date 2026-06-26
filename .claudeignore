@@ -1,0 +1,44 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# Gerados pelo Prisma (Claude lê o schema, não os gerados)
+apps/api/src/generated/
+apps/api/prisma/migrations/*.sql
+
+# Lock files (Claude não precisa ler, só o schema.prisma)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Logs e cache
+*.log
+logs/
+.cache/
+coverage/
+.nyc_output/
+
+# Env (nunca deve entrar no contexto)
+.env
+.env.*
+!.env.example
+
+# Arquivos binários / assets pesados
+docs/design/*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.woff
+*.woff2
+
+# TypeScript compilado (lê o .ts, não o .js gerado)
+*.js.map
+*.d.ts.map
