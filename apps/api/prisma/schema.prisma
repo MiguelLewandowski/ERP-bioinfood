@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SystemRole {
+  ADMIN
+  APROVA
+  INSERE
+  CONSULTA
+  CLIENTE
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskProbability {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum RiskImpact {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         SystemRole @default(CONSULTA)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  createdProjects  Project[]       @relation("CreatedBy")
+  receivedAccesses ProjectAccess[] @relation("ReceivedAccess")
+  grantedAccesses  ProjectAccess[] @relation("GrantedAccess")
+  assignedTasks    Task[]          @relation("TaskAssignee")
+  ownedRisks       Risk[]          @relation("RiskOwner")
+  refreshTokens    RefreshToken[]
+  auditLogs        AuditLog[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  jti       String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jti])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  startDate   DateTime?
+  endDate     DateTime?
+  clientName  String?
+  objective   String?
+  sponsor     String?
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  createdBy  User            @relation("CreatedBy", fields: [createdById], references: [id])
+  accesses   ProjectAccess[]
+  charter    Charter?
+  wbsNodes   WbsNode[]
+  tasks      Task[]
+  risks      Risk[]
+  milestones Milestone[]
+
+  @@index([status])
+  @@index([createdById])
+  @@index([deletedAt])
+}
+
+model ProjectAccess {
+  id          String   @id @default(cuid())
+  projectId   String
+  userId      String
+  grantedById String?
+  grantedAt   DateTime @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation("ReceivedAccess", fields: [userId], references: [id])
+  grantedBy User?   @relation("GrantedAccess", fields: [grantedById], references: [id])
+
+  @@unique([projectId, userId])
+}
+
+model Charter {
+  id                  String    @id @default(cuid())
+  projectId           String    @unique
+  // Section 1 — Identificação
+  projectType         String?
+  priority            String?
+  projectOwner        String?
+  team                String?
+  // Section 2 — Contexto
+  problem             String?
+  justification       String?
+  assumptions         String?
+  // Section 3 — Objetivos
+  mainObjective       String?
+  specificObjectives  String?
+  kpis                String?
+  // Section 4 — Escopo
+  scope               String?
+  outOfScope          String?
+  // Section 5 — Entregáveis
+  deliverables        String?
+  // Section 6 — Recursos
+  resources           String?
+  // Section 7 — Partes interessadas
+  stakeholders        String?
+  governance          String?
+  // Section 8 — Dependências
+  dependencies        String?
+  // Constraints e aprovação
+  constraints         String?
+  approvedById        String?
+  approvedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model WbsNode {
+  id            String    @id @default(cuid())
+  projectId     String
+  parentId      String?
+  code          String
+  title         String
+  owner         String?
+  readyCriteria String?
+  outputs       String?
+  order         Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   WbsNode?  @relation("WbsTree", fields: [parentId], references: [id])
+  children WbsNode[] @relation("WbsTree")
+  tasks    Task[]
+
+  @@index([projectId])
+  @@index([parentId])
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  projectId   String
+  wbsNodeId   String?
+  assigneeId  String?
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  storyPoints Int?
+  startDate   DateTime?
+  dueDate     DateTime?
+  order       Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wbsNode      WbsNode?              @relation(fields: [wbsNodeId], references: [id])
+  assignee     User?                 @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  successors   TaskDependency[]      @relation("Predecessor")
+  predecessors TaskDependency[]      @relation("Successor")
+  checklist    TaskChecklistItem[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([assigneeId])
+  @@index([wbsNodeId])
+  @@index([deletedAt])
+}
+
+model TaskChecklistItem {
+  id        String   @id @default(cuid())
+  taskId    String
+  text      String
+  checked   Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model TaskDependency {
+  id            String   @id @default(cuid())
+  predecessorId String
+  successorId   String
+  createdAt     DateTime @default(now())
+
+  predecessor Task @relation("Predecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   Task @relation("Successor", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorId, successorId])
+  @@index([predecessorId])
+  @@index([successorId])
+}
+
+model Risk {
+  id          String          @id @default(cuid())
+  projectId   String
+  ownerId     String?
+  title       String
+  description String?
+  probability RiskProbability @default(MEDIUM)
+  impact      RiskImpact      @default(MEDIUM)
+  score       Int
+  response    String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("RiskOwner", fields: [ownerId], references: [id])
+
+  @@index([projectId])
+  @@index([score])
+  @@index([deletedAt])
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  date        DateTime
+  reached     Boolean   @default(false)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([date])
+}
