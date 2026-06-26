@@ -1,0 +1,18 @@
+import {
+  CreateProjectData,
+  ProjectAccessEntity,
+  ProjectWithRelations,
+  UpdateProjectData,
+} from './project.entity';
+
+export const PROJECT_REPOSITORY = 'PROJECT_REPOSITORY';
+
+export interface IProjectRepository {
+  findAll(options: { excludeCancelled: boolean }): Promise<ProjectWithRelations[]>;
+  findAllByUserId(userId: string): Promise<ProjectWithRelations[]>;
+  findById(id: string): Promise<ProjectWithRelations | null>;
+  create(data: CreateProjectData): Promise<ProjectWithRelations>;
+  update(id: string, data: UpdateProjectData): Promise<ProjectWithRelations>;
+  updateStatus(id: string, status: string): Promise<void>;
+  grantAccess(projectId: string, userId: string, grantedById: string): Promise<ProjectAccessEntity>;
+}
