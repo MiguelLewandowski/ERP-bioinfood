@@ -77,6 +77,17 @@ export class TasksPrismaRepository implements ITaskRepository {
     });
   }
 
+  async findIncompletePredecessors(taskId: string): Promise<Array<{ id: string; title: string }>> {
+    const deps = await this.prisma.taskDependency.findMany({
+      where: {
+        successorId: taskId,
+        predecessor: { deletedAt: null, status: { not: 'DONE' } },
+      },
+      select: { predecessor: { select: { id: true, title: true } } },
+    });
+    return deps.map((d) => d.predecessor);
+  }
+
   addDependency(predecessorId: string, successorId: string): Promise<TaskDependencyEntity> {
     return this.prisma.taskDependency.create({
       data: { predecessorId, successorId },

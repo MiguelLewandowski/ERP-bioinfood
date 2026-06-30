@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, Users, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -12,6 +12,7 @@ interface SidebarProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projetos', icon: FolderKanban },
+  { href: '/activities', label: 'Atividades', icon: CalendarDays },
   { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
   { href: '/settings', label: 'Configurações', icon: Settings },
 ];

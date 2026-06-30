@@ -12,6 +12,10 @@ export interface TaskEntity {
   storyPoints: number | null;
   startDate: Date | null;
   dueDate: Date | null;
+  baselineStart: Date | null;
+  baselineEnd: Date | null;
+  actualStart: Date | null;
+  actualEnd: Date | null;
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -60,6 +64,8 @@ export interface UpdateTaskData {
   storyPoints?: number | null;
   startDate?: Date | null;
   dueDate?: Date | null;
+  actualStart?: Date | null;
+  actualEnd?: Date | null;
   order?: number;
 }
 

@@ -17,6 +17,8 @@ export interface ITaskRepository {
   softDelete(id: string): Promise<void>;
   reorder(items: Array<{ id: string; order: number }>): Promise<void>;
   findAllDependenciesByProject(projectId: string): Promise<TaskDependencyEntity[]>;
+  // Antecessoras (predecessoras) desta task que ainda não foram concluídas.
+  findIncompletePredecessors(taskId: string): Promise<Array<{ id: string; title: string }>>;
   addDependency(predecessorId: string, successorId: string): Promise<TaskDependencyEntity>;
   removeDependency(id: string): Promise<void>;
   findDependency(id: string): Promise<TaskDependencyEntity | null>;

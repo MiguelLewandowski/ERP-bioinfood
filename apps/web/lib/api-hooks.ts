@@ -7,6 +7,7 @@ import type {
   WbsNodeDto,
   CharterDto,
   ProjectDto,
+  ActivityDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -114,6 +115,17 @@ export const charterApi = {
     api.post<CharterDto>(`/projects/${projectId}/charter/approve`, {}, token),
 };
 
+// ── Activities ────────────────────────────────────────────────────────────────
+
+export const activitiesApi = {
+  // Lista atividades (tasks) de todos os projetos acessíveis no intervalo informado.
+  list: (range: { from: string; to: string }, token: string) =>
+    api.get<ActivityDto[]>(
+      `/activities?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
+      token,
+    ),
+};
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export const projectsApi = {
@@ -134,4 +146,8 @@ export const projectsApi = {
 
   grantAccess: (id: string, userId: string, token: string) =>
     api.post<void>(`/projects/${id}/access`, { userId }, token),
+
+  // Congela o cronograma atual como linha de base (PMBOK).
+  setBaseline: (id: string, token: string) =>
+    api.post<ProjectDto>(`/projects/${id}/baseline`, {}, token),
 };

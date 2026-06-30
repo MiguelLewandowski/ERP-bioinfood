@@ -27,6 +27,9 @@ export interface ProjectDto {
   status: ProjectStatus;
   startDate: string | null;
   endDate: string | null;
+  forecastEndDate: string | null;
+  baselineSetAt: string | null;
+  baselineSetBy: { id: string; name: string } | null;
   clientName: string | null;
   objective: string | null;
   sponsor: string | null;
@@ -58,10 +61,35 @@ export interface TaskDto {
   wbsNode: { id: string; code: string; title: string } | null;
   startDate: string | null;
   dueDate: string | null;
+  baselineStart: string | null;
+  baselineEnd: string | null;
+  actualStart: string | null;
+  actualEnd: string | null;
   predecessors: Array<{ id: string; predecessorId: string }>;
   successors: Array<{ id: string; successorId: string }>;
   checklist: TaskChecklistItemDto[];
   deletedAt: string | null;
+}
+
+// ── Activities (visão de tasks por data) ───────────────────────────────────────
+
+export interface ActivityPredecessorDto {
+  id: string;
+  title: string;
+  status: TaskStatus;
+}
+
+export interface ActivityDto {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  startDate: string | null;
+  dueDate: string | null;
+  project: { id: string; name: string };
+  assignee: { id: string; name: string } | null;
+  predecessors: ActivityPredecessorDto[];
 }
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
@@ -134,6 +162,18 @@ export interface CharterDto {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Regra única da data-âncora de uma atividade no cronograma: a data de início
+ * (startDate); na ausência dela, o prazo (dueDate). Usada para agrupar/filtrar
+ * atividades por dia. O backend reproduz a mesma regra na query SQL de
+ * `/activities` (ver activities.prisma.repository.ts).
+ */
+export function taskAnchorDate(
+  t: { startDate: string | null; dueDate: string | null },
+): string | null {
+  return t.startDate ?? t.dueDate;
+}
 
 export function checklistProgress(checklist: TaskChecklistItemDto[]): number {
   if (checklist.length === 0) return 0;

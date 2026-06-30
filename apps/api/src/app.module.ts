@@ -11,6 +11,7 @@ import { CharterModule } from './modules/charter/charter.module';
 import { WbsModule } from './modules/wbs/wbs.module';
 import { RisksModule } from './modules/risks/risks.module';
 import { MilestonesModule } from './modules/milestones/milestones.module';
+import { ActivitiesModule } from './modules/activities/activities.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ProjectAccessGuard } from './common/guards/project-access.guard';
@@ -29,6 +30,7 @@ import { AuditModule } from './common/audit/audit.module';
     WbsModule,
     RisksModule,
     MilestonesModule,
+    ActivitiesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

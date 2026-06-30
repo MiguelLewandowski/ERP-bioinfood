@@ -103,7 +103,7 @@ export class TasksController {
   // ── Dependencies ─────────────────────────────────────────────────────────────
 
   @Post(':id/dependencies')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
   addDep(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -113,7 +113,7 @@ export class TasksController {
   }
 
   @Delete(':id/dependencies/:depId')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
   removeDep(@Param('depId') depId: string) {
     return this.removeDependency.execute(depId);
   }
