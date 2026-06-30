@@ -11,7 +11,10 @@ import {
 
 const WITH_RELATIONS = {
   createdBy: { select: { id: true, name: true } },
+  baselineSetBy: { select: { id: true, name: true } },
   accesses: { include: { user: { select: { id: true, name: true } } } },
+  // Prazos das atividades para calcular o término dinâmico (maior dueDate).
+  tasks: { where: { deletedAt: null }, select: { dueDate: true } },
 } as const;
 
 @Injectable()
@@ -66,6 +69,26 @@ export class ProjectsPrismaRepository implements IProjectRepository {
       where: { id },
       data: { status: status as ProjectStatus },
     });
+  }
+
+  async setBaseline(projectId: string, userId: string): Promise<ProjectWithRelations> {
+    // Copia as datas atuais das atividades para os campos de baseline (PMBOK).
+    await this.prisma.$transaction([
+      this.prisma.$executeRaw`
+        UPDATE "Task"
+        SET "baselineStart" = "startDate", "baselineEnd" = "dueDate"
+        WHERE "projectId" = ${projectId} AND "deletedAt" IS NULL
+      `,
+      this.prisma.project.update({
+        where: { id: projectId },
+        data: { baselineSetAt: new Date(), baselineSetById: userId },
+      }),
+    ]);
+
+    return this.prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: WITH_RELATIONS,
+    }) as Promise<ProjectWithRelations>;
   }
 
   async grantAccess(projectId: string, userId: string, grantedById: string): Promise<ProjectAccessEntity> {

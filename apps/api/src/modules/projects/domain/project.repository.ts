@@ -14,5 +14,7 @@ export interface IProjectRepository {
   create(data: CreateProjectData): Promise<ProjectWithRelations>;
   update(id: string, data: UpdateProjectData): Promise<ProjectWithRelations>;
   updateStatus(id: string, status: string): Promise<void>;
+  // Snapshot das datas atuais das tasks → baseline. Retorna o projeto atualizado.
+  setBaseline(projectId: string, userId: string): Promise<ProjectWithRelations>;
   grantAccess(projectId: string, userId: string, grantedById: string): Promise<ProjectAccessEntity>;
 }

@@ -1,4 +1,5 @@
 import { ProjectWithRelations } from '../domain/project.entity';
+import { computeForecastEnd } from '../domain/project.rules';
 
 export interface ProjectResponseDto {
   id: string;
@@ -7,6 +8,10 @@ export interface ProjectResponseDto {
   status: string;
   startDate: string | null;
   endDate: string | null;
+  // Término dinâmico: maior prazo (dueDate) entre as atividades. Calculado, não persistido.
+  forecastEndDate: string | null;
+  baselineSetAt: string | null;
+  baselineSetBy: { id: string; name: string } | null;
   clientName: string | null;
   objective: string | null;
   sponsor: string | null;
@@ -23,6 +28,9 @@ export function toProjectDto(p: ProjectWithRelations): ProjectResponseDto {
     status: p.status,
     startDate: p.startDate?.toISOString() ?? null,
     endDate: p.endDate?.toISOString() ?? null,
+    forecastEndDate: computeForecastEnd(p.tasks)?.toISOString() ?? null,
+    baselineSetAt: p.baselineSetAt?.toISOString() ?? null,
+    baselineSetBy: p.baselineSetBy,
     clientName: p.clientName,
     objective: p.objective,
     sponsor: p.sponsor,

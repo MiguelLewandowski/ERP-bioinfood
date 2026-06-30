@@ -9,6 +9,7 @@ import { GetProjectUseCase } from '../application/get-project.use-case';
 import { UpdateProjectUseCase } from '../application/update-project.use-case';
 import { CancelProjectUseCase } from '../application/cancel-project.use-case';
 import { GrantAccessUseCase } from '../application/grant-access.use-case';
+import { SetBaselineUseCase } from '../application/set-baseline.use-case';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { GrantAccessDto } from './dto/grant-access.dto';
@@ -25,6 +26,7 @@ export class ProjectsController {
     private updateProject: UpdateProjectUseCase,
     private cancelProject: CancelProjectUseCase,
     private grantAccess: GrantAccessUseCase,
+    private setBaseline: SetBaselineUseCase,
   ) {}
 
   @Get()
@@ -73,5 +75,12 @@ export class ProjectsController {
   @Roles(SystemRole.APROVA, SystemRole.ADMIN)
   access(@Param('id') projectId: string, @Body() dto: GrantAccessDto, @CurrentUser() user: AuthUser) {
     return this.grantAccess.execute(projectId, dto.userId, user.id);
+  }
+
+  @Post(':id/baseline')
+  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  async baseline(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const project = await this.setBaseline.execute(id, user.id);
+    return toProjectDto(project);
   }
 }

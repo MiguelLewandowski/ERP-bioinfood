@@ -64,6 +64,7 @@ model User {
   deletedAt    DateTime?
 
   createdProjects  Project[]       @relation("CreatedBy")
+  baselinedProjects Project[]      @relation("BaselineSetBy")
   receivedAccesses ProjectAccess[] @relation("ReceivedAccess")
   grantedAccesses  ProjectAccess[] @relation("GrantedAccess")
   assignedTasks    Task[]          @relation("TaskAssignee")
@@ -117,11 +118,15 @@ model Project {
   objective   String?
   sponsor     String?
   createdById String
+  // Linha de base do cronograma (PMBOK): quando/por quem foi aprovada.
+  baselineSetAt  DateTime?
+  baselineSetById String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   deletedAt   DateTime?
 
-  createdBy  User            @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy     User            @relation("CreatedBy", fields: [createdById], references: [id])
+  baselineSetBy User?           @relation("BaselineSetBy", fields: [baselineSetById], references: [id])
   accesses   ProjectAccess[]
   charter    Charter?
   wbsNodes   WbsNode[]
@@ -222,6 +227,12 @@ model Task {
   storyPoints Int?
   startDate   DateTime?
   dueDate     DateTime?
+  // Linha de base (planejado aprovado) — snapshot de startDate/dueDate.
+  baselineStart DateTime?
+  baselineEnd   DateTime?
+  // Datas reais de execução (preenchidas na mudança de status).
+  actualStart DateTime?
+  actualEnd   DateTime?
   order       Int          @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

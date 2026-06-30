@@ -9,6 +9,7 @@ import { GetProjectUseCase } from '../application/get-project.use-case';
 import { UpdateProjectUseCase } from '../application/update-project.use-case';
 import { CancelProjectUseCase } from '../application/cancel-project.use-case';
 import { GrantAccessUseCase } from '../application/grant-access.use-case';
+import { SetBaselineUseCase } from '../application/set-baseline.use-case';
 
 @Module({
   imports: [PrismaModule],
@@ -21,6 +22,7 @@ import { GrantAccessUseCase } from '../application/grant-access.use-case';
     UpdateProjectUseCase,
     CancelProjectUseCase,
     GrantAccessUseCase,
+    SetBaselineUseCase,
   ],
 })
 export class ProjectsModule {}

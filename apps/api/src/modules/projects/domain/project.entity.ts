@@ -11,12 +11,15 @@ export interface ProjectEntity {
   objective: string | null;
   sponsor: string | null;
   createdById: string;
+  baselineSetAt: Date | null;
+  baselineSetById: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface ProjectWithRelations extends ProjectEntity {
   createdBy: { id: string; name: string };
+  baselineSetBy: { id: string; name: string } | null;
   accesses: Array<{
     id: string;
     userId: string;
@@ -25,6 +28,7 @@ export interface ProjectWithRelations extends ProjectEntity {
     grantedAt: Date;
     user: { id: string; name: string };
   }>;
+  tasks: Array<{ dueDate: Date | null }>;
 }
 
 export interface ProjectAccessEntity {
