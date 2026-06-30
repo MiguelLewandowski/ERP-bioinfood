@@ -24,7 +24,13 @@ export default async function GanttPage({ params }: Props) {
   const base = process.env.NEXT_PUBLIC_API_URL;
 
   const [project, tasks, milestones] = await Promise.all([
-    fetchJson<{ startDate: string | null; endDate: string | null; name: string }>(`${base}/projects/${id}`, token),
+    fetchJson<{
+      startDate: string | null;
+      endDate: string | null;
+      name: string;
+      baselineSetAt: string | null;
+      baselineSetBy: { id: string; name: string } | null;
+    }>(`${base}/projects/${id}`, token),
     fetchJson<Task[]>(`${base}/projects/${id}/tasks`, token),
     fetchJson<Milestone[]>(`${base}/projects/${id}/milestones`, token),
   ]);
@@ -37,6 +43,8 @@ export default async function GanttPage({ params }: Props) {
       milestones={milestones ?? []}
       projectStart={project?.startDate ?? null}
       projectEnd={project?.endDate ?? null}
+      baselineSetAt={project?.baselineSetAt ?? null}
+      baselineSetByName={project?.baselineSetBy?.name ?? null}
     />
   );
 }

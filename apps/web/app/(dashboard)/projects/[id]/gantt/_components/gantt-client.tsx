@@ -1,51 +1,21 @@
 'use client';
 
-import 'gantt-task-react/dist/index.css';
-import dynamic from 'next/dynamic';
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { BarChart2, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import type { Task as GanttTask, StylingOption } from 'gantt-task-react';
-import { ViewMode } from 'gantt-task-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Gantt, Toolbar, Editor, Tooltip, ContextMenu, Willow,
+} from '@svar-ui/react-gantt';
+import '@svar-ui/react-gantt/all.css';
+import './gantt-status.css';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2 } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone } from '@bioinfood/shared';
-import { checklistProgress } from '@bioinfood/shared';
-
-const GanttLib = dynamic(() => import('gantt-task-react').then((m) => m.Gantt), { ssr: false });
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_COLOR: Record<string, string> = {
-  TODO:        '#878787',
-  IN_PROGRESS: '#147F23',
-  DONE:        '#46AD48',
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  LOW: 'Baixa', MEDIUM: 'Média', HIGH: 'Alta', CRITICAL: 'Crítica',
-};
-
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
-function diffDays(a: Date, b: Date): number {
-  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
-}
-
-function diffMonths(a: Date, b: Date): number {
-  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + 1;
-}
-
-function diffWeeks(a: Date, b: Date): number {
-  return Math.ceil(diffDays(a, b) / 7) + 1;
-}
-
-function ptBRDate(d: Date): string {
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-// ─── types ────────────────────────────────────────────────────────────────────
+import { useAuth } from '@/components/providers/auth-provider';
+import { projectsApi } from '@/lib/api-hooks';
+import {
+  EDITABLE_ROLES, BASELINE_ROLES,
+  buildGanttTasks, buildGanttLinks, buildMarkers, scales, columns,
+} from './gantt-mapping';
+import { useGanttPersistence } from './use-gantt-persistence';
 
 interface GanttClientProps {
   projectId: string;
@@ -54,305 +24,166 @@ interface GanttClientProps {
   milestones: Milestone[];
   projectStart: string | null;
   projectEnd: string | null;
+  baselineSetAt: string | null;
+  baselineSetByName: string | null;
 }
 
-// ─── custom tooltip ───────────────────────────────────────────────────────────
+// ─── wrapper: RBAC + barra de baseline + reversão automática em caso de falha ───
 
-function CustomTooltip({ task }: { task: GanttTask; fontSize: string; fontFamily: string }) {
-  const durationDays = diffDays(task.start, task.end);
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-3 min-w-[200px] text-sm">
-      <p className="font-bold text-[#1D1D1B] mb-1 leading-snug">{task.name}</p>
-      <div className="space-y-0.5 text-xs text-[#575756]">
-        <p>Início: <span className="font-medium text-[#1D1D1B]">{ptBRDate(task.start)}</span></p>
-        <p>Término: <span className="font-medium text-[#1D1D1B]">{ptBRDate(task.end)}</span></p>
-        {task.type === 'task' && (
-          <>
-            <p>Duração: <span className="font-medium text-[#1D1D1B]">{durationDays}d</span></p>
-            <p>Progresso: <span className="font-medium text-[#1D1D1B]">{task.progress}%</span></p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+export function GanttClient(props: GanttClientProps) {
+  const { session } = useAuth();
+  const router = useRouter();
+  const editable = EDITABLE_ROLES.includes(session.role);
+  const canBaseline = BASELINE_ROLES.includes(session.role);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [saveError, setSaveError] = useState(false);
+  const [baselineBusy, setBaselineBusy] = useState(false);
 
-// ─── custom task list header ──────────────────────────────────────────────────
+  // Em caso de falha ao salvar: remonta o board (re-semeia com o estado do
+  // servidor → reverte a edição otimista) e busca dados atualizados.
+  function handleSaveError() {
+    setSaveError(true);
+    setReloadKey((k) => k + 1);
+    router.refresh();
+  }
 
-function TaskListHeader({ headerHeight, rowWidth }: { headerHeight: number; rowWidth: string; fontFamily: string; fontSize: string }) {
-  return (
-    <div
-      style={{ height: headerHeight, width: rowWidth, minWidth: rowWidth }}
-      className="flex items-center px-3 bg-gray-50 border-b border-r border-gray-200"
-    >
-      <span className="text-xs font-bold text-[#706F6F] uppercase tracking-wide">Tarefa</span>
-    </div>
-  );
-}
-
-// ─── custom task list table ───────────────────────────────────────────────────
-
-function TaskListTable({
-  tasks, rowHeight, rowWidth, selectedTaskId, setSelectedTask, onExpanderClick,
-}: {
-  tasks: GanttTask[]; rowHeight: number; rowWidth: string; fontFamily: string;
-  fontSize: string; locale: string; selectedTaskId: string;
-  setSelectedTask: (id: string) => void; onExpanderClick: (t: GanttTask) => void;
-}) {
-  return (
-    <div style={{ width: rowWidth, minWidth: rowWidth }} className="border-r border-gray-200">
-      {tasks.map((task) => {
-        const isSelected = task.id === selectedTaskId;
-        const isMilestone = task.type === 'milestone';
-        return (
-          <div
-            key={task.id}
-            style={{ height: rowHeight }}
-            onClick={() => setSelectedTask(task.id)}
-            className={`flex items-center px-3 gap-2 cursor-pointer border-b border-gray-100 transition-colors ${
-              isSelected ? 'bg-[#86C175]/20' : 'hover:bg-gray-50'
-            }`}
-          >
-            {task.hideChildren !== undefined && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onExpanderClick(task); }}
-                className="text-[#706F6F] hover:text-[#147F23] shrink-0"
-              >
-                {task.hideChildren ? '▶' : '▼'}
-              </button>
-            )}
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: isMilestone ? '#DD8005' : (task.styles?.progressColor ?? '#878787') }}
-            />
-            <span
-              className="text-xs font-medium text-[#1D1D1B] truncate flex-1"
-              title={task.name}
-            >
-              {task.name}
-            </span>
-            {task.type === 'task' && (
-              <span className="text-[10px] text-[#878787] shrink-0">{task.progress}%</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── main component ───────────────────────────────────────────────────────────
-
-export function GanttClient({ projectId, token, tasks, milestones, projectStart, projectEnd }: GanttClientProps) {
-  const wrapperRef  = useRef<HTMLDivElement>(null);
-  const [containerW, setContainerW] = useState(900);
-  const [viewMode, setViewMode]     = useState<ViewMode>(ViewMode.Week);
-
-  // Measure container width
-  useEffect(() => {
-    if (!wrapperRef.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setContainerW(entry.contentRect.width);
-    });
-    ro.observe(wrapperRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  // Build gantt tasks from API data
-  const ganttTasks = useMemo<GanttTask[]>(() => {
-    const taskItems: GanttTask[] = tasks
-      .filter((t) => !t.deletedAt && t.startDate && t.dueDate)
-      .map((t) => {
-        const start = new Date(t.startDate!);
-        const end   = new Date(t.dueDate!);
-        const safeEnd = end <= start ? addDays(start, 1) : end;
-        const predecessorIds = (t.predecessors ?? []).map((p) => p.predecessorId);
-        return {
-          id:           t.id,
-          name:         t.title,
-          start,
-          end:          safeEnd,
-          type:         'task' as const,
-          progress:     t.checklist?.length > 0
-            ? checklistProgress(t.checklist)
-            : (t.status === 'DONE' ? 100 : t.status === 'IN_PROGRESS' ? 50 : 0),
-          dependencies: predecessorIds,
-          styles: {
-            backgroundColor:         STATUS_COLOR[t.status] + '33',
-            backgroundSelectedColor: STATUS_COLOR[t.status] + '55',
-            progressColor:           STATUS_COLOR[t.status],
-            progressSelectedColor:   STATUS_COLOR[t.status],
-          },
-          isDisabled: false,
-          displayOrder: undefined,
-        };
-      });
-
-    const msItems: GanttTask[] = milestones.map((m) => ({
-      id:       `ms-${m.id}`,
-      name:     m.title,
-      start:    new Date(m.date),
-      end:      new Date(m.date),
-      type:     'milestone' as const,
-      progress: m.reached ? 100 : 0,
-      styles:   { progressColor: '#DD8005', progressSelectedColor: '#C16C06' },
-      isDisabled: false,
-      displayOrder: undefined,
-    }));
-
-    return [...taskItems, ...msItems];
-  }, [tasks, milestones]);
-
-  // Compute date range: from earliest task or project start to latest task or project end
-  const { rangeStart, rangeEnd } = useMemo(() => {
-    const allDates = ganttTasks.flatMap((t) => [t.start, t.end]);
-    if (projectStart) allDates.push(new Date(projectStart));
-    if (projectEnd)   allDates.push(new Date(projectEnd));
-
-    if (allDates.length === 0) {
-      const now = new Date();
-      return { rangeStart: now, rangeEnd: addDays(now, 90) };
+  async function handleSetBaseline() {
+    if (baselineBusy) return;
+    const already = !!props.baselineSetAt;
+    const msg = already
+      ? 'Redefinir a linha de base? As datas atuais de todas as atividades substituirão a baseline aprovada anteriormente.'
+      : 'Definir a linha de base com as datas atuais de todas as atividades? Servirá de referência para medir desvios.';
+    if (!window.confirm(msg)) return;
+    setBaselineBusy(true);
+    try {
+      await projectsApi.setBaseline(props.projectId, props.token);
+      setReloadKey((k) => k + 1);
+      router.refresh();
+    } finally {
+      setBaselineBusy(false);
     }
+  }
 
-    const min = new Date(Math.min(...allDates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...allDates.map((d) => d.getTime())));
-    return {
-      rangeStart: addDays(min, -3),
-      rangeEnd:   addDays(max,  5),
-    };
-  }, [ganttTasks, projectStart, projectEnd]);
-
-  // Auto-select best view mode based on duration
   useEffect(() => {
-    const days = diffDays(rangeStart, rangeEnd);
-    if (days <= 21)       setViewMode(ViewMode.Day);
-    else if (days <= 90)  setViewMode(ViewMode.Week);
-    else                  setViewMode(ViewMode.Month);
-  }, [rangeStart, rangeEnd]);
+    if (!saveError) return;
+    const id = setTimeout(() => setSaveError(false), 6000);
+    return () => clearTimeout(id);
+  }, [saveError]);
 
-  // Compute columnWidth to fill the container without excess horizontal scroll
-  const columnWidth = useMemo(() => {
-    const LIST_WIDTH = 220;
-    const available  = Math.max(containerW - LIST_WIDTH - 2, 200);
-    const days       = diffDays(rangeStart, rangeEnd);
-
-    if (viewMode === ViewMode.Day)   return Math.max(28, Math.floor(available / days));
-    if (viewMode === ViewMode.Week)  return Math.max(80, Math.floor(available / diffWeeks(rangeStart, rangeEnd)));
-    /* Month */                       return Math.max(120, Math.floor(available / diffMonths(rangeStart, rangeEnd)));
-  }, [containerW, rangeStart, rangeEnd, viewMode]);
-
-  const handleFitView = useCallback(() => {
-    const days = diffDays(rangeStart, rangeEnd);
-    if (days <= 21)       setViewMode(ViewMode.Day);
-    else if (days <= 90)  setViewMode(ViewMode.Week);
-    else                  setViewMode(ViewMode.Month);
-  }, [rangeStart, rangeEnd]);
-
-  const noData = ganttTasks.length === 0;
-
-  const stylingOptions: StylingOption = {
-    headerHeight:   50,
-    rowHeight:      40,
-    barFill:        72,
-    barCornerRadius: 4,
-    columnWidth,
-    listCellWidth:  '220px',
-    fontSize:       '12px',
-    fontFamily:     'Inter, system-ui, sans-serif',
-    todayColor:     'rgba(20,127,35,0.10)',
-    arrowColor:     '#147F23',
-    arrowIndent:    12,
-    ganttHeight:    Math.min(600, Math.max(300, ganttTasks.length * 40 + 55)),
-    TooltipContent: CustomTooltip,
-    TaskListHeader,
-    TaskListTable,
-  };
+  const baselineLabel = props.baselineSetAt
+    ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
+    : 'Linha de base não definida';
 
   return (
-    <div className="p-6 flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-[#1D1D1B]">Cronograma (Gantt)</h2>
-          <p className="text-sm text-[#706F6F] mt-0.5">
-            {ganttTasks.filter((t) => t.type === 'task').length} tarefas ·{' '}
-            {milestones.length} marcos
-            {projectStart && projectEnd && (
-              <> · {ptBRDate(new Date(projectStart))} → {ptBRDate(new Date(projectEnd))}</>
-            )}
-          </p>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col">
+      {canBaseline && (
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
+          <span className="flex items-center gap-1.5 text-xs text-[#706F6F]">
+            <Flag size={13} className={props.baselineSetAt ? 'text-[#147F23]' : 'text-[#878787]'} />
+            {baselineLabel}
+          </span>
           <button
-            onClick={handleFitView}
-            title="Ajustar ao projeto"
-            className="p-2 rounded-lg border border-gray-200 hover:border-[#52B552] hover:text-[#147F23] text-[#575756] transition-colors"
+            onClick={handleSetBaseline}
+            disabled={baselineBusy}
+            className="flex items-center gap-1.5 rounded-lg border border-[#147F23] px-3 py-1.5 text-xs font-semibold text-[#147F23] hover:bg-[#147F23] hover:text-white transition-colors disabled:opacity-50"
           >
-            <Maximize2 size={15} />
+            {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
+            {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
           </button>
-
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            {([ViewMode.Day, ViewMode.Week, ViewMode.Month] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
-                style={viewMode === mode
-                  ? { backgroundColor: '#147F23', color: '#FFFFFF' }
-                  : { color: '#575756' }}
-              >
-                {mode === ViewMode.Day ? 'Dia' : mode === ViewMode.Week ? 'Semana' : 'Mês'}
-              </button>
-            ))}
-          </div>
         </div>
-      </div>
+      )}
+      {!editable && (
+        <div className="flex items-center gap-1.5 bg-gray-100 text-[#575756] px-4 py-2 text-xs font-medium">
+          <Lock size={13} /> Modo somente leitura — seu perfil ({session.role}) não pode editar o cronograma.
+        </div>
+      )}
+      {saveError && (
+        <div className="flex items-center justify-between gap-3 bg-[#FBE3E5] text-[#D64550] px-4 py-2 text-xs font-medium">
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle size={14} />
+            Não foi possível salvar a alteração — ela foi revertida.
+          </span>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-md border border-[#D64550]/40 px-2.5 py-1 hover:bg-white/40"
+          >
+            Recarregar
+          </button>
+        </div>
+      )}
+      <GanttBoard key={reloadKey} {...props} editable={editable} onSaveError={handleSaveError} />
+    </div>
+  );
+}
 
-      {/* Chart */}
-      {noData ? (
+// ─── board: monta os dados e renderiza o widget SVAR ────────────────────────────
+
+interface GanttBoardProps extends GanttClientProps {
+  editable: boolean;
+  onSaveError: () => void;
+}
+
+function GanttBoard({
+  projectId, token, tasks, milestones, projectEnd, editable, onSaveError,
+}: GanttBoardProps) {
+  const [mounted, setMounted] = useState(false);
+  const [api, setApi] = useState<any>(undefined);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const ganttTasks = useMemo(() => buildGanttTasks(tasks, milestones), [tasks, milestones]);
+  const ganttLinks = useMemo(() => buildGanttLinks(tasks), [tasks]);
+  const markers = useMemo(() => buildMarkers(projectEnd, ganttTasks), [projectEnd, ganttTasks]);
+
+  const { menuHandler } = useGanttPersistence(api, {
+    editable, projectId, token, links: ganttLinks, onError: onSaveError,
+  });
+
+  if (ganttTasks.length === 0) {
+    return (
+      <div className="p-6">
         <div className="bg-white rounded-xl border border-gray-200 py-24 flex flex-col items-center gap-3">
           <BarChart2 size={40} style={{ color: '#878787' }} />
           <p className="text-sm font-medium text-[#575756]">Nenhuma tarefa com início e prazo definidos.</p>
-          <p className="text-xs text-[#706F6F]">Edite tarefas no Backlog ou Kanban e preencha as datas.</p>
+          <p className="text-xs text-[#706F6F]">Adicione tarefas no Backlog/Kanban (ou crie aqui pela barra de ferramentas).</p>
         </div>
-      ) : (
-        <div ref={wrapperRef} className="bg-white rounded-xl border border-gray-200 overflow-hidden gantt-wrapper">
-          <GanttLib
-            tasks={ganttTasks}
-            viewMode={viewMode}
-            viewDate={rangeStart}
-            locale="pt-BR"
-            {...stylingOptions}
-          />
-        </div>
-      )}
-
-      {/* Legend */}
-      <div className="flex gap-5 flex-wrap">
-        {[
-          { color: '#878787', label: 'A fazer' },
-          { color: '#147F23', label: 'Em andamento' },
-          { color: '#46AD48', label: 'Concluído' },
-          { color: '#DD8005', label: 'Marco' },
-          { color: '#147F23', label: 'Seta = dependência', dashed: true },
-        ].map(({ color, label, dashed }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            {dashed
-              ? <span className="w-6 border-t-2 border-dashed" style={{ borderColor: color }} />
-              : <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />}
-            <span className="text-xs text-[#706F6F]">{label}</span>
-          </div>
-        ))}
       </div>
+    );
+  }
 
-      {/* Hint about dependencies */}
-      {ganttTasks.some((t) => (t.dependencies?.length ?? 0) > 0) && (
-        <p className="text-xs text-[#878787]">
-          Setas verdes indicam dependências Finish-to-Start entre tarefas.
-        </p>
+  if (!mounted) {
+    return <div style={{ height: 'calc(100vh - 150px)' }} />;
+  }
+
+  const CtxMenu = ContextMenu as any;
+
+  return (
+    <Willow>
+      {editable && api && <Toolbar api={api} />}
+      <div
+        style={{ height: 'calc(100vh - 180px)' }}
+        onContextMenu={(e) => {
+          if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
+        }}
+      >
+        <Gantt
+          init={setApi}
+          tasks={ganttTasks}
+          links={ganttLinks}
+          scales={scales}
+          columns={columns}
+          markers={markers}
+          criticalPath={{ type: 'flexible' }}
+          baselines
+          readonly={!editable}
+          zoom
+        />
+      </div>
+      {api && <Tooltip api={api} />}
+      {editable && api && <Editor api={api} />}
+      {editable && api && (
+        <CtxMenu api={api} init={(v: (e: any) => void) => { menuHandler.current = v; }} />
       )}
-    </div>
+    </Willow>
   );
 }

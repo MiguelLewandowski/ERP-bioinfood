@@ -1,0 +1,25 @@
+/* Cores das barras do Gantt por status (classe aplicada via task.css da SVAR). */
+.gt-todo .wx-bar,
+.gt-todo.wx-bar,
+.gt-todo {
+  background-color: #b7b7b7 !important;
+  border-color: #878787 !important;
+}
+.gt-doing .wx-bar,
+.gt-doing.wx-bar,
+.gt-doing {
+  background-color: #f0b265 !important;
+  border-color: #dd8005 !important;
+}
+.gt-done .wx-bar,
+.gt-done.wx-bar,
+.gt-done {
+  background-color: #7fc36b !important;
+  border-color: #46ad48 !important;
+}
+.gt-milestone .wx-bar,
+.gt-milestone.wx-bar,
+.gt-milestone {
+  background-color: #dd8005 !important;
+  border-color: #c16c06 !important;
+}
