@@ -51,8 +51,14 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         </div>
         {project.endDate && (
           <div className="flex justify-between">
-            <span>Prazo</span>
+            <span>Término (planejado)</span>
             <span>{fmt(project.endDate)}</span>
+          </div>
+        )}
+        {project.forecastEndDate && (
+          <div className="flex justify-between">
+            <span>Término (estimado)</span>
+            <span className="font-medium text-[#147F23]">{fmt(project.forecastEndDate)}</span>
           </div>
         )}
       </div>
