@@ -225,6 +225,8 @@ model Task {
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   storyPoints Int?
+  // Subtarefa: tarefa-pai (hierarquia de atividades no Gantt).
+  parentId    String?
   startDate   DateTime?
   dueDate     DateTime?
   // Linha de base (planejado aprovado) — snapshot de startDate/dueDate.
@@ -241,6 +243,8 @@ model Task {
   project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   wbsNode      WbsNode?              @relation(fields: [wbsNodeId], references: [id])
   assignee     User?                 @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  parent       Task?                 @relation("TaskSubtasks", fields: [parentId], references: [id])
+  subtasks     Task[]                @relation("TaskSubtasks")
   successors   TaskDependency[]      @relation("Predecessor")
   predecessors TaskDependency[]      @relation("Successor")
   checklist    TaskChecklistItem[]
@@ -249,6 +253,7 @@ model Task {
   @@index([status])
   @@index([assigneeId])
   @@index([wbsNodeId])
+  @@index([parentId])
   @@index([deletedAt])
 }
 

@@ -28,7 +28,8 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
   const linkIdMap = useRef(new Map<string, string>());
   const linkTarget = useRef(new Map<string, string>());
   const menuHandler = useRef<((e: any) => void) | null>(null);
-  const wired = useRef(false);
+  // Guarda a instância de api já religada (sobrevive a remontagens do Gantt).
+  const wiredApi = useRef<any>(null);
 
   // Mantém o alvo (sucessora) de cada link conhecido para montar a URL de remoção.
   useEffect(() => {
@@ -36,10 +37,16 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
   }, [links]);
 
   useEffect(() => {
-    if (!api || !editable || wired.current) return;
-    wired.current = true;
+    if (!api || !editable || wiredApi.current === api) return;
+    wiredApi.current = api;
 
     const resolveTaskId = (id: unknown) => taskIdMap.current.get(String(id)) ?? String(id);
+
+    // Pai atual da tarefa na store (0 = raiz → null no backend).
+    const currentParentId = (id: unknown): string | null => {
+      const parent = api.getTask?.(id)?.parent;
+      return parent && parent !== 0 ? resolveTaskId(parent) : null;
+    };
 
     api.on('update-task', (ev: any) => {
       if (ev.inProgress) return;
@@ -68,6 +75,7 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
       if (isMilestoneId(ev.id)) return;
       const t = ev.task ?? {};
       try {
+        const parentId = currentParentId(ev.id);
         const created = await tasksApi.create(
           projectId,
           {
@@ -75,12 +83,23 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
             status: 'TODO',
             startDate: t.start ? new Date(t.start).toISOString() : undefined,
             dueDate: t.end ? new Date(t.end).toISOString() : undefined,
+            ...(parentId ? { parentId } : {}),
           },
           token,
         );
         if (ev.id != null) taskIdMap.current.set(String(ev.id), created.id);
       } catch { onError(); }
     });
+
+    // Reparentar (arrastar para dentro / indentar) → persiste o novo pai.
+    const persistParent = (ev: any) => {
+      if (ev.inProgress || isMilestoneId(ev.id)) return;
+      tasksApi
+        .update(projectId, resolveTaskId(ev.id), { parentId: currentParentId(ev.id) }, token)
+        .catch(onError);
+    };
+    api.on('move-task', persistParent);
+    api.on('indent-task', persistParent);
 
     api.on('delete-task', (ev: any) => {
       if (isMilestoneId(ev.id)) {

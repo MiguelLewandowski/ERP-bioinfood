@@ -4,6 +4,7 @@ export interface TaskEntity {
   id: string;
   projectId: string;
   wbsNodeId: string | null;
+  parentId: string | null;
   assigneeId: string | null;
   title: string;
   description: string | null;
@@ -43,6 +44,7 @@ export interface TaskWithRelations extends TaskEntity {
 export interface CreateTaskData {
   projectId: string;
   wbsNodeId?: string;
+  parentId?: string | null;
   assigneeId?: string;
   title: string;
   description?: string;
@@ -56,6 +58,7 @@ export interface CreateTaskData {
 
 export interface UpdateTaskData {
   wbsNodeId?: string | null;
+  parentId?: string | null;
   assigneeId?: string | null;
   title?: string;
   description?: string | null;

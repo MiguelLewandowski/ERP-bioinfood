@@ -57,6 +57,7 @@ export interface TaskDto {
   priority: TaskPriority;
   storyPoints: number | null;
   order: number;
+  parentId: string | null;
   assignee: { id: string; name: string } | null;
   wbsNode: { id: string; code: string; title: string } | null;
   startDate: string | null;

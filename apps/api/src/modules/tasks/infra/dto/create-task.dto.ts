@@ -36,6 +36,10 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @IsString()
   assigneeId?: string;
 
   @IsOptional()

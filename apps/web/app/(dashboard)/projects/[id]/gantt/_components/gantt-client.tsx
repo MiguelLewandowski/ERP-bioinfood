@@ -132,7 +132,10 @@ function GanttBoard({
   useEffect(() => { setMounted(true); }, []);
 
   const ganttTasks = useMemo(() => buildGanttTasks(tasks, milestones), [tasks, milestones]);
-  const ganttLinks = useMemo(() => buildGanttLinks(tasks), [tasks]);
+  const ganttLinks = useMemo(() => {
+    const visibleIds = new Set(ganttTasks.map((t) => String(t.id)));
+    return buildGanttLinks(tasks, visibleIds);
+  }, [tasks, ganttTasks]);
   const markers = useMemo(() => buildMarkers(projectEnd, ganttTasks), [projectEnd, ganttTasks]);
 
   const { menuHandler } = useGanttPersistence(api, {

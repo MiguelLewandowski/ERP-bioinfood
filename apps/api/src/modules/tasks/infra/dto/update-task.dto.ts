@@ -35,6 +35,10 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsString()
+  parentId?: string | null;
+
+  @IsOptional()
+  @IsString()
   assigneeId?: string | null;
 
   @IsOptional()

@@ -45,10 +45,12 @@ export const scales = [
   { unit: 'day', step: 1, format: (d: Date) => String(d.getDate()) },
 ];
 
-// Colunas da grade (localizadas) com responsável.
+// Colunas da grade (localizadas) com início, término, duração e responsável.
 export const columns = [
-  { id: 'text', header: 'Tarefa', flexgrow: 2, width: 200 },
+  { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
   { id: 'start', header: 'Início', align: 'center' as const, width: 86, template: (t: any) => fmtCol(t.start) },
+  { id: 'end', header: 'Término', align: 'center' as const, width: 86, template: (t: any) => fmtCol(t.end) },
+  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (t: any) => (t.duration ? `${t.duration}d` : '') },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (t: any) => t.assignee || '—' },
 ];
 
@@ -58,8 +60,9 @@ export interface GanttTask {
   start: Date;
   end: Date;
   progress: number;
-  type: 'task' | 'milestone';
-  parent: number;
+  type: 'task' | 'milestone' | 'summary';
+  parent: string | number;
+  open?: boolean;
   assignee: string;
   css: string;
   base_start?: Date;
@@ -67,26 +70,31 @@ export interface GanttTask {
 }
 
 export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): GanttTask[] {
-  const taskItems: GanttTask[] = tasks
-    .filter((t) => !t.deletedAt && t.startDate && t.dueDate)
-    .map((t) => {
-      const start = new Date(t.startDate!);
-      const end = new Date(t.dueDate!);
-      return {
-        id: t.id,
-        text: t.title,
-        start,
-        end: end <= start ? addDays(start, 1) : end,
-        progress: taskProgress(t),
-        type: 'task',
-        parent: 0,
-        assignee: t.assignee?.name ?? '',
-        css: statusToCss(t.status),
-        // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
-        base_start: t.baselineStart ? new Date(t.baselineStart) : undefined,
-        base_end: t.baselineEnd ? new Date(t.baselineEnd) : undefined,
-      };
-    });
+  const visible = tasks.filter((t) => !t.deletedAt && t.startDate && t.dueDate);
+  // Tarefas que são pai de outra → renderizadas como resumo (summary) com expansor.
+  const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
+
+  const taskItems: GanttTask[] = visible.map((t) => {
+    const start = new Date(t.startDate!);
+    const end = new Date(t.dueDate!);
+    const hasChildren = parents.has(t.id);
+    return {
+      id: t.id,
+      text: t.title,
+      start,
+      end: end <= start ? addDays(start, 1) : end,
+      progress: taskProgress(t),
+      type: hasChildren ? 'summary' : 'task',
+      // Só referencia o pai se ele estiver visível (com datas); senão fica na raiz.
+      parent: t.parentId && visible.some((p) => p.id === t.parentId) ? t.parentId : 0,
+      open: true,
+      assignee: t.assignee?.name ?? '',
+      css: statusToCss(t.status),
+      // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
+      base_start: t.baselineStart ? new Date(t.baselineStart) : undefined,
+      base_end: t.baselineEnd ? new Date(t.baselineEnd) : undefined,
+    };
+  });
 
   const msItems: GanttTask[] = milestones.map((m) => ({
     id: `ms-${m.id}`,
@@ -110,14 +118,19 @@ export interface GanttLink {
   type: 'e2s';
 }
 
-export function buildGanttLinks(tasks: TaskDto[]): GanttLink[] {
+// `visibleIds`: ids das tarefas presentes no Gantt. Links cujo predecessor OU
+// sucessor não está visível (ex.: sem datas) são descartados — uma referência
+// quebrada faz a SVAR estourar ("Cannot read properties of null").
+export function buildGanttLinks(tasks: TaskDto[], visibleIds: Set<string>): GanttLink[] {
   return tasks.flatMap((t) =>
-    (t.predecessors ?? []).map((p) => ({
-      id: p.id,
-      source: p.predecessorId,
-      target: t.id,
-      type: 'e2s' as const,
-    })),
+    (t.predecessors ?? [])
+      .filter((p) => visibleIds.has(t.id) && visibleIds.has(p.predecessorId))
+      .map((p) => ({
+        id: p.id,
+        source: p.predecessorId,
+        target: t.id,
+        type: 'e2s' as const,
+      })),
   );
 }
 
