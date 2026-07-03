@@ -10,11 +10,12 @@ import {
   closestCenter,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Plus } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
 import { BacklogRow } from './backlog-row';
-import { TaskCreateDialog } from '../../kanban/_components/task-create-dialog';
-import { TaskEditDialog } from '../../kanban/_components/task-edit-dialog';
+import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
+import type { ProjectMember } from '@/lib/project-members';
 import type { TaskDto as Task } from '@bioinfood/shared';
 
 const PRIORITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -29,15 +30,17 @@ const STATUS_FILTER_OPTIONS = [
 interface BacklogClientProps {
   projectId: string;
   initialTasks: Task[];
+  members: ProjectMember[];
 }
 
-export function BacklogClient({ projectId, initialTasks }: BacklogClientProps) {
+export function BacklogClient({ projectId, initialTasks, members }: BacklogClientProps) {
   const { token } = useAuth();
   const [tasks, setTasks] = useState<Task[]>(
     [...initialTasks.filter((t) => !t.deletedAt)].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]),
   );
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [editingTask, setEditingTask]   = useState<Task | null>(null);
+  const [creating, setCreating]         = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -79,7 +82,13 @@ export function BacklogClient({ projectId, initialTasks }: BacklogClientProps) {
           <h2 className="text-xl font-bold text-[#1D1D1B]">Backlog</h2>
           <p className="text-sm text-[#706F6F] mt-0.5">{tasks.length} itens · {stats.points} story points</p>
         </div>
-        <TaskCreateDialog projectId={projectId} onCreated={onTaskCreated} />
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: '#147F23' }}
+        >
+          <Plus size={16} /> Nova Tarefa
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-3 mb-6">
@@ -137,10 +146,22 @@ export function BacklogClient({ projectId, initialTasks }: BacklogClientProps) {
         </DndContext>
       </div>
 
+      {creating && (
+        <TaskFormDialog
+          mode="create"
+          projectId={projectId}
+          members={members}
+          onCreated={onTaskCreated}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
       {editingTask && (
-        <TaskEditDialog
+        <TaskFormDialog
+          mode="edit"
           task={editingTask}
           projectId={projectId}
+          members={members}
           onUpdated={onTaskUpdated}
           onDeleted={onTaskDeleted}
           onClose={() => setEditingTask(null)}
