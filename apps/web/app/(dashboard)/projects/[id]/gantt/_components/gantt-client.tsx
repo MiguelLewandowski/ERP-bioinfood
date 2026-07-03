@@ -7,10 +7,13 @@ import {
 } from '@svar-ui/react-gantt';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2 } from 'lucide-react';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useConfirm } from '@/components/providers/confirm-provider';
 import { projectsApi } from '@/lib/api-hooks';
+import type { ProjectMember } from '@/lib/project-members';
+import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
 import {
   EDITABLE_ROLES, BASELINE_ROLES,
   buildGanttTasks, buildGanttLinks, buildMarkers, scales, columns,
@@ -22,6 +25,7 @@ interface GanttClientProps {
   token: string;
   tasks: Task[];
   milestones: Milestone[];
+  members: ProjectMember[];
   projectStart: string | null;
   projectEnd: string | null;
   baselineSetAt: string | null;
@@ -33,11 +37,19 @@ interface GanttClientProps {
 export function GanttClient(props: GanttClientProps) {
   const { session } = useAuth();
   const router = useRouter();
+  const confirm = useConfirm();
   const editable = EDITABLE_ROLES.includes(session.role);
   const canBaseline = BASELINE_ROLES.includes(session.role);
   const [reloadKey, setReloadKey] = useState(0);
   const [saveError, setSaveError] = useState(false);
   const [baselineBusy, setBaselineBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  function handleTaskCreated() {
+    setCreating(false);
+    setReloadKey((k) => k + 1);
+    router.refresh();
+  }
 
   // Em caso de falha ao salvar: remonta o board (re-semeia com o estado do
   // servidor → reverte a edição otimista) e busca dados atualizados.
@@ -50,10 +62,15 @@ export function GanttClient(props: GanttClientProps) {
   async function handleSetBaseline() {
     if (baselineBusy) return;
     const already = !!props.baselineSetAt;
-    const msg = already
-      ? 'Redefinir a linha de base? As datas atuais de todas as atividades substituirão a baseline aprovada anteriormente.'
-      : 'Definir a linha de base com as datas atuais de todas as atividades? Servirá de referência para medir desvios.';
-    if (!window.confirm(msg)) return;
+    const confirmed = await confirm({
+      title: already ? 'Redefinir a linha de base?' : 'Definir a linha de base?',
+      description: already
+        ? 'As datas atuais de todas as atividades substituirão a baseline aprovada anteriormente.'
+        : 'As datas atuais de todas as atividades servirão de referência para medir desvios.',
+      confirmLabel: already ? 'Redefinir' : 'Definir',
+      variant: already ? 'destructive' : 'default',
+    });
+    if (!confirmed) return;
     setBaselineBusy(true);
     try {
       await projectsApi.setBaseline(props.projectId, props.token);
@@ -76,20 +93,33 @@ export function GanttClient(props: GanttClientProps) {
 
   return (
     <div className="flex flex-col">
-      {canBaseline && (
+      {editable && (
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
-          <span className="flex items-center gap-1.5 text-xs text-[#706F6F]">
-            <Flag size={13} className={props.baselineSetAt ? 'text-[#147F23]' : 'text-[#878787]'} />
-            {baselineLabel}
-          </span>
-          <button
-            onClick={handleSetBaseline}
-            disabled={baselineBusy}
-            className="flex items-center gap-1.5 rounded-lg border border-[#147F23] px-3 py-1.5 text-xs font-semibold text-[#147F23] hover:bg-[#147F23] hover:text-white transition-colors disabled:opacity-50"
-          >
-            {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
-            {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
-          </button>
+          {canBaseline ? (
+            <span className="flex items-center gap-1.5 text-xs text-[#706F6F]">
+              <Flag size={13} className={props.baselineSetAt ? 'text-[#147F23]' : 'text-[#878787]'} />
+              {baselineLabel}
+            </span>
+          ) : <span />}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: '#147F23' }}
+            >
+              <Plus size={13} /> Nova Tarefa
+            </button>
+            {canBaseline && (
+              <button
+                onClick={handleSetBaseline}
+                disabled={baselineBusy}
+                className="flex items-center gap-1.5 rounded-lg border border-[#147F23] px-3 py-1.5 text-xs font-semibold text-[#147F23] hover:bg-[#147F23] hover:text-white transition-colors disabled:opacity-50"
+              >
+                {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
+                {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
+              </button>
+            )}
+          </div>
         </div>
       )}
       {!editable && (
@@ -112,6 +142,16 @@ export function GanttClient(props: GanttClientProps) {
         </div>
       )}
       <GanttBoard key={reloadKey} {...props} editable={editable} onSaveError={handleSaveError} />
+
+      {creating && (
+        <TaskFormDialog
+          mode="create"
+          projectId={props.projectId}
+          members={props.members}
+          onCreated={handleTaskCreated}
+          onClose={() => setCreating(false)}
+        />
+      )}
     </div>
   );
 }

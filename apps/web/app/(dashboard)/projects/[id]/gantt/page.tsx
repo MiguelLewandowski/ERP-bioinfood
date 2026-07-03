@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { GanttClient } from './_components/gantt-client';
-import type { TaskDto as Task, MilestoneDto as Milestone } from '@bioinfood/shared';
+import { extractMembers } from '@/lib/project-members';
+import type { TaskDto as Task, MilestoneDto as Milestone, ProjectDto } from '@bioinfood/shared';
 
 async function fetchJson<T>(url: string, token: string): Promise<T | null> {
   const res = await fetch(url, {
@@ -24,13 +25,7 @@ export default async function GanttPage({ params }: Props) {
   const base = process.env.NEXT_PUBLIC_API_URL;
 
   const [project, tasks, milestones] = await Promise.all([
-    fetchJson<{
-      startDate: string | null;
-      endDate: string | null;
-      name: string;
-      baselineSetAt: string | null;
-      baselineSetBy: { id: string; name: string } | null;
-    }>(`${base}/projects/${id}`, token),
+    fetchJson<ProjectDto>(`${base}/projects/${id}`, token),
     fetchJson<Task[]>(`${base}/projects/${id}/tasks`, token),
     fetchJson<Milestone[]>(`${base}/projects/${id}/milestones`, token),
   ]);
@@ -41,6 +36,7 @@ export default async function GanttPage({ params }: Props) {
       token={token}
       tasks={tasks ?? []}
       milestones={milestones ?? []}
+      members={extractMembers(project)}
       projectStart={project?.startDate ?? null}
       projectEnd={project?.endDate ?? null}
       baselineSetAt={project?.baselineSetAt ?? null}
