@@ -12,12 +12,15 @@ import {
   closestCorners,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { KanbanColumn } from './kanban-column';
 import { KanbanCard } from './kanban-card';
-import { TaskCreateDialog } from './task-create-dialog';
-import { TaskEditDialog } from './task-edit-dialog';
+import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
+import type { ProjectMember } from '@/lib/project-members';
 import type { Task } from './types';
 
 const COLUMNS = [
@@ -29,13 +32,15 @@ const COLUMNS = [
 interface KanbanClientProps {
   projectId: string;
   initialTasks: Task[];
+  members: ProjectMember[];
 }
 
-export function KanbanClient({ projectId, initialTasks }: KanbanClientProps) {
+export function KanbanClient({ projectId, initialTasks, members }: KanbanClientProps) {
   const { token } = useAuth();
   const [tasks, setTasks]           = useState<Task[]>(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [creating, setCreating]       = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -47,8 +52,11 @@ export function KanbanClient({ projectId, initialTasks }: KanbanClientProps) {
     setActiveTask(null);
     if (!over) return;
 
-    const taskId    = active.id as string;
-    const newStatus = over.id as Task['status'];
+    const taskId = active.id as string;
+    // Soltar em cima de um card (não do fundo da coluna) faz over.id virar o id
+    // da tarefa sob o cursor — o status real da coluna vem de over.data.current.
+    const overData  = over.data.current as { status?: Task['status'] } | undefined;
+    const newStatus = (overData?.status ?? over.id) as Task['status'];
     const task      = tasks.find((t) => t.id === taskId);
     if (!task || task.status === newStatus) return;
 
@@ -57,8 +65,9 @@ export function KanbanClient({ projectId, initialTasks }: KanbanClientProps) {
 
     try {
       await api.patch(`/projects/${projectId}/tasks/${taskId}`, { status: newStatus }, token);
-    } catch {
+    } catch (err) {
       setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: oldStatus } : t));
+      toast.error(getErrorMessage(err));
     }
   }
 
@@ -75,7 +84,13 @@ export function KanbanClient({ projectId, initialTasks }: KanbanClientProps) {
           <h2 className="text-xl font-bold text-[#1D1D1B]">Kanban</h2>
           <p className="text-sm text-[#706F6F] mt-0.5">{tasks.filter((t) => !t.deletedAt).length} tarefas</p>
         </div>
-        <TaskCreateDialog projectId={projectId} onCreated={onTaskCreated} />
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
+          style={{ backgroundColor: '#147F23' }}
+        >
+          <Plus size={16} /> Nova Tarefa
+        </button>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -98,10 +113,22 @@ export function KanbanClient({ projectId, initialTasks }: KanbanClientProps) {
         </DragOverlay>
       </DndContext>
 
+      {creating && (
+        <TaskFormDialog
+          mode="create"
+          projectId={projectId}
+          members={members}
+          onCreated={onTaskCreated}
+          onClose={() => setCreating(false)}
+        />
+      )}
+
       {editingTask && (
-        <TaskEditDialog
+        <TaskFormDialog
+          mode="edit"
           task={editingTask}
           projectId={projectId}
+          members={members}
           onUpdated={onTaskUpdated}
           onDeleted={onTaskDeleted}
           onClose={() => setEditingTask(null)}
