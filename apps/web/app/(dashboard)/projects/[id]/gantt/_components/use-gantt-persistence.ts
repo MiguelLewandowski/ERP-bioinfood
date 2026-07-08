@@ -4,7 +4,9 @@
 // Isola toda a I/O do componente de apresentação.
 
 import { useEffect, useRef, type MutableRefObject } from 'react';
+import type { TaskDto } from '@bioinfood/shared';
 import { tasksApi, milestonesApi } from '@/lib/api-hooks';
+import { useConfirm } from '@/components/providers/confirm-provider';
 import { isMilestoneId, stripMs, progressToStatus, type GanttLink } from './gantt-mapping';
 
 interface Options {
@@ -12,7 +14,13 @@ interface Options {
   projectId: string;
   token: string;
   links: GanttLink[];
+  // Todas as tarefas do projeto (não só as com data, que é o que o Gantt
+  // mostra) — necessário para resequenciar `order` sem perder as sem data.
+  tasks: TaskDto[];
   onError: () => void;
+  // Abre o TaskFormDialog (o mesmo do Kanban/Backlog) no lugar do painel
+  // nativo da SVAR — chamado só para tarefas; marcos continuam no editor nativo.
+  onEditTask: (taskId: string) => void;
 }
 
 interface PersistenceHandles {
@@ -21,7 +29,8 @@ interface PersistenceHandles {
 }
 
 export function useGanttPersistence(api: any, opts: Options): PersistenceHandles {
-  const { editable, projectId, token, links, onError } = opts;
+  const { editable, projectId, token, links, tasks, onError, onEditTask } = opts;
+  const confirm = useConfirm();
 
   // Mapas de reconciliação: ids gerados pela UI → ids reais do backend.
   const taskIdMap = useRef(new Map<string, string>());
@@ -30,6 +39,10 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
   const menuHandler = useRef<((e: any) => void) | null>(null);
   // Guarda a instância de api já religada (sobrevive a remontagens do Gantt).
   const wiredApi = useRef<any>(null);
+  // Lista completa (com e sem data) sempre disponível para o handler de reordenar,
+  // sem precisar religar o listener a cada mudança de `tasks`.
+  const allTasksRef = useRef<TaskDto[]>(tasks);
+  allTasksRef.current = tasks;
 
   // Mantém o alvo (sucessora) de cada link conhecido para montar a URL de remoção.
   useEffect(() => {
@@ -40,7 +53,30 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
     if (!api || !editable || wiredApi.current === api) return;
     wiredApi.current = api;
 
+    // Confirmação antes de excluir — `intercept` roda antes da mutação ser
+    // aplicada na store; retornar `false` (ou Promise<false>) cancela a ação.
+    api.intercept('delete-task', (ev: any) => {
+      const label = isMilestoneId(ev.id) ? 'este marco' : 'esta atividade';
+      return confirm({
+        title: `Excluir ${label}?`,
+        description: 'Essa ação não pode ser desfeita.',
+        confirmLabel: 'Excluir',
+        variant: 'destructive',
+      });
+    });
+
     const resolveTaskId = (id: unknown) => taskIdMap.current.get(String(id)) ?? String(id);
+
+    // Editor unificado: duplo-clique numa barra (ou "Editar" no menu de
+    // contexto) dispara `show-editor`. Para tarefas, cancela o painel nativo
+    // da SVAR (que não tem prioridade/responsável/story points/checklist) e
+    // abre o mesmo TaskFormDialog do Kanban/Backlog. Marcos não são Task —
+    // continuam no editor nativo, que já dá conta de nome/data/atingido.
+    api.intercept('show-editor', (ev: any) => {
+      if (isMilestoneId(ev.id)) return true;
+      onEditTask(resolveTaskId(ev.id));
+      return false;
+    });
 
     // Pai atual da tarefa na store (0 = raiz → null no backend).
     const currentParentId = (id: unknown): string | null => {
@@ -98,8 +134,34 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
         .update(projectId, resolveTaskId(ev.id), { parentId: currentParentId(ev.id) }, token)
         .catch(onError);
     };
+
+    // Reordenar (arrastar uma tarefa acima/abaixo de outra, subir/descer, ou
+    // reparentar) muda a posição visual na árvore — mas `order` é um campo
+    // GLOBAL por projeto (mesmo padrão do Backlog: reordenar sempre resequencia
+    // a lista toda), e o Gantt só exibe tarefas com data (buildGanttTasks
+    // filtra por startDate+dueDate). Resequenciar só o que está visível no
+    // Gantt, começando do zero, colidiria com o `order` das tarefas sem data.
+    // Por isso: pega a nova ordem visual do subconjunto com data (`toArray()`,
+    // já achatada pós-drop) e anexa as tarefas sem data depois, preservando a
+    // ordem relativa que elas já tinham — um resequenciamento completo e
+    // consistente com o que o Backlog grava.
+    const persistOrder = (ev: any) => {
+      if (ev.inProgress) return;
+      const flat = api.getState().tasks.toArray() as Array<{ id: unknown }>;
+      const orderedIds = flat.filter((t) => !isMilestoneId(t.id)).map((t) => resolveTaskId(t.id));
+      const orderedSet = new Set(orderedIds);
+      const remainingIds = allTasksRef.current
+        .filter((t) => !orderedSet.has(t.id))
+        .map((t) => t.id);
+      const items = [...orderedIds, ...remainingIds].map((id, index) => ({ id, order: index }));
+      if (items.length === 0) return;
+      tasksApi.reorder(projectId, items, token).catch(onError);
+    };
+
     api.on('move-task', persistParent);
+    api.on('move-task', persistOrder);
     api.on('indent-task', persistParent);
+    api.on('indent-task', persistOrder);
 
     api.on('delete-task', (ev: any) => {
       if (isMilestoneId(ev.id)) {
@@ -130,7 +192,7 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
       const taskId = linkTarget.current.get(String(ev.id)) ?? '_';
       tasksApi.removeDependency(projectId, taskId, depId, token).catch(onError);
     });
-  }, [api, editable, projectId, token, onError]);
+  }, [api, editable, projectId, token, onError, onEditTask, confirm]);
 
   return { menuHandler };
 }

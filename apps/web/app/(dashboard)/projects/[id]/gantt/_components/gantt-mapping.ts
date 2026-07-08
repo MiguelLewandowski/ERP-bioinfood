@@ -46,12 +46,13 @@ export const scales = [
 ];
 
 // Colunas da grade (localizadas) com início, término, duração e responsável.
+// `template` recebe (valor-da-célula, linha, coluna) — não a linha inteira.
 export const columns = [
   { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
-  { id: 'start', header: 'Início', align: 'center' as const, width: 86, template: (t: any) => fmtCol(t.start) },
-  { id: 'end', header: 'Término', align: 'center' as const, width: 86, template: (t: any) => fmtCol(t.end) },
-  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (t: any) => (t.duration ? `${t.duration}d` : '') },
-  { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (t: any) => t.assignee || '—' },
+  { id: 'start', header: 'Início', align: 'center' as const, width: 86, template: (v: any) => fmtCol(v) },
+  { id: 'end', header: 'Término', align: 'center' as const, width: 86, template: (v: any) => fmtCol(v) },
+  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => (v ? `${v}d` : '') },
+  { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
 
 export interface GanttTask {
@@ -87,7 +88,9 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       type: hasChildren ? 'summary' : 'task',
       // Só referencia o pai se ele estiver visível (com datas); senão fica na raiz.
       parent: t.parentId && visible.some((p) => p.id === t.parentId) ? t.parentId : 0,
-      open: true,
+      // `open` só pode ser true em nós com filhos (summary) — a SVAR percorre
+      // `data.forEach` de qualquer nó aberto, e tarefas-folha não têm `data`.
+      ...(hasChildren ? { open: true } : {}),
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.

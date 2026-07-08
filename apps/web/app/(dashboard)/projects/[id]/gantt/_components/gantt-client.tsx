@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Gantt, Toolbar, Editor, Tooltip, ContextMenu, Willow,
 } from '@svar-ui/react-gantt';
+import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
 import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus } from 'lucide-react';
@@ -19,6 +20,7 @@ import {
   buildGanttTasks, buildGanttLinks, buildMarkers, scales, columns,
 } from './gantt-mapping';
 import { useGanttPersistence } from './use-gantt-persistence';
+import { ganttLocalePt } from './gantt-locale-pt';
 
 interface GanttClientProps {
   projectId: string;
@@ -44,9 +46,11 @@ export function GanttClient(props: GanttClientProps) {
   const [saveError, setSaveError] = useState(false);
   const [baselineBusy, setBaselineBusy] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  function handleTaskCreated() {
-    setCreating(false);
+  // Recarrega o board a partir do servidor após criar/editar/excluir uma
+  // tarefa pelo TaskFormDialog (mesmo dialog do Kanban/Backlog).
+  function handleTaskSaved() {
     setReloadKey((k) => k + 1);
     router.refresh();
   }
@@ -141,17 +145,39 @@ export function GanttClient(props: GanttClientProps) {
           </button>
         </div>
       )}
-      <GanttBoard key={reloadKey} {...props} editable={editable} onSaveError={handleSaveError} />
+      <GanttBoard
+        key={reloadKey}
+        {...props}
+        editable={editable}
+        onSaveError={handleSaveError}
+        onEditTask={setEditingTaskId}
+      />
 
       {creating && (
         <TaskFormDialog
           mode="create"
           projectId={props.projectId}
           members={props.members}
-          onCreated={handleTaskCreated}
+          onCreated={() => { setCreating(false); handleTaskSaved(); }}
           onClose={() => setCreating(false)}
         />
       )}
+
+      {editingTaskId && (() => {
+        const task = props.tasks.find((t) => t.id === editingTaskId);
+        if (!task) return null;
+        return (
+          <TaskFormDialog
+            mode="edit"
+            task={task}
+            projectId={props.projectId}
+            members={props.members}
+            onUpdated={handleTaskSaved}
+            onDeleted={handleTaskSaved}
+            onClose={() => setEditingTaskId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -161,10 +187,11 @@ export function GanttClient(props: GanttClientProps) {
 interface GanttBoardProps extends GanttClientProps {
   editable: boolean;
   onSaveError: () => void;
+  onEditTask: (taskId: string) => void;
 }
 
 function GanttBoard({
-  projectId, token, tasks, milestones, projectEnd, editable, onSaveError,
+  projectId, token, tasks, milestones, projectEnd, editable, onSaveError, onEditTask,
 }: GanttBoardProps) {
   const [mounted, setMounted] = useState(false);
   const [api, setApi] = useState<any>(undefined);
@@ -179,7 +206,7 @@ function GanttBoard({
   const markers = useMemo(() => buildMarkers(projectEnd, ganttTasks), [projectEnd, ganttTasks]);
 
   const { menuHandler } = useGanttPersistence(api, {
-    editable, projectId, token, links: ganttLinks, onError: onSaveError,
+    editable, projectId, token, links: ganttLinks, tasks, onError: onSaveError, onEditTask,
   });
 
   if (ganttTasks.length === 0) {
@@ -201,32 +228,34 @@ function GanttBoard({
   const CtxMenu = ContextMenu as any;
 
   return (
-    <Willow>
-      {editable && api && <Toolbar api={api} />}
-      <div
-        style={{ height: 'calc(100vh - 180px)' }}
-        onContextMenu={(e) => {
-          if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
-        }}
-      >
-        <Gantt
-          init={setApi}
-          tasks={ganttTasks}
-          links={ganttLinks}
-          scales={scales}
-          columns={columns}
-          markers={markers}
-          criticalPath={{ type: 'flexible' }}
-          baselines
-          readonly={!editable}
-          zoom
-        />
-      </div>
-      {api && <Tooltip api={api} />}
-      {editable && api && <Editor api={api} />}
-      {editable && api && (
-        <CtxMenu api={api} init={(v: (e: any) => void) => { menuHandler.current = v; }} />
-      )}
-    </Willow>
+    <Locale words={ganttLocalePt}>
+      <Willow>
+        {editable && api && <Toolbar api={api} />}
+        <div
+          style={{ height: 'calc(100vh - 180px)' }}
+          onContextMenu={(e) => {
+            if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
+          }}
+        >
+          <Gantt
+            init={setApi}
+            tasks={ganttTasks}
+            links={ganttLinks}
+            scales={scales}
+            columns={columns}
+            markers={markers}
+            criticalPath={{ type: 'flexible' }}
+            baselines
+            readonly={!editable}
+            zoom
+          />
+        </div>
+        {api && <Tooltip api={api} />}
+        {editable && api && <Editor api={api} />}
+        {editable && api && (
+          <CtxMenu api={api} init={(v: (e: any) => void) => { menuHandler.current = v; }} />
+        )}
+      </Willow>
+    </Locale>
   );
 }
