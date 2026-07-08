@@ -1,22 +1,30 @@
 'use client';
 // Client Component: interactive form with controlled dialog state.
 
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { ProjectDto } from '@bioinfood/shared';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { OrganizationSelect } from '@/components/shared/organization-select';
 
-const schema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  description: z.string().optional(),
-  status: z.enum(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED']).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
+const schema = z
+  .object({
+    name: z.string().min(1, 'Nome é obrigatório').max(200, 'Nome deve ter no máximo 200 caracteres'),
+    description: z.string().optional(),
+    status: z.enum(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED']).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    clientId: z.string().optional(),
+  })
+  .refine((data) => !data.startDate || !data.endDate || data.endDate >= data.startDate, {
+    message: 'A data de fim não pode ser anterior à data de início',
+    path: ['endDate'],
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -30,7 +38,7 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
   const { token } = useAuth();
   const [serverError, setServerError] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'PLANNING' },
   });
@@ -40,11 +48,16 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
   async function onSubmit(data: FormData) {
     setServerError('');
     try {
-      const project = await api.post<ProjectDto>('/projects', data, token);
+      const payload = {
+        ...data,
+        startDate: data.startDate || undefined,
+        endDate: data.endDate || undefined,
+      };
+      const project = await api.post<ProjectDto>('/projects', payload, token);
       reset();
       onCreated(project);
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : 'Erro ao criar projeto');
+      setServerError(getErrorMessage(err));
     }
   }
 
@@ -84,6 +97,17 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-[#575756] mb-1">Cliente</label>
+            <Controller
+              name="clientId"
+              control={control}
+              render={({ field }) => (
+                <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-[#575756] mb-1">Status</label>
             <select
               {...register('status')}
@@ -112,6 +136,7 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
                 type="date"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
               />
+              {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate.message}</p>}
             </div>
           </div>
 

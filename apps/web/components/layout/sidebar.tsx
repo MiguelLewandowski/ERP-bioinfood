@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, LogOut,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, Building2, Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,8 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projetos', icon: FolderKanban },
   { href: '/activities', label: 'Atividades', icon: CalendarDays },
+  { href: '/clientes', label: 'Clientes', icon: Building2, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
+  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
   { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
   { href: '/settings', label: 'Configurações', icon: Settings },
 ];

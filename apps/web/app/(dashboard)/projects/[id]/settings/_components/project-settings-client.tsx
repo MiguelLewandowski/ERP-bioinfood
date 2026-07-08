@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save, AlertTriangle } from 'lucide-react';
 import type { ProjectDto } from '@bioinfood/shared';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import { OrganizationSelect } from '@/components/shared/organization-select';
 
 const STATUS_OPTIONS = [
   { value: 'PLANNING',    label: 'Planejamento' },
@@ -16,16 +19,20 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED',   label: 'Cancelado' },
 ];
 
-const schema = z.object({
-  name:        z.string().min(1, 'Nome obrigatório').max(200),
-  description: z.string().max(2000).optional(),
-  status:      z.enum(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']),
-  startDate:   z.string().optional(),
-  endDate:     z.string().optional(),
-  clientName:  z.string().max(200).optional(),
-  objective:   z.string().max(2000).optional(),
-  sponsor:     z.string().max(200).optional(),
-});
+const schema = z
+  .object({
+    name:        z.string().min(1, 'Nome é obrigatório').max(200, 'Nome deve ter no máximo 200 caracteres'),
+    description: z.string().max(2000, 'Descrição deve ter no máximo 2000 caracteres').optional(),
+    status:      z.enum(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']),
+    startDate:   z.string().optional(),
+    endDate:     z.string().optional(),
+    clientId:    z.string().optional(),
+    objective:   z.string().max(2000, 'Objetivo deve ter no máximo 2000 caracteres').optional(),
+  })
+  .refine((data) => !data.startDate || !data.endDate || data.endDate >= data.startDate, {
+    message: 'A data de término não pode ser anterior à data de início',
+    path: ['endDate'],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -46,7 +53,7 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<FormValues>({
+  const { register, handleSubmit, control, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name:        project?.name ?? '',
@@ -54,9 +61,8 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
       status:      (project?.status as FormValues['status']) ?? 'PLANNING',
       startDate:   toDateInput(project?.startDate),
       endDate:     toDateInput(project?.endDate),
-      clientName:  project?.clientName ?? '',
+      clientId:    project?.client?.id ?? '',
       objective:   project?.objective ?? '',
-      sponsor:     project?.sponsor ?? '',
     },
   });
 
@@ -64,14 +70,16 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(values),
-      });
-      if (!res.ok) { setError('Erro ao salvar. Tente novamente.'); return; }
+      const payload = {
+        ...values,
+        startDate: values.startDate || undefined,
+        endDate: values.endDate || undefined,
+      };
+      await api.patch(`/projects/${projectId}`, payload, token);
       setSaved(true);
       setTimeout(() => { setSaved(false); router.refresh(); }, 1500);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -107,23 +115,15 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#575756] mb-1">Cliente</label>
-              <input
-                {...register('clientName')}
-                placeholder="Ex: FINEP, Ambev, Interno…"
-                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#575756] mb-1">Patrocinador</label>
-              <input
-                {...register('sponsor')}
-                placeholder="Nome do sponsor"
-                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#575756] mb-1">Cliente</label>
+            <Controller
+              name="clientId"
+              control={control}
+              render={({ field }) => (
+                <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div>
@@ -168,6 +168,7 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
                 type="date"
                 className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
               />
+              {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate.message}</p>}
             </div>
           </div>
         </section>

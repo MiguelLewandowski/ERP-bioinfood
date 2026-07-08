@@ -4,19 +4,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, GitBranch, BarChart2, AlertTriangle,
-  List, Columns, Map, Settings,
+  List, Columns, Map, Settings, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { label: 'Termo de Abertura', href: 'charter',  icon: FileText },
-  { label: 'EAP / WBS',         href: 'wbs',      icon: GitBranch },
-  { label: 'Gantt',             href: 'gantt',    icon: BarChart2 },
-  { label: 'Riscos',            href: 'risks',    icon: AlertTriangle },
-  { label: 'Backlog',           href: 'backlog',  icon: List },
-  { label: 'Kanban',            href: 'kanban',   icon: Columns },
-  { label: 'Roadmap',           href: 'roadmap',  icon: Map },
-  { label: 'Configurações',     href: 'settings', icon: Settings },
+  { label: 'Termo de Abertura', href: 'charter',       icon: FileText },
+  { label: 'EAP / WBS',         href: 'wbs',           icon: GitBranch },
+  { label: 'Gantt',             href: 'gantt',         icon: BarChart2 },
+  { label: 'Riscos',            href: 'risks',         icon: AlertTriangle },
+  { label: 'Stakeholders',      href: 'stakeholders',  icon: Users },
+  { label: 'Backlog',           href: 'backlog',       icon: List },
+  { label: 'Kanban',            href: 'kanban',        icon: Columns },
+  { label: 'Roadmap',           href: 'roadmap',       icon: Map },
+  { label: 'Configurações',     href: 'settings',      icon: Settings },
 ];
 
 interface ProjectNavProps {

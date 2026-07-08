@@ -3,11 +3,30 @@ import type {
   TaskDto,
   TaskChecklistItemDto,
   RiskDto,
+  StakeholderDto,
   MilestoneDto,
   WbsNodeDto,
   CharterDto,
   ProjectDto,
   ActivityDto,
+  OrganizationDto,
+  OrganizationDetailDto,
+  OrgRoleDto,
+  OrgAddressDto,
+  OrgCustomerProfileDto,
+  EnrichmentResultDto,
+  TaxonomyDto,
+  TaxonomyKind,
+  ContactListItemDto,
+  ContactDetailDto,
+  ContactLinkDto,
+  PipelineDto,
+  OpportunityDto,
+  PipelineSummaryDto,
+  InteractionDto,
+  CrmActivityDto,
+  DueFilter,
+  StaleOrganizationDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -70,6 +89,22 @@ export const risksApi = {
     api.delete<void>(`/projects/${projectId}/risks/${id}`, token),
 };
 
+// ── Stakeholders (registro de partes interessadas, PMBOK) ──────────────────────
+
+export const stakeholdersApi = {
+  list: (projectId: string, token: string) =>
+    api.get<StakeholderDto[]>(`/projects/${projectId}/stakeholders`, token),
+
+  create: (projectId: string, data: Record<string, unknown>, token: string) =>
+    api.post<StakeholderDto>(`/projects/${projectId}/stakeholders`, data, token),
+
+  update: (projectId: string, id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<StakeholderDto>(`/projects/${projectId}/stakeholders/${id}`, data, token),
+
+  remove: (projectId: string, id: string, token: string) =>
+    api.delete<void>(`/projects/${projectId}/stakeholders/${id}`, token),
+};
+
 // ── Milestones ────────────────────────────────────────────────────────────────
 
 export const milestonesApi = {
@@ -109,7 +144,7 @@ export const charterApi = {
     api.get<CharterDto | null>(`/projects/${projectId}/charter`, token),
 
   upsert: (projectId: string, data: Record<string, unknown>, token: string) =>
-    api.patch<CharterDto>(`/projects/${projectId}/charter`, data, token),
+    api.put<CharterDto>(`/projects/${projectId}/charter`, data, token),
 
   approve: (projectId: string, token: string) =>
     api.post<CharterDto>(`/projects/${projectId}/charter/approve`, {}, token),
@@ -150,4 +185,188 @@ export const projectsApi = {
   // Congela o cronograma atual como linha de base (PMBOK).
   setBaseline: (id: string, token: string) =>
     api.post<ProjectDto>(`/projects/${id}/baseline`, {}, token),
+};
+
+// ── Organizations (clientes/fornecedores — dados mestres) ──────────────────────
+
+export const organizationsApi = {
+  list: (token: string) =>
+    api.get<OrganizationDto[]>('/organizations', token),
+
+  get: (id: string, token: string) =>
+    api.get<OrganizationDetailDto>(`/organizations/${id}`, token),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<OrganizationDto>('/organizations', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<OrganizationDetailDto>(`/organizations/${id}`, data, token),
+
+  // Best-effort: returns { enriched: false } offline/on failure — never throws server-side.
+  enrich: (cnpj: string, token: string) =>
+    api.get<EnrichmentResultDto>(`/organizations/enrich/${encodeURIComponent(cnpj)}`, token),
+
+  stale: (token: string, days = 30) =>
+    api.get<StaleOrganizationDto[]>(`/organizations/stale?days=${days}`, token),
+
+  addRole: (id: string, type: string, token: string) =>
+    api.post<OrgRoleDto>(`/organizations/${id}/roles`, { type }, token),
+
+  removeRole: (id: string, type: string, token: string) =>
+    api.delete<void>(`/organizations/${id}/roles/${type}`, token),
+
+  addAddress: (id: string, data: Record<string, unknown>, token: string) =>
+    api.post<OrgAddressDto>(`/organizations/${id}/addresses`, data, token),
+
+  updateAddress: (id: string, addressId: string, data: Record<string, unknown>, token: string) =>
+    api.patch<OrgAddressDto>(`/organizations/${id}/addresses/${addressId}`, data, token),
+
+  removeAddress: (id: string, addressId: string, token: string) =>
+    api.delete<void>(`/organizations/${id}/addresses/${addressId}`, token),
+
+  saveCustomerProfile: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<OrgCustomerProfileDto>(`/organizations/${id}/customer-profile`, data, token),
+};
+
+// ── Taxonomies (setores, origens, escada — config só ADMIN) ────────────────────
+
+export const taxonomiesApi = {
+  list: (kind: TaxonomyKind, token: string, includeInactive = false) =>
+    api.get<TaxonomyDto[]>(`/taxonomies/${kind}${includeInactive ? '?includeInactive=true' : ''}`, token),
+
+  create: (kind: TaxonomyKind, name: string, token: string) =>
+    api.post<TaxonomyDto>(`/taxonomies/${kind}`, { name }, token),
+
+  update: (kind: TaxonomyKind, id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<TaxonomyDto>(`/taxonomies/${kind}/${id}`, data, token),
+
+  reorder: (kind: TaxonomyKind, items: Array<{ id: string; order: number }>, token: string) =>
+    api.patch<void>(`/taxonomies/${kind}/reorder`, { items }, token),
+};
+
+// ── Contacts (pessoas + vínculos com organizações) ─────────────────────────────
+
+export const contactsApi = {
+  list: (token: string, params?: { orgId?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.orgId) qs.set('orgId', params.orgId);
+    if (params?.search) qs.set('search', params.search);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return api.get<ContactListItemDto[]>(`/contacts${suffix}`, token);
+  },
+
+  get: (id: string, token: string) =>
+    api.get<ContactDetailDto>(`/contacts/${id}`, token),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<ContactListItemDto>('/contacts', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<ContactListItemDto>(`/contacts/${id}`, data, token),
+
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/contacts/${id}`, token),
+
+  addLink: (id: string, data: Record<string, unknown>, token: string) =>
+    api.post<ContactLinkDto>(`/contacts/${id}/links`, data, token),
+
+  updateLink: (id: string, linkId: string, data: Record<string, unknown>, token: string) =>
+    api.patch<ContactLinkDto>(`/contacts/${id}/links/${linkId}`, data, token),
+
+  removeLink: (id: string, linkId: string, token: string) =>
+    api.delete<void>(`/contacts/${id}/links/${linkId}`, token),
+};
+
+// ── Pipelines (funil — config só ADMIN) ────────────────────────────────────────
+
+export const pipelinesApi = {
+  list: (token: string) =>
+    api.get<PipelineDto[]>('/pipelines', token),
+
+  get: (id: string, token: string) =>
+    api.get<PipelineDto>(`/pipelines/${id}`, token),
+
+  summary: (id: string, token: string) =>
+    api.get<PipelineSummaryDto>(`/pipelines/${id}/summary`, token),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<PipelineDto>('/pipelines', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<PipelineDto>(`/pipelines/${id}`, data, token),
+
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/pipelines/${id}`, token),
+
+  addStage: (id: string, data: Record<string, unknown>, token: string) =>
+    api.post<unknown>(`/pipelines/${id}/stages`, data, token),
+
+  updateStage: (id: string, stageId: string, data: Record<string, unknown>, token: string) =>
+    api.patch<unknown>(`/pipelines/${id}/stages/${stageId}`, data, token),
+
+  removeStage: (id: string, stageId: string, token: string) =>
+    api.delete<void>(`/pipelines/${id}/stages/${stageId}`, token),
+
+  reorderStages: (id: string, items: Array<{ id: string; order: number }>, token: string) =>
+    api.patch<void>(`/pipelines/${id}/stages/reorder`, { items }, token),
+};
+
+// ── Oportunidades (escrita só ADMIN) ───────────────────────────────────────────
+
+export const opportunitiesApi = {
+  list: (pipelineId: string, token: string) =>
+    api.get<OpportunityDto[]>(`/opportunities?pipelineId=${pipelineId}`, token),
+
+  listByOrg: (orgId: string, token: string) =>
+    api.get<OpportunityDto[]>(`/opportunities?orgId=${orgId}`, token),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<OpportunityDto>('/opportunities', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}`, data, token),
+
+  move: (id: string, stageId: string, token: string, lostReason?: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}/move`, { stageId, lostReason }, token),
+
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/opportunities/${id}`, token),
+};
+
+// ── Interações (timeline do CRM — escrita só ADMIN) ────────────────────────────
+
+export const interactionsApi = {
+  list: (orgId: string, token: string) =>
+    api.get<InteractionDto[]>(`/interactions?orgId=${orgId}`, token),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<InteractionDto>('/interactions', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<InteractionDto>(`/interactions/${id}`, data, token),
+
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/interactions/${id}`, token),
+};
+
+// ── Atividades / follow-ups do CRM (escrita só ADMIN) ──────────────────────────
+
+export const crmActivitiesApi = {
+  list: (token: string, params?: { orgId?: string; responsibleId?: string; due?: DueFilter }) => {
+    const qs = new URLSearchParams();
+    if (params?.orgId) qs.set('orgId', params.orgId);
+    if (params?.responsibleId) qs.set('responsibleId', params.responsibleId);
+    if (params?.due) qs.set('due', params.due);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return api.get<CrmActivityDto[]>(`/crm/activities${suffix}`, token);
+  },
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<CrmActivityDto>('/crm/activities', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<CrmActivityDto>(`/crm/activities/${id}`, data, token),
+
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/crm/activities/${id}`, token),
 };

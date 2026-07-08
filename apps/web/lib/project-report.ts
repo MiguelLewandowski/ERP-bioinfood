@@ -14,7 +14,7 @@ function fmtDate(value: string | null): string {
 
 export type ProjectColumnKey =
   | 'name' | 'status' | 'client' | 'start' | 'end' | 'forecastEnd'
-  | 'owner' | 'members' | 'objective' | 'sponsor' | 'description';
+  | 'owner' | 'members' | 'objective' | 'description';
 
 interface ColumnDef {
   key: ProjectColumnKey;
@@ -25,14 +25,13 @@ interface ColumnDef {
 export const PROJECT_COLUMNS: ColumnDef[] = [
   { key: 'name',        label: 'Projeto',     value: (p) => p.name },
   { key: 'status',      label: 'Status',      value: (p) => PROJECT_STATUS_LABELS[p.status] ?? p.status },
-  { key: 'client',      label: 'Cliente',     value: (p) => p.clientName ?? '—' },
+  { key: 'client',      label: 'Cliente',     value: (p) => p.client?.tradeName ?? p.client?.legalName ?? '—' },
   { key: 'start',       label: 'Início',            value: (p) => fmtDate(p.startDate) },
   { key: 'end',         label: 'Término (plan.)',   value: (p) => fmtDate(p.endDate) },
   { key: 'forecastEnd', label: 'Término (est.)',    value: (p) => fmtDate(p.forecastEndDate) },
   { key: 'owner',       label: 'Responsável', value: (p) => p.createdBy?.name ?? '—' },
   { key: 'members',     label: 'Membros',     value: (p) => String(p.accesses?.length ?? 0) },
   { key: 'objective',   label: 'Objetivo',    value: (p) => p.objective ?? '—' },
-  { key: 'sponsor',     label: 'Sponsor',     value: (p) => p.sponsor ?? '—' },
   { key: 'description', label: 'Descrição',   value: (p) => p.description ?? '—' },
 ];
 
