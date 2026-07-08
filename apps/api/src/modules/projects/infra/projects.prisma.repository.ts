@@ -12,6 +12,7 @@ import {
 const WITH_RELATIONS = {
   createdBy: { select: { id: true, name: true } },
   baselineSetBy: { select: { id: true, name: true } },
+  client: { select: { id: true, legalName: true, tradeName: true } },
   accesses: { include: { user: { select: { id: true, name: true } } } },
   // Prazos das atividades para calcular o término dinâmico (maior dueDate).
   tasks: { where: { deletedAt: null }, select: { dueDate: true } },

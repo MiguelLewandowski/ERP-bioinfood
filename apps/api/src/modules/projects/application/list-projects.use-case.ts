@@ -8,7 +8,7 @@ export class ListProjectsUseCase {
   constructor(@Inject(PROJECT_REPOSITORY) private repo: IProjectRepository) {}
 
   async execute(user: AuthUser): Promise<ProjectWithRelations[]> {
-    if (user.role === SystemRole.CLIENTE) {
+    if (user.role === SystemRole.PORTAL) {
       return this.repo.findAllByUserId(user.id);
     }
     return this.repo.findAll({ excludeCancelled: true });

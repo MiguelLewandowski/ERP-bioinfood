@@ -11,7 +11,7 @@ export class GetProjectUseCase {
     const project = await this.repo.findById(id);
     if (!project) throw new NotFoundException('Projeto não encontrado');
 
-    if (user.role === SystemRole.CLIENTE) {
+    if (user.role === SystemRole.PORTAL) {
       const hasAccess = project.accesses.some((a) => a.userId === user.id);
       if (!hasAccess) throw new ForbiddenException('Acesso não autorizado');
     }

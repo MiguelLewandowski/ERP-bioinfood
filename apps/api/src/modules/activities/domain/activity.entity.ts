@@ -22,7 +22,7 @@ export interface ActivityListItem {
 export interface ActivityFilters {
   from?: Date;
   to?: Date;
-  // Quando definido, restringe a busca a estes projetos (usado para CLIENTE).
+  // Quando definido, restringe a busca a estes projetos (usado para PORTAL).
   projectIds?: string[];
 }
 

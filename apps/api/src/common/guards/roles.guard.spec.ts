@@ -36,8 +36,8 @@ describe('RolesGuard', () => {
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
-  it('should throw ForbiddenException when CLIENTE tries to access INSERE-only route', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.CLIENTE }, [SystemRole.INSERE]);
+  it('should throw ForbiddenException when PORTAL tries to access INSERE-only route', () => {
+    const { guard, ctx } = makeContext({ role: SystemRole.PORTAL }, [SystemRole.INSERE]);
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 });

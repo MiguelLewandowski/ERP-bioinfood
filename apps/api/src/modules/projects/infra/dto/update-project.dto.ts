@@ -24,13 +24,9 @@ export class UpdateProjectDto {
 
   @IsString()
   @IsOptional()
-  clientName?: string;
+  clientId?: string;
 
   @IsString()
   @IsOptional()
   objective?: string;
-
-  @IsString()
-  @IsOptional()
-  sponsor?: string;
 }

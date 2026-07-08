@@ -10,8 +10,16 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { CharterModule } from './modules/charter/charter.module';
 import { WbsModule } from './modules/wbs/wbs.module';
 import { RisksModule } from './modules/risks/risks.module';
+import { StakeholdersModule } from './modules/stakeholders/stakeholders.module';
 import { MilestonesModule } from './modules/milestones/milestones.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { TaxonomiesModule } from './modules/taxonomies/infra/taxonomies.module';
+import { ContactsModule } from './modules/contacts/infra/contacts.module';
+import { PipelinesModule } from './modules/pipelines/pipelines.module';
+import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
+import { InteractionsModule } from './modules/interactions/interactions.module';
+import { CrmActivitiesModule } from './modules/crm-activities/crm-activities.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ProjectAccessGuard } from './common/guards/project-access.guard';
@@ -29,8 +37,16 @@ import { AuditModule } from './common/audit/audit.module';
     CharterModule,
     WbsModule,
     RisksModule,
+    StakeholdersModule,
     MilestonesModule,
     ActivitiesModule,
+    OrganizationsModule,
+    TaxonomiesModule,
+    ContactsModule,
+    PipelinesModule,
+    OpportunitiesModule,
+    InteractionsModule,
+    CrmActivitiesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

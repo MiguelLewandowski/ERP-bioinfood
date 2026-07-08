@@ -4,8 +4,7 @@ export interface CharterEntity {
   // Section 1
   projectType: string | null;
   priority: string | null;
-  projectOwner: string | null;
-  team: string | null;
+  projectOwnerId: string | null;
   // Section 2
   problem: string | null;
   justification: string | null;
@@ -21,8 +20,7 @@ export interface CharterEntity {
   deliverables: string | null;
   // Section 6
   resources: string | null;
-  // Section 7
-  stakeholders: string | null;
+  // Section 7 — stakeholders reais: ver ProjectStakeholder
   governance: string | null;
   // Section 8
   dependencies: string | null;
@@ -37,3 +35,15 @@ export interface CharterEntity {
 export type UpsertCharterData = Partial<Omit<CharterEntity,
   'id' | 'projectId' | 'approvedById' | 'approvedAt' | 'createdAt' | 'updatedAt' | 'deletedAt'
 >>;
+
+// Quem fez a última alteração de conteúdo, derivado do AuditLog (nenhuma
+// coluna nova no Charter — reusa a infra de auditoria já existente).
+export interface CharterLastEdit {
+  actor: { id: string; name: string } | null;
+  at: Date;
+}
+
+export interface CharterWithMeta extends CharterEntity {
+  lastEditedBy: { id: string; name: string } | null;
+  lastEditedAt: Date | null;
+}

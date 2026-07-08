@@ -23,13 +23,9 @@ export class CreateProjectDto {
 
   @IsString()
   @IsOptional()
-  clientName?: string;
+  clientId?: string;
 
   @IsString()
   @IsOptional()
   objective?: string;
-
-  @IsString()
-  @IsOptional()
-  sponsor?: string;
 }

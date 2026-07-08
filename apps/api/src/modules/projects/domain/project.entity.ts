@@ -7,9 +7,8 @@ export interface ProjectEntity {
   status: ProjectStatus;
   startDate: Date | null;
   endDate: Date | null;
-  clientName: string | null;
+  clientId: string | null;
   objective: string | null;
-  sponsor: string | null;
   createdById: string;
   baselineSetAt: Date | null;
   baselineSetById: string | null;
@@ -20,6 +19,7 @@ export interface ProjectEntity {
 export interface ProjectWithRelations extends ProjectEntity {
   createdBy: { id: string; name: string };
   baselineSetBy: { id: string; name: string } | null;
+  client: { id: string; legalName: string; tradeName: string | null } | null;
   accesses: Array<{
     id: string;
     userId: string;
@@ -51,9 +51,8 @@ export interface CreateProjectData {
   status?: ProjectStatus;
   startDate?: Date;
   endDate?: Date;
-  clientName?: string;
+  clientId?: string;
   objective?: string;
-  sponsor?: string;
   createdById: string;
 }
 
@@ -63,7 +62,6 @@ export interface UpdateProjectData {
   status?: ProjectStatus;
   startDate?: Date;
   endDate?: Date;
-  clientName?: string;
+  clientId?: string;
   objective?: string;
-  sponsor?: string;
 }

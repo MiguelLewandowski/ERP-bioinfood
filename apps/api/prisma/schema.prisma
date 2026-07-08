@@ -1,3 +1,19 @@
+// ============================================================================
+//  ERP — Schema Prisma unificado
+//  Projetos (existente) + Núcleo de Organizações + CRM + Ganchos de módulos
+//
+//  Dívidas corrigidas nesta versão:
+//   1. Project.clientName (String)   -> Project.clientId  (FK -> Organization)
+//   2. Project.sponsor / Charter.team / Charter.stakeholders (String)
+//                                    -> ProjectStakeholder (join real, tipado)
+//   3. Charter.projectOwner (String) -> Charter.projectOwnerId (FK -> Contact)
+//   4. Charter.approvedById (solto)  -> relação real approvedBy (-> User)
+//   5. User.role = CLIENTE (mistura auth com negócio)
+//                                    -> User.contactId (identidade liga a Contact)
+//                                       SystemRole.CLIENTE -> PORTAL (só permissão)
+//   6. Ganchos LIMS / Estoque / Compras agora apontam para Organization.id
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,14 +23,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────── ENUMS ─────────────────────────────────────
+
+// -- Segurança / permissão (SÓ sobre o que o login pode fazer) --
 enum SystemRole {
   ADMIN
   APROVA
   INSERE
   CONSULTA
-  CLIENTE
+  PORTAL // antes 'CLIENTE': login externo restrito. "Ser cliente" é papel da Organization, não do login.
 }
 
+// -- Projetos (existentes) --
 enum ProjectStatus {
   PLANNING
   IN_PROGRESS
@@ -52,6 +72,112 @@ enum RiskImpact {
   VERY_HIGH
 }
 
+// -- Partes interessadas do projeto (substitui team/stakeholders/sponsor texto) --
+enum StakeholderType {
+  SPONSOR
+  OWNER
+  TEAM_MEMBER
+  STAKEHOLDER
+}
+
+// -- Núcleo de Organizações (dados mestres) --
+enum PartyType {
+  COMPANY // pessoa jurídica
+  PERSON // pessoa física
+}
+
+enum DocumentType {
+  CNPJ
+  CPF
+  FOREIGN
+  OTHER
+}
+
+enum RegistrationStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CLOSED
+  VOID
+  UNKNOWN
+}
+
+// Higiene de registro (este cadastro ainda importa?). A semântica COMERCIAL
+// do relacionamento (prospect/ativo/VIP/inativo) mora em CustomerProfile.stage.
+enum OrganizationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum PartyRoleType {
+  CUSTOMER
+  SUPPLIER
+  CARRIER
+  PARTNER
+  FUNDING_AGENCY // agência de fomento (FINEP, FAPESP...)
+  RESEARCH_INSTITUTION // ICT
+}
+
+enum PartyRoleStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum AddressType {
+  PRIMARY
+  BILLING
+  SHIPPING
+  COLLECTION
+}
+
+enum CustomerStage {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  VIP
+}
+
+// -- CRM (interações / atividades / funil) --
+enum InteractionType {
+  EMAIL
+  CALL
+  MEETING
+  VISIT
+  WHATSAPP
+  OTHER
+}
+
+enum InteractionDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+// Semântica fixa das etapas do funil (§2.4 do modulo_CRM.md): o rótulo da
+// etapa é DADO (PipelineStage.name, livre); o que o código entende é o type.
+enum StageType {
+  OPEN
+  WON
+  LOST
+}
+
+// -- Estoque / Compras (stub) --
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+// ═══════════════════════════ IDENTIDADE / AUTH ═════════════════════════════
+
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -63,14 +189,26 @@ model User {
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  createdProjects  Project[]       @relation("CreatedBy")
-  baselinedProjects Project[]      @relation("BaselineSetBy")
-  receivedAccesses ProjectAccess[] @relation("ReceivedAccess")
-  grantedAccesses  ProjectAccess[] @relation("GrantedAccess")
-  assignedTasks    Task[]          @relation("TaskAssignee")
-  ownedRisks       Risk[]          @relation("RiskOwner")
-  refreshTokens    RefreshToken[]
-  auditLogs        AuditLog[]
+  // Liga a IDENTIDADE (login) à PESSOA DE NEGÓCIO. Nulo p/ contas internas puras.
+  contactId String?  @unique
+  contact   Contact? @relation(fields: [contactId], references: [id])
+
+  // Relações de projetos (existentes)
+  createdProjects   Project[]       @relation("CreatedBy")
+  baselinedProjects Project[]       @relation("BaselineSetBy")
+  receivedAccesses  ProjectAccess[] @relation("ReceivedAccess")
+  grantedAccesses   ProjectAccess[] @relation("GrantedAccess")
+  assignedTasks     Task[]          @relation("TaskAssignee")
+  ownedRisks        Risk[]          @relation("RiskOwner")
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+
+  // Novas relações (deixam de ser texto/solto)
+  approvedCharters         Charter[]
+  salesCustomerProfiles    CustomerProfile[]
+  loggedInteractions       Interaction[]
+  responsibleActivities    Activity[]
+  responsibleOpportunities Opportunity[]
 }
 
 model RefreshToken {
@@ -107,6 +245,349 @@ model AuditLog {
   @@index([createdAt])
 }
 
+// ═══════════════════ DADOS MESTRES: ORGANIZAÇÃO (a espinha) ════════════════
+
+model Organization {
+  id                 String             @id @default(cuid())
+  partyType          PartyType          @default(COMPANY)
+  legalName          String // razão social
+  tradeName          String? // nome fantasia
+  document           String?            @unique // CNPJ/CPF — SÓ dígitos (normalizar na aplicação)
+  documentType       DocumentType?
+  stateRegistration  String?
+  cityRegistration   String?
+  cnae               String?
+  registrationStatus RegistrationStatus @default(UNKNOWN)
+  status             OrganizationStatus @default(ACTIVE)
+  website            String?
+  notes              String?
+
+  // Contato direto da organização (paridade com o CRM anterior — Agendor)
+  email     String?
+  phone     String?
+  mobile    String?
+  whatsapp  String?
+  fax       String?
+  ramal     String?
+  facebook  String?
+  twitter   String?
+  linkedin  String?
+  skype     String?
+  instagram String?
+
+  // Taxonomias configuráveis (rótulo é dado, não texto livre — §2.4)
+  sectorId String?
+  sector   Sector?             @relation(fields: [sectorId], references: [id])
+  sourceId String?
+  source   OrganizationSource? @relation(fields: [sourceId], references: [id])
+
+  // Hierarquia matriz → filiais
+  parentId String?
+  parent   Organization?  @relation("OrgHierarchy", fields: [parentId], references: [id])
+  branches Organization[] @relation("OrgHierarchy")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Papéis e perfis
+  roles           PartyRole[]
+  customerProfile CustomerProfile?
+  supplierProfile SupplierProfile?
+
+  // Estrutura compartilhada
+  addresses    Address[]
+  contactLinks ContactOrganizationLink[]
+
+  // CRM
+  interactions  Interaction[]
+  activities    Activity[]
+  opportunities Opportunity[]
+
+  // Ganchos de módulos (agora FK, não texto)
+  projects       Project[] // projetos onde é o cliente
+  labOrders      LabOrder[] // ordens LIMS (como cliente)
+  purchaseOrders PurchaseOrder[] // pedidos de compra (como fornecedor)
+
+  @@index([document])
+  @@index([status])
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+model Address {
+  id           String       @id @default(cuid())
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type         AddressType  @default(PRIMARY)
+  isPrimary    Boolean      @default(false)
+  street       String?
+  number       String?
+  complement   String?
+  district     String?
+  city         String?
+  state        String?      @db.Char(2)
+  zipCode      String?
+  country      String       @default("Brasil")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([orgId])
+}
+
+model PartyRole {
+  id           String          @id @default(cuid())
+  orgId        String
+  organization Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type         PartyRoleType
+  status       PartyRoleStatus @default(ACTIVE)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([orgId, type]) // uma org não repete o mesmo papel
+  @@index([type])
+}
+
+model CustomerProfile {
+  orgId        String        @id
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  stage        CustomerStage @default(PROSPECT)
+  paymentTerms String?
+  creditLimit  Decimal?      @db.Decimal(15, 2)
+  salesRepId   String?
+  salesRep     User?         @relation(fields: [salesRepId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model SupplierProfile {
+  orgId        String       @id
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  category     String?
+  paymentTerms String?
+  leadTimeDays Int?
+  approved     Boolean      @default(false)
+  rating       Int? // 1..5 (validar na aplicação)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+// ═══════════════════ DADOS MESTRES: CONTATOS (pessoas) ═════════════════════
+
+model Contact {
+  id        String    @id @default(cuid())
+  name      String
+  cpf       String? // só dígitos (normalizar na aplicação)
+  email     String?
+  phone     String?
+  mobile    String?
+  whatsapp  String?
+  fax       String?
+  ramal     String?
+  birthDate DateTime? // aniversário
+  facebook  String?
+  twitter   String?
+  linkedin  String?
+  skype     String?
+  instagram String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User? // identidade de login opcional (back-relation de User.contactId)
+
+  orgLinks      ContactOrganizationLink[]
+  interactions  Interaction[]
+  activities    Activity[]
+  opportunities Opportunity[]
+  ownedCharters Charter[] // projetos onde é o dono (projectOwner)
+  stakeholderIn ProjectStakeholder[]
+  labOrders     LabOrder[] // ordens LIMS solicitadas
+
+  @@index([email])
+}
+
+model ContactOrganizationLink {
+  id           String       @id @default(cuid())
+  contactId    String
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  orgId        String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  jobTitle     String?
+  department   String?
+  isDecision   Boolean      @default(false)
+  isFinance    Boolean      @default(false)
+  isTechnical  Boolean      @default(false)
+  isPrimary    Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([contactId, orgId])
+  @@index([orgId])
+}
+
+// ═══════════════════════════════ CRM ══════════════════════════════════════
+
+model Interaction {
+  id            String               @id @default(cuid())
+  orgId         String
+  organization  Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact?             @relation(fields: [contactId], references: [id])
+  userId        String?
+  user          User?                @relation(fields: [userId], references: [id])
+  type          InteractionType
+  direction     InteractionDirection @default(OUTBOUND)
+  subject       String?
+  summary       String? // 3 linhas — alvo natural p/ IA depois
+  fullContent   String? // e-mail/transcrição na íntegra
+  interactionAt DateTime             @default(now())
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  deletedAt     DateTime?
+
+  activities Activity[]
+
+  @@index([orgId, interactionAt])
+  @@index([contactId])
+}
+
+model Activity {
+  id            String         @id @default(cuid())
+  orgId         String?
+  organization  Organization?  @relation(fields: [orgId], references: [id])
+  contactId     String?
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  interactionId String?
+  interaction   Interaction?   @relation(fields: [interactionId], references: [id])
+  responsibleId String?
+  responsible   User?          @relation(fields: [responsibleId], references: [id])
+  title         String
+  description   String?
+  priority      TaskPriority   @default(MEDIUM)
+  status        ActivityStatus @default(PENDING)
+  dueDate       DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([orgId])
+  @@index([status, dueDate])
+}
+
+// ── Taxonomias configuráveis (admin gerencia sem deploy — §3.6) ────────────
+// isActive aposenta um valor sem apagar o histórico que o referencia.
+
+model Sector {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizations Organization[]
+}
+
+model OrganizationSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizations Organization[]
+}
+
+// Escada de maturidade de P&D (Lab → Piloto → Escala) — global, não por
+// pipeline (decisão de projeto: YAGNI até existir caso de uso real).
+model EngagementStage {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  opportunities Opportunity[]
+}
+
+// ── Funil configurável (§2.5): um Pipeline por linha de negócio ────────────
+
+model Pipeline {
+  id        String    @id @default(cuid())
+  name      String
+  isDefault Boolean   @default(false)
+  isActive  Boolean   @default(true)
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  stages        PipelineStage[]
+  opportunities Opportunity[]
+
+  @@index([deletedAt])
+}
+
+model PipelineStage {
+  id          String    @id @default(cuid())
+  pipelineId  String
+  pipeline    Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  name        String // rótulo livre do usuário ("Piloto", "Due diligence"...)
+  type        StageType @default(OPEN) // semântica fixa que o código entende
+  probability Int       @default(0) // 0..100 — default aplicado ao mover o card
+  color       String?
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  opportunities Opportunity[]
+
+  @@index([pipelineId])
+}
+
+model Opportunity {
+  id            String       @id @default(cuid())
+  orgId         String
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  mainContactId String?
+  mainContact   Contact?     @relation(fields: [mainContactId], references: [id])
+  responsibleId String?
+  responsible   User?        @relation(fields: [responsibleId], references: [id])
+
+  // Funil: etapa relacional (rótulo configurável) no lugar do antigo enum.
+  pipelineId String
+  pipeline   Pipeline      @relation(fields: [pipelineId], references: [id])
+  stageId    String
+  stage      PipelineStage @relation(fields: [stageId], references: [id])
+
+  engagementStageId String?
+  engagementStage   EngagementStage? @relation(fields: [engagementStageId], references: [id])
+
+  title             String
+  amount            Decimal?  @db.Decimal(15, 2)
+  currency          String    @default("BRL")
+  probability       Int? // 0..100 — sobrescrito pelo default da etapa ao mover; editável
+  expectedCloseDate DateTime?
+  closedAt          DateTime? // preenchido ao entrar em etapa WON/LOST
+  lostReason        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  @@index([orgId])
+  @@index([pipelineId, stageId])
+  @@index([stageId])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════ PROJETOS ═════════════════════════════════════
+
 model Project {
   id          String        @id @default(cuid())
   name        String
@@ -114,28 +595,35 @@ model Project {
   status      ProjectStatus @default(PLANNING)
   startDate   DateTime?
   endDate     DateTime?
-  clientName  String?
   objective   String?
-  sponsor     String?
+
+  // DÍVIDA CORRIGIDA: clientName (String) -> FK para Organization.
+  clientId String?
+  client   Organization? @relation(fields: [clientId], references: [id])
+
   createdById String
   // Linha de base do cronograma (PMBOK): quando/por quem foi aprovada.
-  baselineSetAt  DateTime?
+  baselineSetAt   DateTime?
   baselineSetById String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  deletedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
-  createdBy     User            @relation("CreatedBy", fields: [createdById], references: [id])
-  baselineSetBy User?           @relation("BaselineSetBy", fields: [baselineSetById], references: [id])
-  accesses   ProjectAccess[]
-  charter    Charter?
-  wbsNodes   WbsNode[]
-  tasks      Task[]
-  risks      Risk[]
-  milestones Milestone[]
+  createdBy     User  @relation("CreatedBy", fields: [createdById], references: [id])
+  baselineSetBy User? @relation("BaselineSetBy", fields: [baselineSetById], references: [id])
+
+  accesses     ProjectAccess[]
+  charter      Charter?
+  wbsNodes     WbsNode[]
+  tasks        Task[]
+  risks        Risk[]
+  milestones   Milestone[]
+  stakeholders ProjectStakeholder[] // substitui sponsor/team/stakeholders texto
+  labOrders    LabOrder[] // LIMS ligado ao projeto (opcional)
 
   @@index([status])
   @@index([createdById])
+  @@index([clientId])
   @@index([deletedAt])
 }
 
@@ -153,43 +641,82 @@ model ProjectAccess {
   @@unique([projectId, userId])
 }
 
-model Charter {
-  id                  String    @id @default(cuid())
-  projectId           String    @unique
-  // Section 1 — Identificação
-  projectType         String?
-  priority            String?
-  projectOwner        String?
-  team                String?
-  // Section 2 — Contexto
-  problem             String?
-  justification       String?
-  assumptions         String?
-  // Section 3 — Objetivos
-  mainObjective       String?
-  specificObjectives  String?
-  kpis                String?
-  // Section 4 — Escopo
-  scope               String?
-  outOfScope          String?
-  // Section 5 — Entregáveis
-  deliverables        String?
-  // Section 6 — Recursos
-  resources           String?
-  // Section 7 — Partes interessadas
-  stakeholders        String?
-  governance          String?
-  // Section 8 — Dependências
-  dependencies        String?
-  // Constraints e aprovação
-  constraints         String?
-  approvedById        String?
-  approvedAt          DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  deletedAt           DateTime?
+// Registro de partes interessadas (PMBOK). Substitui os campos texto
+// Charter.team, Charter.stakeholders e Project.sponsor por relações reais.
+model ProjectStakeholder {
+  id        String          @id @default(cuid())
+  projectId String
+  contactId String
+  type      StakeholderType @default(STAKEHOLDER)
+  roleNote  String? // papel específico no projeto (texto livre)
+  influence RiskImpact? // reaproveita a escala VERY_LOW..VERY_HIGH
+  interest  RiskImpact?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id])
+
+  @@unique([projectId, contactId, type])
+  @@index([projectId])
+  @@index([contactId])
+}
+
+model Charter {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  // Section 1 — Identificação
+  projectType String?
+  priority    String?
+
+  // DÍVIDA CORRIGIDA: projectOwner (String) -> FK para Contact
+  projectOwnerId String?
+  projectOwner   Contact? @relation(fields: [projectOwnerId], references: [id])
+  // team/stakeholders removidos -> ver ProjectStakeholder
+
+  // Section 2 — Contexto (narrativa: permanece texto)
+  problem       String?
+  justification String?
+  assumptions   String?
+
+  // Section 3 — Objetivos
+  mainObjective      String?
+  specificObjectives String?
+  kpis               String?
+
+  // Section 4 — Escopo
+  scope      String?
+  outOfScope String?
+
+  // Section 5 — Entregáveis
+  deliverables String?
+
+  // Section 6 — Recursos
+  resources String?
+
+  // Section 7 — Governança (narrativa)
+  governance String?
+
+  // Section 8 — Dependências
+  dependencies String?
+
+  // Constraints e aprovação
+  constraints String?
+
+  // DÍVIDA CORRIGIDA: approvedById solto -> relação real com User
+  approvedById String?
+  approvedBy   User?     @relation(fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectOwnerId])
+  @@index([approvedById])
 }
 
 model WbsNode {
@@ -240,13 +767,13 @@ model Task {
   updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?
 
-  project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  wbsNode      WbsNode?              @relation(fields: [wbsNodeId], references: [id])
-  assignee     User?                 @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  parent       Task?                 @relation("TaskSubtasks", fields: [parentId], references: [id])
-  subtasks     Task[]                @relation("TaskSubtasks")
-  successors   TaskDependency[]      @relation("Predecessor")
-  predecessors TaskDependency[]      @relation("Successor")
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wbsNode      WbsNode?            @relation(fields: [wbsNodeId], references: [id])
+  assignee     User?               @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  parent       Task?               @relation("TaskSubtasks", fields: [parentId], references: [id])
+  subtasks     Task[]              @relation("TaskSubtasks")
+  successors   TaskDependency[]    @relation("Predecessor")
+  predecessors TaskDependency[]    @relation("Successor")
   checklist    TaskChecklistItem[]
 
   @@index([projectId])
@@ -323,4 +850,98 @@ model Milestone {
 
   @@index([projectId])
   @@index([date])
+}
+
+// ══════════════ GANCHOS DE MÓDULOS (stubs — detalhar depois) ═══════════════
+//  Existem só para fixar as FKs para os dados mestres. Cada módulo será
+//  desenvolvido no futuro; o núcleo já os referencia hoje.
+
+// -- LIMS --
+model LabOrder {
+  id           String       @id @default(cuid())
+  number       String       @unique
+  orgId        String // organização cliente
+  organization Organization @relation(fields: [orgId], references: [id])
+  requesterId  String? // contato que solicitou
+  requester    Contact?     @relation(fields: [requesterId], references: [id])
+  projectId    String? // opcional: ligado a um projeto
+  project      Project?     @relation(fields: [projectId], references: [id])
+  status       String       @default("RECEIVED")
+  receivedAt   DateTime     @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  samples LabSample[]
+
+  @@index([orgId])
+  @@index([projectId])
+}
+
+model LabSample {
+  id         String   @id @default(cuid())
+  labOrderId String
+  labOrder   LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  identifier String
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([labOrderId])
+}
+
+// -- Compras / Estoque --
+model Product {
+  id          String    @id @default(cuid())
+  sku         String    @unique
+  name        String
+  description String?
+  unit        String? // UN, KG, L...
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  purchaseItems  PurchaseOrderItem[]
+  stockMovements StockMovement[]
+}
+
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  number      String   @unique
+  supplierId  String // organização fornecedora
+  supplier    Organization @relation(fields: [supplierId], references: [id])
+  status      String   @default("OPEN")
+  totalAmount Decimal? @db.Decimal(15, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@index([supplierId])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Decimal       @db.Decimal(15, 3)
+  unitPrice       Decimal       @db.Decimal(15, 2)
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  type      StockMovementType
+  quantity  Decimal           @db.Decimal(15, 3)
+  reference String? // origem: pedido, ajuste, consumo LIMS...
+  createdAt DateTime          @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
 }

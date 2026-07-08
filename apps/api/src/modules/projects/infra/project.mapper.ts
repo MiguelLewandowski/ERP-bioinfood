@@ -12,9 +12,8 @@ export interface ProjectResponseDto {
   forecastEndDate: string | null;
   baselineSetAt: string | null;
   baselineSetBy: { id: string; name: string } | null;
-  clientName: string | null;
+  client: { id: string; legalName: string; tradeName: string | null } | null;
   objective: string | null;
-  sponsor: string | null;
   createdBy: { id: string; name: string };
   accesses: Array<{ user: { id: string; name: string } }>;
   createdAt: string;
@@ -31,9 +30,8 @@ export function toProjectDto(p: ProjectWithRelations): ProjectResponseDto {
     forecastEndDate: computeForecastEnd(p.tasks)?.toISOString() ?? null,
     baselineSetAt: p.baselineSetAt?.toISOString() ?? null,
     baselineSetBy: p.baselineSetBy,
-    clientName: p.clientName,
+    client: p.client,
     objective: p.objective,
-    sponsor: p.sponsor,
     createdBy: p.createdBy,
     accesses: p.accesses.map((a) => ({ user: a.user })),
     createdAt: p.createdAt.toISOString(),
