@@ -5,10 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import { getErrorMessage } from '@/lib/errors';
 
 const schema = z.object({
-  email: z.string().email('E-mail inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
+  email: z.string().min(1, 'E-mail é obrigatório').email('E-mail inválido'),
+  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -22,18 +23,22 @@ export default function LoginForm() {
 
   async function onSubmit(data: FormData) {
     setError('');
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      setError(err.message ?? 'Credenciais inválidas');
-      return;
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.message ?? 'E-mail ou senha inválidos');
+        return;
+      }
+      router.push('/projects');
+      router.refresh();
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
-    router.push('/projects');
-    router.refresh();
   }
 
   return (

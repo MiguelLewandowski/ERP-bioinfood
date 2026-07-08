@@ -76,6 +76,7 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | `/nova-pagina <rota>` | Criar página Next.js (App Router) |
 | `/novo-componente <nome>` | Criar componente React reutilizável |
 | `/testes <alvo>` | Escrever testes (Vitest / Testing Library / Playwright) |
+| `/erros-amigaveis <alvo>` | Validação Zod + tratamento de erro amigável em formulários |
 | `/seguranca <alvo>` | Revisão de segurança e RBAC |
 | `/deploy <o que>` | Checklist pré-deploy para Railway |
 | `/commit <contexto>` | Criar commits semânticos, pequenos e separados por intenção |

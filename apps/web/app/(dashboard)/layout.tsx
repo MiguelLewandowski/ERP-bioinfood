@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/sidebar';
 import { AuthProvider } from '@/components/providers/auth-provider';
+import { ConfirmProvider } from '@/components/providers/confirm-provider';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -13,12 +14,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <AuthProvider session={session} token={token}>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar session={session} />
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          {children}
-        </main>
-      </div>
+      <ConfirmProvider>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar session={session} />
+          <main className="flex-1 overflow-y-auto bg-gray-50">
+            {children}
+          </main>
+        </div>
+      </ConfirmProvider>
     </AuthProvider>
   );
 }

@@ -4,15 +4,18 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toast } from 'sonner';
 import { Plus, X, Flag, CheckCircle2, Circle } from 'lucide-react';
 import type { MilestoneDto } from '@bioinfood/shared';
 import { format, differenceInDays, startOfMonth, endOfMonth, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 
 const schema = z.object({
-  title:       z.string().min(1).max(200),
-  description: z.string().max(2000).optional(),
-  date:        z.string().min(1),
+  title:       z.string().min(1, 'Título é obrigatório').max(200, 'Título deve ter no máximo 200 caracteres'),
+  description: z.string().max(2000, 'Descrição deve ter no máximo 2000 caracteres').optional(),
+  date:        z.string().min(1, 'Data é obrigatória'),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -36,30 +39,23 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
   async function onSubmit(values: FormValues) {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/milestones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(values),
-      });
-      if (res.ok) {
-        const m = await res.json();
-        setMilestones((prev) => [...prev, m].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-        reset();
-        setOpen(false);
-      }
+      const m = await api.post<MilestoneDto>(`/projects/${projectId}/milestones`, values, token);
+      setMilestones((prev) => [...prev, m].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      reset();
+      setOpen(false);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   }
 
   async function toggleReached(m: MilestoneDto) {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/milestones/${m.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ reached: !m.reached }),
-    });
-    if (res.ok) {
+    try {
+      await api.patch(`/projects/${projectId}/milestones/${m.id}`, { reached: !m.reached }, token);
       setMilestones((prev) => prev.map((x) => x.id === m.id ? { ...x, reached: !m.reached } : x));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     }
   }
 

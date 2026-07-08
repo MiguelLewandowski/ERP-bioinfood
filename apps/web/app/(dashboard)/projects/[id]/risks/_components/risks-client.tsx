@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toast } from 'sonner';
 import { Plus, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { RiskHeatmap } from './risk-heatmap';
 import type { RiskDto } from '@bioinfood/shared';
 
@@ -16,11 +18,11 @@ const LEVEL_LABELS: Record<string, string> = {
 };
 
 const schema = z.object({
-  title:       z.string().min(1).max(200),
-  description: z.string().max(2000).optional(),
+  title:       z.string().min(1, 'Título é obrigatório').max(200, 'Título deve ter no máximo 200 caracteres'),
+  description: z.string().max(2000, 'Descrição deve ter no máximo 2000 caracteres').optional(),
   probability: z.enum(PROB_LEVELS),
   impact:      z.enum(PROB_LEVELS),
-  response:    z.string().max(2000).optional(),
+  response:    z.string().max(2000, 'Resposta deve ter no máximo 2000 caracteres').optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -56,6 +58,8 @@ export function RisksClient({ projectId, initialRisks }: RisksClientProps) {
       setRisks((prev) => [risk, ...prev]);
       reset();
       setOpen(false);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -66,6 +70,8 @@ export function RisksClient({ projectId, initialRisks }: RisksClientProps) {
     try {
       await api.delete(`/projects/${projectId}/risks/${id}`, token);
       setRisks((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setDeleting(null);
       setConfirmingDelete(null);

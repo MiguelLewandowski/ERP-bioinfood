@@ -1,3 +1,5 @@
+import { ApiError } from './errors';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const BFF_URL =
   typeof window !== 'undefined'
@@ -34,9 +36,17 @@ async function request<T>(path: string, options: RequestInit = {}, retried = fal
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message ?? 'Erro na requisição');
+    // O ValidationPipe do Nest retorna `message` como array quando há mais de
+    // um erro de campo — normaliza pra sempre trabalhar com string[].
+    const messages = Array.isArray(err.message)
+      ? err.message
+      : [err.message ?? 'Erro na requisição'];
+    throw new ApiError(messages, res.status);
   }
-  return res.json();
+  // DELETE (e outras rotas sem corpo) respondem 200/204 sem JSON —
+  // res.json() lançaria SyntaxError em corpo vazio.
+  const text = await res.text();
+  return text ? JSON.parse(text) : (undefined as T);
 }
 
 export const api = {
