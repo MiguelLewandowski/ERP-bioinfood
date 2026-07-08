@@ -19,7 +19,12 @@ interface KanbanCardProps {
 }
 
 export function KanbanCard({ task, isOverlay, onEdit }: KanbanCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  // `data.status` permite resolver a coluna de destino quando o drop termina
+  // em cima de outro card, não no fundo vazio da coluna.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { status: task.status },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),

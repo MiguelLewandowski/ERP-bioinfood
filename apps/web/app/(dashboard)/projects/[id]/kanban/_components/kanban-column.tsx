@@ -10,7 +10,9 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({ id, label, color, count, children }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+  // `data.status` deixa o status da coluna acessível mesmo quando o drop
+  // termina em cima de um card (over.id vira o id da tarefa, não da coluna).
+  const { setNodeRef, isOver } = useDroppable({ id, data: { status: id } });
 
   return (
     <div
