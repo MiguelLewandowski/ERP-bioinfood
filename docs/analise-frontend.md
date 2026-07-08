@@ -1,9 +1,39 @@
 # Análise de Frontend — ERP Bioinfood
 
-> **Data:** 2026-06-26 (2ª passagem)
-> **Alvo:** `apps/web/` — Next.js 14 (App Router) + Tailwind + shadcn/ui
+> **Data:** 2026-07-07 (3ª passagem, foco em `charter-client.tsx` / TAP)
+> **Alvo:** `apps/web/app/(dashboard)/projects/[id]/charter/_components/charter-client.tsx`
 > **Revisor:** Tech Lead Frontend (skill `/analisar-frontend`)
-> **Estado:** módulos de projeto (kanban, backlog, risks, charter, gantt, wbs, roadmap, settings) implementados.
+> **Estado:** CRM (organizations/contacts/pipelines/opportunities/interactions/crm-activities) implementado desde a 2ª passagem. `loading.tsx`/`error.tsx` agora existem em `clientes/*` e `crm/*` (A2 parcialmente resolvido — projeto/charter ainda sem).
+
+## 3ª passagem — achados na tela do TAP
+
+**C2 — Duplicação do formulário de projeto entre Charter e Settings**
+`charter-client.tsx:377-483` embute um formulário completo de `Project` (nome/status/cliente/datas/objetivo/descrição) dentro da seção "Identificação" do TAP — os mesmos campos já existem, validados com Zod, em `settings/_components/project-settings-client.tsx:24-30`. O form embutido no Charter (`projectForm`, `charter-client.tsx:239`) não tem `zodResolver` — mesmo dado, duas superfícies, duas regras de validação (uma delas inexistente). O botão "Salvar" do TAP dispara até duas mutações (`PUT /charter` + `PATCH /projects/:id`) sem indicar ao usuário qual foi alterada.
+**Status:** corrigido nesta sessão — bloco de edição removido do Charter, substituído por card resumo + link para Settings.
+
+**C3 — Mensagem de Stakeholders desatualizada (falso limite)**
+`charter-client.tsx:485-490` dizia que o CRM "ainda não está disponível" — mas o CRM foi implementado na sessão anterior. **Status:** corrigido — agora busca contatos reais do cliente do projeto via `contactsApi`.
+
+**A4 — Sem indicador de progresso nas 8 seções do TAP**
+Sidebar de navegação (`charter-client.tsx:304-319`) não mostra quais seções têm conteúdo. **Status:** corrigido — dot verde nas seções preenchidas.
+
+**A5 — "Prioridade" é texto livre com placeholder de enum**
+`charter-client.tsx:103` — placeholder "Alta / Média / Baixa" num `<input>` de texto livre. **Status:** corrigido — virou `<select>`.
+
+**A6 — Aprovação de TAP sem confirmação nem data visível**
+`charter-client.tsx:353-363` — sem `useConfirm()`; badge "Aprovado" não mostra `approvedAt`. **Status:** corrigido.
+
+**A7 — `charter-client.tsx` fora do `api-hooks.ts`** (mesma raiz do C1 original, mas não fazia parte do escopo da 2ª passagem)
+`charter-client.tsx:268,287` usavam `api.put`/`api.post` com path cru. **Status:** corrigido — `charterApi` adicionado a `api-hooks.ts`.
+
+**Pendente (não resolvido nesta passagem, baixo esforço/baixo risco de deixar para depois):**
+- Sem aviso de alterações não salvas ao sair da página.
+- Campos "um por linha" (`specificObjectives`, `deliverables`) continuam texto opaco, sem virar lista estruturada.
+- Rota `projects/[id]/charter` ainda sem `loading.tsx`/`error.tsx` (mesmo padrão do A2 original, ainda não estendido a todas as rotas de projeto).
+
+---
+
+# Passagens anteriores (histórico)
 
 ---
 

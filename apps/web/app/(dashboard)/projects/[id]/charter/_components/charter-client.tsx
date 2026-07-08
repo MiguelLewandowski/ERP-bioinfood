@@ -1,76 +1,44 @@
 'use client'; // interactive multi-section form
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toast } from 'sonner';
 import {
   Save, CheckCircle2, Info, Target, FlaskConical,
-  Layers, Package, Users, Link2, AlertCircle, Wrench,
-  FileDown, X,
+  Layers, Package, Users, Link2, Wrench,
+  FileDown, X, Pencil, Mail, Phone,
 } from 'lucide-react';
-import type { ProjectDto } from '@bioinfood/shared';
+import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
-import { api } from '@/lib/api';
-import { projectsApi } from '@/lib/api-hooks';
+import { useConfirm } from '@/components/providers/confirm-provider';
+import { getErrorMessage } from '@/lib/errors';
+import { charterApi, contactsApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
 
-const PROJECT_STATUS_OPTIONS = [
-  { value: 'PLANNING', label: 'Planejamento' },
-  { value: 'IN_PROGRESS', label: 'Em andamento' },
-  { value: 'ON_HOLD', label: 'Pausado' },
-  { value: 'COMPLETED', label: 'Concluído' },
-  { value: 'CANCELLED', label: 'Cancelado' },
-] as const;
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  PLANNING: 'Planejamento',
+  IN_PROGRESS: 'Em andamento',
+  ON_HOLD: 'Pausado',
+  COMPLETED: 'Concluído',
+  CANCELLED: 'Cancelado',
+};
 
-interface ProjectFormValues {
-  name: string;
-  description: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  clientName: string;
-  objective: string;
-  sponsor: string;
+const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
+
+function fmtDate(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
 }
 
-function isoToDateInput(iso: string | null): string {
-  return iso ? iso.slice(0, 10) : '';
-}
-
-function projectToForm(project: ProjectDto): ProjectFormValues {
-  return {
-    name: project.name,
-    description: project.description ?? '',
-    status: project.status,
-    startDate: isoToDateInput(project.startDate),
-    endDate: isoToDateInput(project.endDate),
-    clientName: project.clientName ?? '',
-    objective: project.objective ?? '',
-    sponsor: project.sponsor ?? '',
-  };
-}
-
-function buildProjectPayload(v: ProjectFormValues): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    name: v.name,
-    description: v.description,
-    status: v.status,
-    clientName: v.clientName,
-    objective: v.objective,
-    sponsor: v.sponsor,
-  };
-  // Datas só vão quando preenchidas (a API valida ISO date).
-  if (v.startDate) payload.startDate = new Date(v.startDate).toISOString();
-  if (v.endDate) payload.endDate = new Date(v.endDate).toISOString();
-  return payload;
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 const schema = z.object({
   projectType:        z.string().max(200).optional(),
   priority:           z.string().max(100).optional(),
-  projectOwner:       z.string().max(200).optional(),
-  team:               z.string().max(2000).optional(),
   problem:            z.string().max(4000).optional(),
   justification:      z.string().max(4000).optional(),
   assumptions:        z.string().max(4000).optional(),
@@ -81,7 +49,6 @@ const schema = z.object({
   outOfScope:         z.string().max(4000).optional(),
   deliverables:       z.string().max(4000).optional(),
   resources:          z.string().max(4000).optional(),
-  stakeholders:       z.string().max(4000).optional(),
   governance:         z.string().max(4000).optional(),
   dependencies:       z.string().max(4000).optional(),
   constraints:        z.string().max(4000).optional(),
@@ -91,26 +58,38 @@ type FormValues = z.infer<typeof schema>;
 
 interface CharterClientProps {
   projectId: string;
-  initialData: (FormValues & { approvedAt?: string }) | null;
+  initialData: (FormValues & {
+    approvedAt?: string;
+    lastEditedBy?: { id: string; name: string } | null;
+    lastEditedAt?: string | null;
+  }) | null;
   project: ProjectDto | null;
 }
 
-const SECTIONS = [
+type FieldDef = {
+  key: keyof FormValues;
+  label: string;
+  placeholder?: string;
+  rows?: number;
+  options?: readonly string[];
+};
+
+const SECTIONS: Array<{
+  id: string; label: string; icon: typeof Info; color: string; fields: FieldDef[];
+}> = [
   {
     id: 'identificacao',
-    label: '1. Identificação do Projeto',
+    label: 'Identificação do Projeto',
     icon: Info,
     color: '#147F23',
     fields: [
-      { key: 'projectType',  label: 'Tipo',         placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1 },
-      { key: 'priority',     label: 'Prioridade',   placeholder: 'Alta / Média / Baixa', rows: 1 },
-      { key: 'projectOwner', label: 'Proprietário', placeholder: 'Nome do responsável técnico pelo projeto', rows: 1 },
-      { key: 'team',         label: 'Equipe envolvida', placeholder: 'Ex: Genética, Bioprocessos, Planta Piloto…', rows: 2 },
+      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1 },
+      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS },
     ],
   },
   {
     id: 'contexto',
-    label: '2. Contexto e Justificativa',
+    label: 'Contexto e Justificativa',
     icon: FlaskConical,
     color: '#46AD48',
     fields: [
@@ -121,7 +100,7 @@ const SECTIONS = [
   },
   {
     id: 'objetivos',
-    label: '3. Objetivos',
+    label: 'Objetivos',
     icon: Target,
     color: '#DD8005',
     fields: [
@@ -132,18 +111,18 @@ const SECTIONS = [
   },
   {
     id: 'escopo',
-    label: '4. Escopo',
+    label: 'Escopo',
     icon: Layers,
     color: '#147F23',
     fields: [
-      { key: 'scope',      label: 'Em Escopo',       placeholder: 'O que está incluído neste projeto…', rows: 4 },
-      { key: 'outOfScope', label: 'Fora de Escopo',  placeholder: 'O que está explicitamente excluído…', rows: 3 },
+      { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4 },
+      { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3 },
       { key: 'constraints', label: 'Restrições',     placeholder: 'Limitações de prazo, recursos, regulação…', rows: 2 },
     ],
   },
   {
     id: 'entregaveis',
-    label: '5. Entregáveis',
+    label: 'Entregáveis',
     icon: Package,
     color: '#46AD48',
     fields: [
@@ -152,7 +131,7 @@ const SECTIONS = [
   },
   {
     id: 'recursos',
-    label: '6. Recursos e Orçamento',
+    label: 'Recursos e Orçamento',
     icon: Wrench,
     color: '#C16C06',
     fields: [
@@ -161,24 +140,23 @@ const SECTIONS = [
   },
   {
     id: 'stakeholders',
-    label: '7. Partes Interessadas e Governança',
+    label: 'Partes Interessadas e Governança',
     icon: Users,
     color: '#147F23',
     fields: [
-      { key: 'stakeholders', label: 'Stakeholders Chave', placeholder: 'Quem são os stakeholders e qual o papel de cada um?', rows: 3 },
-      { key: 'governance',   label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3 },
+      { key: 'governance', label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3 },
     ],
   },
   {
     id: 'dependencias',
-    label: '8. Dependências',
+    label: 'Dependências',
     icon: Link2,
     color: '#575756',
     fields: [
       { key: 'dependencies', label: 'Dependências Externas e Internas', placeholder: 'Dependências externas, interfaces entre frentes (ex: Bioprocessos ↔ Genética)…', rows: 3 },
     ],
   },
-] as const;
+];
 
 function escapeHtml(value: string): string {
   return value
@@ -193,7 +171,7 @@ function buildPrintHtml(values: FormValues, sectionIds: string[]): string {
   const blocks = SECTIONS.filter((s) => sectionIds.includes(s.id)).map((section) => {
     const fields = section.fields
       .map(({ key, label }) => {
-        const raw = (values[key as keyof FormValues] ?? '').toString().trim();
+        const raw = (values[key] ?? '').toString().trim();
         if (!raw) return '';
         return `<div class="field"><h3>${escapeHtml(label)}</h3><p>${escapeHtml(raw)}</p></div>`;
       })
@@ -227,25 +205,49 @@ function buildPrintHtml(values: FormValues, sectionIds: string[]): string {
 }
 
 export function CharterClient({ projectId, initialData, project }: CharterClientProps) {
-  const { token, session } = useAuth();
-  const isAdmin = session.role === 'ADMIN';
+  const { token } = useAuth();
+  const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeSection, setActiveSection] = useState('identificacao');
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
+  const [contacts, setContacts] = useState<ContactListItemDto[] | null>(null);
+  const [lastEdit, setLastEdit] = useState(
+    initialData?.lastEditedAt
+      ? { name: initialData.lastEditedBy?.name ?? 'Alguém', at: initialData.lastEditedAt }
+      : null,
+  );
 
-  const { register, handleSubmit, getValues, formState: { isDirty } } = useForm<FormValues>({
+  const {
+    register, handleSubmit, getValues, watch, reset, formState: { isDirty },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: initialData ?? {},
   });
 
-  // Form separado para os dados do Projeto (model Project, não Charter).
-  const projectForm = useForm<ProjectFormValues>({
-    defaultValues: project ? projectToForm(project) : undefined,
-  });
-  const projectDirty = projectForm.formState.isDirty;
+  const values = watch();
+
+  // Contatos reais do cliente do projeto, para a seção de Stakeholders.
+  useEffect(() => {
+    if (!project?.client) { setContacts([]); return; }
+    let cancelled = false;
+    contactsApi.list(token, { orgId: project.client.id })
+      .then((list) => { if (!cancelled) setContacts(list); })
+      .catch(() => { if (!cancelled) setContacts([]); });
+    return () => { cancelled = true; };
+  }, [project?.client, token]);
+
+  // Seções com pelo menos um campo preenchido — alimenta o dot de progresso no nav.
+  const sectionHasContent = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const section of SECTIONS) {
+      map[section.id] = section.fields.some((f) => (values[f.key] ?? '').toString().trim() !== '');
+    }
+    return map;
+  }, [values]);
+  const filledCount = Object.values(sectionHasContent).filter(Boolean).length;
 
   function toggleSection(id: string) {
     setSelectedIds((prev) =>
@@ -268,27 +270,43 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
     setExportOpen(false);
   }
 
-  async function onSubmit(values: FormValues) {
+  async function persist(values: FormValues) {
     setSaving(true);
     try {
-      await api.put(`/projects/${projectId}/charter`, values, token);
-      // Dados do projeto: só ADMIN edita, e só persiste se houve alteração.
-      if (isAdmin && projectDirty) {
-        const projectValues = projectForm.getValues();
-        await projectsApi.update(projectId, buildProjectPayload(projectValues), token);
-        projectForm.reset(projectValues);
-      }
+      await charterApi.upsert(projectId, values, token);
+      // Rebaseia com o valor ATUAL do form (não o `values` capturado no blur) —
+      // se o usuário já começou a editar outro campo enquanto isso salvava,
+      // isso evita que o reset apague o que ele digitou nesse meio-tempo.
+      reset(getValues());
+      setLastEdit({ name: 'você', at: new Date().toISOString() });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
+  // Autosave: sai do campo (ou clica em outra seção, que também dispara blur)
+  // com alteração pendente → salva sozinho, sem esperar o botão Salvar.
+  function handleFieldBlur() {
+    if (isDirty) persist(getValues());
+  }
+
   async function handleApprove() {
+    const ok = await confirm({
+      title: 'Aprovar o Termo de Abertura?',
+      description: 'O TAP passa a valer como referência formal do projeto. Você ainda pode editar o conteúdo depois, mas a aprovação fica registrada com a data de hoje.',
+      confirmLabel: 'Aprovar',
+    });
+    if (!ok) return;
     setApproving(true);
     try {
-      await api.post(`/projects/${projectId}/charter/approve`, {}, token);
+      await charterApi.approve(projectId, token);
+      toast.success('TAP aprovado');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setApproving(false);
     }
@@ -301,9 +319,12 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
     <div className="flex h-full">
       {/* Sidebar navigation */}
       <aside className="w-56 shrink-0 border-r border-gray-200 bg-white py-4 overflow-y-auto">
-        <p className="px-4 text-[10px] font-bold text-[#878787] uppercase tracking-wider mb-2">Seções do TAP</p>
+        <div className="px-4 mb-2 flex items-center justify-between">
+          <p className="text-[10px] font-bold text-[#878787] uppercase tracking-wider">Seções do TAP</p>
+          <p className="text-[10px] font-medium text-[#878787]">{filledCount}/{SECTIONS.length}</p>
+        </div>
         <nav className="space-y-0.5 px-2">
-          {SECTIONS.map(({ id, label, icon: Icon, color }) => (
+          {SECTIONS.map(({ id, label, icon: Icon, color }, i) => (
             <button
               key={id}
               onClick={() => setActiveSection(id)}
@@ -315,8 +336,17 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               )}
               style={activeSection === id ? { backgroundColor: color } : {}}
             >
-              <Icon size={13} />
-              <span className="leading-snug">{label}</span>
+              <Icon size={13} className="shrink-0" />
+              <span className="leading-snug flex-1">{i + 1}. {label}</span>
+              {sectionHasContent[id] && (
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full shrink-0',
+                    activeSection === id ? 'bg-white' : 'bg-[#46AD48]',
+                  )}
+                  aria-label="Seção preenchida"
+                />
+              )}
             </button>
           ))}
         </nav>
@@ -324,7 +354,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
 
       {/* Main form area */}
       <div className="flex-1 overflow-y-auto">
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(persist)}>
           <div className="px-8 pt-6 pb-4 border-b border-gray-200 bg-white flex items-center justify-between sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <span
@@ -335,7 +365,10 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </span>
               <div>
                 <h2 className="text-base font-bold text-[#1D1D1B]">{activeData.label}</h2>
-                <p className="text-xs text-[#706F6F]">Termo de Abertura do Projeto (TAP)</p>
+                <p className="text-xs text-[#706F6F]">
+                  Termo de Abertura do Projeto (TAP)
+                  {lastEdit && <> · editado por {lastEdit.name} em {fmtDateTime(lastEdit.at)}</>}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -347,12 +380,11 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 <FileDown size={13} />
                 Exportar PDF
               </button>
-              {isApproved && (
+              {isApproved ? (
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: '#86C175', color: '#156D1D' }}>
-                  <CheckCircle2 size={12} /> Aprovado
+                  <CheckCircle2 size={12} /> Aprovado em {fmtDate(initialData!.approvedAt!)}
                 </span>
-              )}
-              {!isApproved && (
+              ) : (
                 <button
                   type="button"
                   onClick={handleApprove}
@@ -365,7 +397,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               )}
               <button
                 type="submit"
-                disabled={saving || (!isDirty && !projectDirty)}
+                disabled={saving || !isDirty}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40"
                 style={{ backgroundColor: '#147F23' }}
               >
@@ -377,132 +409,110 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
 
           <div className="px-8 py-6 space-y-5 max-w-3xl">
             {activeSection === 'identificacao' && project && (
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
-                <div className="mb-4">
-                  <h3 className="text-sm font-bold text-[#1D1D1B]">Dados do Projeto</h3>
-                  <p className="text-xs text-[#878787]">
-                    Preenchidos automaticamente a partir do cadastro do projeto.
-                    {isAdmin ? ' Você pode alterá-los aqui.' : ' Somente ADMIN pode alterar.'}
-                  </p>
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#1D1D1B]">Dados do Projeto</h3>
+                    <p className="text-xs text-[#878787]">Vêm do cadastro do projeto — edite em Configurações.</p>
+                  </div>
+                  <Link
+                    href={`/projects/${projectId}/settings`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-[#575756] hover:bg-gray-50"
+                  >
+                    <Pencil size={12} /> Editar
+                  </Link>
                 </div>
 
-                <div className="space-y-4">
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div className="col-span-2">
+                    <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Nome</dt>
+                    <dd className="text-[#1D1D1B]">{project.name}</dd>
+                  </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Nome do Projeto</label>
-                    <input
-                      {...projectForm.register('name')}
-                      disabled={!isAdmin}
-                      className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
+                    <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Status</dt>
+                    <dd className="text-[#1D1D1B]">{PROJECT_STATUS_LABELS[project.status] ?? project.status}</dd>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Status</label>
-                      <select
-                        {...projectForm.register('status')}
-                        disabled={!isAdmin}
-                        className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        {PROJECT_STATUS_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Cliente</label>
-                      <input
-                        {...projectForm.register('clientName')}
-                        disabled={!isAdmin}
-                        placeholder="—"
-                        className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Data de início</label>
-                      <input
-                        type="date"
-                        {...projectForm.register('startDate')}
-                        disabled={!isAdmin}
-                        className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Término (planejado)</label>
-                      <input
-                        type="date"
-                        {...projectForm.register('endDate')}
-                        disabled={!isAdmin}
-                        className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Término (estimado)</label>
-                    <div className="w-full text-sm bg-gray-100 rounded-lg px-3 py-2.5 border border-gray-200 text-[#575756]">
-                      {project.forecastEndDate
-                        ? new Date(project.forecastEndDate).toLocaleDateString('pt-BR')
-                        : '— sem atividades com prazo —'}
+                    <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Cliente</dt>
+                    <dd className="text-[#1D1D1B]">{project.client?.tradeName ?? project.client?.legalName ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Início</dt>
+                    <dd className="text-[#1D1D1B]">{fmtDate(project.startDate)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Término (plan.)</dt>
+                    <dd className="text-[#1D1D1B]">{fmtDate(project.endDate)}</dd>
+                  </div>
+                  {project.objective && (
+                    <div className="col-span-2">
+                      <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Objetivo</dt>
+                      <dd className="text-[#575756] whitespace-pre-wrap">{project.objective}</dd>
                     </div>
-                    <p className="mt-1 text-[11px] text-[#878787]">
-                      Calculado automaticamente: maior prazo entre as atividades do projeto.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Sponsor</label>
-                    <input
-                      {...projectForm.register('sponsor')}
-                      disabled={!isAdmin}
-                      placeholder="—"
-                      className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Objetivo</label>
-                    <textarea
-                      {...projectForm.register('objective')}
-                      disabled={!isAdmin}
-                      rows={2}
-                      placeholder="—"
-                      className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none resize-y transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#1D1D1B] mb-1.5">Descrição</label>
-                    <textarea
-                      {...projectForm.register('description')}
-                      disabled={!isAdmin}
-                      rows={3}
-                      placeholder="—"
-                      className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none resize-y transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+                  )}
+                  {project.description && (
+                    <div className="col-span-2">
+                      <dt className="text-[11px] font-semibold text-[#878787] uppercase tracking-wide">Descrição</dt>
+                      <dd className="text-[#575756] whitespace-pre-wrap">{project.description}</dd>
+                    </div>
+                  )}
+                </dl>
               </div>
             )}
 
-            {activeData.fields.map(({ key, label, placeholder, rows }) => (
+            {activeSection === 'stakeholders' && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4">
+                <h3 className="mb-2 text-xs font-bold text-[#1D1D1B]">Contatos do cliente</h3>
+                {!project?.client ? (
+                  <p className="text-xs text-[#878787]">Este projeto não tem cliente vinculado — associe um em Configurações para ver os contatos aqui.</p>
+                ) : contacts === null ? (
+                  <p className="text-xs text-[#878787]">Carregando contatos…</p>
+                ) : contacts.length === 0 ? (
+                  <p className="text-xs text-[#878787]">
+                    Nenhum contato cadastrado para{' '}
+                    <Link href={`/clientes/${project.client.id}`} className="font-medium text-[#147F23] hover:underline">
+                      {project.client.tradeName ?? project.client.legalName}
+                    </Link>{' '}
+                    ainda.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {contacts.map((c) => (
+                      <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[#575756]">
+                        <span className="font-medium text-[#1D1D1B]">{c.name}</span>
+                        {c.link?.jobTitle && <span className="text-[#878787]">{c.link.jobTitle}</span>}
+                        {c.email && <span className="inline-flex items-center gap-1"><Mail size={11} />{c.email}</span>}
+                        {c.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{c.phone}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {activeData.fields.map(({ key, label, placeholder, rows, options }) => (
               <div key={key}>
                 <label className="block text-sm font-semibold text-[#1D1D1B] mb-1.5">{label}</label>
-                {rows === 1 ? (
+                {options ? (
+                  <select
+                    {...register(key, { onBlur: handleFieldBlur })}
+                    className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors"
+                  >
+                    <option value="">—</option>
+                    {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : rows === 1 ? (
                   <input
-                    {...register(key as keyof FormValues)}
+                    {...register(key, { onBlur: handleFieldBlur })}
                     placeholder={placeholder}
-                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-gray-50 rounded-lg px-3 py-2.5 border border-transparent focus:border-[#52B552] focus:bg-white focus:outline-none transition-colors"
+                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors"
                   />
                 ) : (
                   <textarea
-                    {...register(key as keyof FormValues)}
+                    {...register(key, { onBlur: handleFieldBlur })}
                     rows={rows}
                     placeholder={placeholder}
-                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-gray-50 rounded-lg px-3 py-2.5 border border-transparent focus:border-[#52B552] focus:bg-white focus:outline-none resize-y transition-colors"
+                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none resize-y transition-colors"
                   />
                 )}
               </div>
@@ -537,21 +547,21 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
 
             <div className="px-5 py-4">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#575756]">Índices a exportar</p>
+                <p className="text-xs font-semibold text-[#575756]">Seções a exportar</p>
                 <div className="flex gap-3 text-[11px]">
                   <button
                     type="button"
                     onClick={() => setSelectedIds(SECTIONS.map((s) => s.id))}
                     className="font-medium text-[#147F23] hover:underline"
                   >
-                    Todos
+                    Todas
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedIds([])}
                     className="font-medium text-[#878787] hover:underline"
                   >
-                    Nenhum
+                    Nenhuma
                   </button>
                 </div>
               </div>
