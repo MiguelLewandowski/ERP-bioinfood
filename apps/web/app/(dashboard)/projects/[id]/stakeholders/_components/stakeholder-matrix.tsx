@@ -16,10 +16,12 @@ const QUADRANT_LABELS: Record<PowerInterestQuadrant, string> = {
   MONITOR: 'Monitorar',
 };
 
+// Mesma paleta do heatmap de Riscos (risk-heatmap.tsx), por prioridade de
+// engajamento — mais contraste entre quadrantes que os tons de verde anteriores.
 const QUADRANT_COLORS: Record<PowerInterestQuadrant, string> = {
   MANAGE_CLOSELY: '#147F23',
-  KEEP_SATISFIED: '#46AD48',
-  KEEP_INFORMED: '#52B552',
+  KEEP_SATISFIED: '#DD8005',
+  KEEP_INFORMED: '#FFB000',
   MONITOR: '#86C175',
 };
 
