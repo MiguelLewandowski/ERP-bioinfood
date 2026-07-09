@@ -433,7 +433,9 @@ export interface CharterDto {
   scope: string | null;
   outOfScope: string | null;
   deliverables: string | null;
-  resources: string | null;
+  infrastructure: string | null;
+  budget: number | null;
+  team: { id: string; name: string }[];
   governance: string | null;
   dependencies: string | null;
   constraints: string | null;

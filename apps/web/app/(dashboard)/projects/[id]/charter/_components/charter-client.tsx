@@ -17,6 +17,7 @@ import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
 import { charterApi, contactsApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
+import { extractMembers, type ProjectMember } from '@/lib/project-members';
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   PLANNING: 'Planejamento',
@@ -48,7 +49,9 @@ const schema = z.object({
   scope:              z.string().max(4000).optional(),
   outOfScope:         z.string().max(4000).optional(),
   deliverables:       z.string().max(4000).optional(),
-  resources:          z.string().max(4000).optional(),
+  infrastructure:     z.string().max(4000).optional(),
+  budget:             z.coerce.number().min(0, 'Orçamento não pode ser negativo').optional().or(z.literal('')),
+  teamUserIds:        z.array(z.string()).optional(),
   governance:         z.string().max(4000).optional(),
   dependencies:       z.string().max(4000).optional(),
   constraints:        z.string().max(4000).optional(),
@@ -56,13 +59,32 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+interface CharterInitialData {
+  projectType?: string | null;
+  priority?: string | null;
+  problem?: string | null;
+  justification?: string | null;
+  assumptions?: string | null;
+  mainObjective?: string | null;
+  specificObjectives?: string | null;
+  kpis?: string | null;
+  scope?: string | null;
+  outOfScope?: string | null;
+  deliverables?: string | null;
+  infrastructure?: string | null;
+  budget?: number | null;
+  team?: { id: string; name: string }[];
+  governance?: string | null;
+  dependencies?: string | null;
+  constraints?: string | null;
+  approvedAt?: string;
+  lastEditedBy?: { id: string; name: string } | null;
+  lastEditedAt?: string | null;
+}
+
 interface CharterClientProps {
   projectId: string;
-  initialData: (FormValues & {
-    approvedAt?: string;
-    lastEditedBy?: { id: string; name: string } | null;
-    lastEditedAt?: string | null;
-  }) | null;
+  initialData: CharterInitialData | null;
   project: ProjectDto | null;
 }
 
@@ -134,9 +156,8 @@ const SECTIONS: Array<{
     label: 'Recursos e Orçamento',
     icon: Wrench,
     color: '#C16C06',
-    fields: [
-      { key: 'resources', label: 'Equipe / Infraestrutura / Orçamento', placeholder: 'Descreva os recursos necessários: equipe, equipamentos, insumos, orçamento estimado…', rows: 4 },
-    ],
+    // Renderizado com bloco próprio (equipe é multi-select + orçamento é numérico) — ver activeSection === 'recursos'.
+    fields: [],
   },
   {
     id: 'stakeholders',
@@ -166,16 +187,36 @@ function escapeHtml(value: string): string {
     .replace(/\n/g, '<br/>');
 }
 
-function buildPrintHtml(values: FormValues, sectionIds: string[]): string {
+function formatCurrency(value: number): string {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function buildPrintHtml(values: FormValues, sectionIds: string[], members: ProjectMember[]): string {
   const date = new Date().toLocaleDateString('pt-BR');
   const blocks = SECTIONS.filter((s) => sectionIds.includes(s.id)).map((section) => {
-    const fields = section.fields
-      .map(({ key, label }) => {
-        const raw = (values[key] ?? '').toString().trim();
-        if (!raw) return '';
-        return `<div class="field"><h3>${escapeHtml(label)}</h3><p>${escapeHtml(raw)}</p></div>`;
-      })
-      .join('');
+    let fields: string;
+    if (section.id === 'recursos') {
+      const teamNames = (values.teamUserIds ?? [])
+        .map((id) => members.find((m) => m.id === id)?.name)
+        .filter((name): name is string => !!name);
+      const rows: Array<[string, string]> = [
+        ['Equipe', teamNames.join(', ')],
+        ['Infraestrutura', (values.infrastructure ?? '').trim()],
+        ['Orçamento estimado', values.budget !== '' && values.budget != null ? formatCurrency(Number(values.budget)) : ''],
+      ];
+      fields = rows
+        .filter(([, raw]) => raw)
+        .map(([label, raw]) => `<div class="field"><h3>${escapeHtml(label)}</h3><p>${escapeHtml(raw)}</p></div>`)
+        .join('');
+    } else {
+      fields = section.fields
+        .map(({ key, label }) => {
+          const raw = (values[key] ?? '').toString().trim();
+          if (!raw) return '';
+          return `<div class="field"><h3>${escapeHtml(label)}</h3><p>${escapeHtml(raw)}</p></div>`;
+        })
+        .join('');
+    }
     if (!fields) return '';
     return `<section><h2 style="color:${section.color}">${escapeHtml(section.label)}</h2>${fields}</section>`;
   }).join('');
@@ -220,11 +261,31 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       : null,
   );
 
+  const members = useMemo(() => extractMembers(project), [project]);
+
   const {
     register, handleSubmit, getValues, watch, reset, formState: { isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: initialData ?? {},
+    defaultValues: {
+      projectType:        initialData?.projectType ?? undefined,
+      priority:           initialData?.priority ?? undefined,
+      problem:            initialData?.problem ?? undefined,
+      justification:      initialData?.justification ?? undefined,
+      assumptions:        initialData?.assumptions ?? undefined,
+      mainObjective:      initialData?.mainObjective ?? undefined,
+      specificObjectives: initialData?.specificObjectives ?? undefined,
+      kpis:               initialData?.kpis ?? undefined,
+      scope:              initialData?.scope ?? undefined,
+      outOfScope:         initialData?.outOfScope ?? undefined,
+      deliverables:       initialData?.deliverables ?? undefined,
+      infrastructure:     initialData?.infrastructure ?? undefined,
+      governance:         initialData?.governance ?? undefined,
+      dependencies:       initialData?.dependencies ?? undefined,
+      constraints:        initialData?.constraints ?? undefined,
+      budget:             initialData?.budget ?? '',
+      teamUserIds:        initialData?.team?.map((m) => m.id) ?? [],
+    },
   });
 
   const values = watch();
@@ -243,6 +304,14 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const sectionHasContent = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const section of SECTIONS) {
+      if (section.id === 'recursos') {
+        map[section.id] = !!(
+          values.infrastructure?.trim()
+          || (values.budget !== '' && values.budget != null)
+          || (values.teamUserIds?.length ?? 0) > 0
+        );
+        continue;
+      }
       map[section.id] = section.fields.some((f) => (values[f.key] ?? '').toString().trim() !== '');
     }
     return map;
@@ -256,7 +325,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   }
 
   function handleExport() {
-    const html = buildPrintHtml(getValues(), selectedIds);
+    const html = buildPrintHtml(getValues(), selectedIds, members);
     const win = window.open('', '_blank'); // aba nova, não pop-up
     if (!win) return;
     win.document.write(html);
@@ -273,7 +342,10 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   async function persist(values: FormValues) {
     setSaving(true);
     try {
-      await charterApi.upsert(projectId, values, token);
+      await charterApi.upsert(projectId, {
+        ...values,
+        budget: values.budget === '' ? undefined : values.budget,
+      }, token);
       // Rebaseia com o valor ATUAL do form (não o `values` capturado no blur) —
       // se o usuário já começou a editar outro campo enquanto isso salvava,
       // isso evita que o reset apague o que ele digitou nesse meio-tempo.
@@ -488,6 +560,44 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                   </ul>
                 )}
               </div>
+            )}
+
+            {activeSection === 'recursos' && (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-[#1D1D1B] mb-1.5">Equipe</label>
+                  <select
+                    multiple
+                    {...register('teamUserIds', { onBlur: handleFieldBlur })}
+                    className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors"
+                    size={Math.min(Math.max(members.length, 3), 6)}
+                  >
+                    {members.length === 0 && <option disabled>Nenhum membro com acesso ao projeto ainda</option>}
+                    {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                  <p className="text-xs text-[#878787] mt-1">Ctrl/Cmd + clique para selecionar mais de um responsável.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#1D1D1B] mb-1.5">Infraestrutura</label>
+                  <textarea
+                    {...register('infrastructure', { onBlur: handleFieldBlur })}
+                    rows={3}
+                    placeholder="Equipamentos, insumos, laboratórios, ferramentas necessárias…"
+                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none resize-y transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#1D1D1B] mb-1.5">Orçamento estimado (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register('budget', { onBlur: handleFieldBlur })}
+                    placeholder="0,00"
+                    className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors"
+                  />
+                </div>
+              </>
             )}
 
             {activeData.fields.map(({ key, label, placeholder, rows, options }) => (

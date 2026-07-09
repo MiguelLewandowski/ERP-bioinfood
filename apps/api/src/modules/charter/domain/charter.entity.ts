@@ -18,8 +18,10 @@ export interface CharterEntity {
   outOfScope: string | null;
   // Section 5
   deliverables: string | null;
-  // Section 6
-  resources: string | null;
+  // Section 6 — antes: campo único `resources` (texto livre)
+  infrastructure: string | null;
+  budget: number | null;
+  team: { id: string; name: string }[];
   // Section 7 — stakeholders reais: ver ProjectStakeholder
   governance: string | null;
   // Section 8
@@ -33,8 +35,11 @@ export interface CharterEntity {
 }
 
 export type UpsertCharterData = Partial<Omit<CharterEntity,
-  'id' | 'projectId' | 'approvedById' | 'approvedAt' | 'createdAt' | 'updatedAt' | 'deletedAt'
->>;
+  'id' | 'projectId' | 'approvedById' | 'approvedAt' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'team'
+>> & {
+  // IDs dos usuários da equipe — substitui o conjunto atual em CharterTeamMember quando enviado.
+  teamUserIds?: string[];
+};
 
 // Quem fez a última alteração de conteúdo, derivado do AuditLog (nenhuma
 // coluna nova no Charter — reusa a infra de auditoria já existente).

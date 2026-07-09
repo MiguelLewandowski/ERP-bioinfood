@@ -1,6 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
-
-const T = () => ({ each: false });
+import { IsArray, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpsertCharterDto {
   @IsOptional() @IsString() @MaxLength(200)  projectType?: string | null;
@@ -15,7 +13,9 @@ export class UpsertCharterDto {
   @IsOptional() @IsString() @MaxLength(4000) scope?: string | null;
   @IsOptional() @IsString() @MaxLength(4000) outOfScope?: string | null;
   @IsOptional() @IsString() @MaxLength(4000) deliverables?: string | null;
-  @IsOptional() @IsString() @MaxLength(4000) resources?: string | null;
+  @IsOptional() @IsString() @MaxLength(4000) infrastructure?: string | null;
+  @IsOptional() @IsNumber()                  budget?: number | null;
+  @IsOptional() @IsArray() @IsString({ each: true }) teamUserIds?: string[];
   @IsOptional() @IsString() @MaxLength(4000) governance?: string | null;
   @IsOptional() @IsString() @MaxLength(4000) dependencies?: string | null;
   @IsOptional() @IsString() @MaxLength(4000) constraints?: string | null;
