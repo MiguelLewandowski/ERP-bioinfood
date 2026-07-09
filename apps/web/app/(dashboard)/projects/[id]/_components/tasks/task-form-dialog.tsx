@@ -25,10 +25,21 @@ const schema = z
     // nunca envia "" pro backend (que rejeitaria com @IsDateString()).
     startDate:   z.string().optional(),
     dueDate:     z.string().optional(),
+    // Hora é opcional e só se aplica quando a data correspondente está preenchida.
+    startTime:   z.string().optional(),
+    endTime:     z.string().optional(),
   })
   .refine((data) => !data.startDate || !data.dueDate || data.dueDate >= data.startDate, {
     message: 'O prazo não pode ser anterior à data de início',
     path: ['dueDate'],
+  })
+  .refine((data) => {
+    if (!data.startDate || !data.dueDate || data.startDate !== data.dueDate) return true;
+    if (!data.startTime || !data.endTime) return true;
+    return data.endTime >= data.startTime;
+  }, {
+    message: 'A hora final não pode ser anterior à hora de início',
+    path: ['endTime'],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -36,6 +47,17 @@ type FormValues = z.infer<typeof schema>;
 function toDateInput(d: string | null | undefined): string {
   if (!d) return '';
   return d.split('T')[0];
+}
+
+// '00:00' é o sentinel de "sem hora definida" (mesma regra de apps/web/lib/activities.ts formatTime).
+function toTimeInput(d: string | null | undefined): string {
+  if (!d) return '';
+  const time = new Date(d).toTimeString().slice(0, 5);
+  return time === '00:00' ? '' : time;
+}
+
+function combineDateTime(date: string, time: string | undefined): string {
+  return new Date(`${date}T${time || '00:00'}:00`).toISOString();
 }
 
 interface TaskFormDialogProps {
@@ -94,6 +116,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
           storyPoints: task!.storyPoints ?? ('' as unknown as number),
           startDate:   toDateInput(task!.startDate),
           dueDate:     toDateInput(task!.dueDate),
+          startTime:   toTimeInput(task!.startDate),
+          endTime:     toTimeInput(task!.dueDate),
         }
       : { priority: 'MEDIUM' },
   });
@@ -108,8 +132,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         priority:    values.priority,
         assigneeId:  values.assigneeId || undefined,
         storyPoints: values.storyPoints === '' ? undefined : values.storyPoints,
-        startDate:   values.startDate || undefined,
-        dueDate:     values.dueDate || undefined,
+        startDate:   values.startDate ? combineDateTime(values.startDate, values.startTime) : undefined,
+        dueDate:     values.dueDate ? combineDateTime(values.dueDate, values.endTime) : undefined,
         ...(isEdit ? { status: values.status } : {}),
       };
 
@@ -323,12 +347,21 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                 <input {...register('startDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none" />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-[#575756] mb-1">Hora de Início</label>
+                <input {...register('startTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none" />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-[#575756] mb-1">Prazo</label>
                 <input {...register('dueDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none" />
                 {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate.message}</p>}
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#575756] mb-1">Hora Final</label>
+                <input {...register('endTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none" />
+                {errors.endTime && <p className="text-xs text-red-500 mt-1">{errors.endTime.message}</p>}
+              </div>
             </div>
-            <p className="text-[11px] text-[#878787] -mt-3">Preencha início e prazo para aparecer no Gantt.</p>
+            <p className="text-[11px] text-[#878787] -mt-3">Preencha início e prazo para aparecer no Gantt. Hora é opcional.</p>
 
             {isEdit && (
               <>

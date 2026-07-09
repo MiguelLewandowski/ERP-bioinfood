@@ -36,8 +36,15 @@ export function statusToCss(status: TaskStatus): string {
   return status === 'DONE' ? 'gt-done' : status === 'IN_PROGRESS' ? 'gt-doing' : 'gt-todo';
 }
 
-const fmtCol = (d?: Date | string) =>
-  d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+// Mostra hora na coluna só quando a tarefa tem um horário definido (ver
+// toTimeInput em task-form-dialog.tsx — '00:00' é o sentinel de "sem hora").
+const fmtCol = (d?: Date | string) => {
+  if (!d) return '';
+  const date = new Date(d);
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    + (hasTime ? ` ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '');
+};
 
 // Escalas localizadas (mês + dia). Com zoom, ajustam automaticamente.
 export const scales = [
@@ -49,8 +56,8 @@ export const scales = [
 // `template` recebe (valor-da-célula, linha, coluna) — não a linha inteira.
 export const columns = [
   { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
-  { id: 'start', header: 'Início', align: 'center' as const, width: 86, template: (v: any) => fmtCol(v) },
-  { id: 'end', header: 'Término', align: 'center' as const, width: 86, template: (v: any) => fmtCol(v) },
+  { id: 'start', header: 'Início', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
+  { id: 'end', header: 'Término', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => (v ? `${v}d` : '') },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
