@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { RiskHeatmap } from './risk-heatmap';
 import type { RiskDto } from '@bioinfood/shared';
+import type { ProjectMember } from '@/lib/project-members';
 
 const PROB_LEVELS = ['VERY_LOW', 'LOW', 'MEDIUM', 'HIGH', 'VERY_HIGH'] as const;
 const LEVEL_LABELS: Record<string, string> = {
@@ -19,9 +20,9 @@ const LEVEL_LABELS: Record<string, string> = {
 
 const schema = z.object({
   title:       z.string().min(1, 'Título é obrigatório').max(200, 'Título deve ter no máximo 200 caracteres'),
-  description: z.string().max(2000, 'Descrição deve ter no máximo 2000 caracteres').optional(),
   probability: z.enum(PROB_LEVELS),
   impact:      z.enum(PROB_LEVELS),
+  ownerId:     z.string().optional(),
   response:    z.string().max(2000, 'Resposta deve ter no máximo 2000 caracteres').optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -29,6 +30,7 @@ type FormValues = z.infer<typeof schema>;
 interface RisksClientProps {
   projectId: string;
   initialRisks: RiskDto[];
+  members: ProjectMember[];
 }
 
 function scoreColor(score: number): { bg: string; text: string } {
@@ -38,7 +40,7 @@ function scoreColor(score: number): { bg: string; text: string } {
   return { bg: '#86C175', text: '#156D1D' };
 }
 
-export function RisksClient({ projectId, initialRisks }: RisksClientProps) {
+export function RisksClient({ projectId, initialRisks, members }: RisksClientProps) {
   const { token } = useAuth();
   const [risks, setRisks] = useState<RiskDto[]>(initialRisks);
   const [open, setOpen] = useState(false);
@@ -54,7 +56,10 @@ export function RisksClient({ projectId, initialRisks }: RisksClientProps) {
   async function onSubmit(values: FormValues) {
     setLoading(true);
     try {
-      const risk = await api.post<RiskDto>(`/projects/${projectId}/risks`, values, token);
+      const risk = await api.post<RiskDto>(`/projects/${projectId}/risks`, {
+        ...values,
+        ownerId: values.ownerId || undefined,
+      }, token);
       setRisks((prev) => [risk, ...prev]);
       reset();
       setOpen(false);
@@ -175,8 +180,13 @@ export function RisksClient({ projectId, initialRisks }: RisksClientProps) {
                 {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#575756] mb-1">Descrição</label>
-                <textarea {...register('description')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none resize-none" />
+                <label className="block text-xs font-semibold text-[#575756] mb-1">Responsável</label>
+                <select {...register('ownerId')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white">
+                  <option value="">— Sem responsável —</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
