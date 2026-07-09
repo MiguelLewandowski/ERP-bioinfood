@@ -205,6 +205,7 @@ model User {
 
   // Novas relações (deixam de ser texto/solto)
   approvedCharters         Charter[]
+  charterTeamMemberships   CharterTeamMember[] @relation("CharterTeamMember")
   salesCustomerProfiles    CustomerProfile[]
   loggedInteractions       Interaction[]
   responsibleActivities    Activity[]
@@ -692,8 +693,10 @@ model Charter {
   // Section 5 — Entregáveis
   deliverables String?
 
-  // Section 6 — Recursos
-  resources String?
+  // Section 6 — Recursos (antes: campo único `resources`, texto livre)
+  infrastructure String?
+  budget         Decimal? @db.Decimal(14, 2)
+  team           CharterTeamMember[]
 
   // Section 7 — Governança (narrativa)
   governance String?
@@ -717,6 +720,21 @@ model Charter {
 
   @@index([projectOwnerId])
   @@index([approvedById])
+}
+
+// Equipe do TAP (Section 6 — Recursos): múltiplos responsáveis, join real com User.
+model CharterTeamMember {
+  id        String   @id @default(cuid())
+  charterId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  charter Charter @relation(fields: [charterId], references: [id], onDelete: Cascade)
+  user    User    @relation("CharterTeamMember", fields: [userId], references: [id])
+
+  @@unique([charterId, userId])
+  @@index([charterId])
+  @@index([userId])
 }
 
 model WbsNode {
