@@ -85,7 +85,7 @@ cd apps/api && npx prisma migrate dev --name <descricao>
 | -------------------------- | ----------- | ------- |
 | admin@bioinfood.com        | admin123    | ADMIN   |
 | lider@bioinfood.com        | lider123    | APROVA  |
-| cliente@bioinfood.com      | cliente123  | PORTAL  |
+| cliente@bioinfood.com      | cliente123  | CLIENTE |
 
 ## Estrutura
 

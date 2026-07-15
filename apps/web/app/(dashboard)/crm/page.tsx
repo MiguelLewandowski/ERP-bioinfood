@@ -17,7 +17,7 @@ async function fetchJson<T>(path: string, token: string, fallback: T): Promise<T
 
 export default async function CrmPage() {
   const session = await getSession();
-  if (!session || session.role === 'PORTAL') redirect('/projects');
+  if (!session || session.role === 'CLIENTE') redirect('/projects');
 
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';

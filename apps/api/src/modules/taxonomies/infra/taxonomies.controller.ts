@@ -27,7 +27,7 @@ function resolveKind(pathKind: string): TaxonomyKind {
   return kind;
 }
 
-// Taxonomias são dados mestres internos: PORTAL nunca acessa.
+// Taxonomias são dados mestres internos: CLIENTE nunca acessa.
 // Ler = todos os papéis internos; configurar = só ADMIN (decisão 3 do plano).
 @Controller('taxonomies')
 @UseGuards(RolesGuard)

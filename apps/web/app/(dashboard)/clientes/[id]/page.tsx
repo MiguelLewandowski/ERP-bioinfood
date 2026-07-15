@@ -23,7 +23,7 @@ interface Props {
 
 export default async function ClientePage({ params }: Props) {
   const session = await getSession();
-  if (!session || session.role === 'PORTAL') redirect('/projects');
+  if (!session || session.role === 'CLIENTE') redirect('/projects');
 
   const { id } = await params;
   const cookieStore = await cookies();

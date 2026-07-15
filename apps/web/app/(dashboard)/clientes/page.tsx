@@ -15,7 +15,7 @@ async function getOrganizations(token: string): Promise<OrganizationDto[]> {
 
 export default async function ClientesPage() {
   const session = await getSession();
-  if (!session || session.role === 'PORTAL') redirect('/projects');
+  if (!session || session.role === 'CLIENTE') redirect('/projects');
 
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';

@@ -33,16 +33,16 @@ function makeContext(
 
 describe('ProjectAccessGuard', () => {
   it('should return true when route has no :projectId param', async () => {
-    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.PORTAL }, undefined, false);
+    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.CLIENTE }, undefined, false);
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should return true when user is INSERE (non-PORTAL)', async () => {
+  it('should return true when user is INSERE (non-CLIENTE)', async () => {
     const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.INSERE }, PROJECT_ID, false);
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should return true when user is CONSULTA (non-PORTAL)', async () => {
+  it('should return true when user is CONSULTA (non-CLIENTE)', async () => {
     const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.CONSULTA }, PROJECT_ID, false);
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
@@ -52,25 +52,25 @@ describe('ProjectAccessGuard', () => {
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should return true when PORTAL has ProjectAccess', async () => {
-    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.PORTAL }, PROJECT_ID, true);
+  it('should return true when CLIENTE has ProjectAccess', async () => {
+    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.CLIENTE }, PROJECT_ID, true);
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should throw ForbiddenException when PORTAL has no ProjectAccess', async () => {
-    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.PORTAL }, PROJECT_ID, false);
+  it('should throw ForbiddenException when CLIENTE has no ProjectAccess', async () => {
+    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.CLIENTE }, PROJECT_ID, false);
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 
-  it('should query prisma with correct projectId and userId when PORTAL', async () => {
-    const { guard, ctx, prisma } = makeContext({ id: USER_ID, role: SystemRole.PORTAL }, PROJECT_ID, true);
+  it('should query prisma with correct projectId and userId when CLIENTE', async () => {
+    const { guard, ctx, prisma } = makeContext({ id: USER_ID, role: SystemRole.CLIENTE }, PROJECT_ID, true);
     await guard.canActivate(ctx);
     expect(prisma.projectAccess.findUnique).toHaveBeenCalledWith({
       where: { projectId_userId: { projectId: PROJECT_ID, userId: USER_ID } },
     });
   });
 
-  it('should NOT query prisma when user is not PORTAL', async () => {
+  it('should NOT query prisma when user is not CLIENTE', async () => {
     const { guard, ctx, prisma } = makeContext({ id: USER_ID, role: SystemRole.APROVA }, PROJECT_ID, false);
     await guard.canActivate(ctx);
     expect(prisma.projectAccess.findUnique).not.toHaveBeenCalled();

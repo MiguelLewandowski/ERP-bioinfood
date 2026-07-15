@@ -19,7 +19,7 @@ import { UpdateLinkDto } from './dto/update-link.dto';
 import { toContactDetailDto, toContactLinkDto, toContactListItemDto } from './contact.mapper';
 
 // Contatos = dados mestres internos. Ler = papéis internos; escrever = só ADMIN
-// (decisão do owner). PORTAL nunca acessa (não está na lista de @Roles).
+// (decisão do owner). CLIENTE nunca acessa (não está na lista de @Roles).
 const WRITE_ROLES = [SystemRole.ADMIN] as const;
 
 @Controller('contacts')

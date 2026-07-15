@@ -23,7 +23,7 @@ import {
 } from './organization.mapper';
 
 // Escrita do CRM é exclusiva do ADMIN (decisão do owner). Leitura permanece
-// para todos os papéis internos; PORTAL nunca acessa.
+// para todos os papéis internos; CLIENTE nunca acessa.
 const WRITE = [SystemRole.ADMIN] as const;
 const ROLE_ADMINS = [SystemRole.ADMIN] as const;
 

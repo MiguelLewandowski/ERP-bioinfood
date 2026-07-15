@@ -104,7 +104,7 @@ async function main() {
       name: 'Cliente Externo',
       email: 'cliente@bioinfood.com',
       passwordHash: clienteHash,
-      role: SystemRole.PORTAL,
+      role: SystemRole.CLIENTE,
       contactId: clienteContact.id,
     },
   });

@@ -1,6 +1,6 @@
 // ── Enums ────────────────────────────────────────────────────────────────────
 
-export type SystemRole = 'ADMIN' | 'APROVA' | 'INSERE' | 'CONSULTA' | 'PORTAL';
+export type SystemRole = 'ADMIN' | 'APROVA' | 'INSERE' | 'CONSULTA' | 'CLIENTE';
 export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';

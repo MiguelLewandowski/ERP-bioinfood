@@ -19,10 +19,10 @@ export class ListActivitiesUseCase {
   ) {}
 
   async execute({ from, to, requester }: ListActivitiesInput): Promise<ActivityListItem[]> {
-    // PORTAL só enxerga atividades de projetos liberados via ProjectAccess.
+    // CLIENTE só enxerga atividades de projetos liberados via ProjectAccess.
     // Esta rota não tem :projectId, então o ProjectAccessGuard não atua aqui —
     // o filtro precisa ser feito manualmente.
-    if (requester.role === SystemRole.PORTAL) {
+    if (requester.role === SystemRole.CLIENTE) {
       const projectIds = await this.repo.findAccessibleProjectIds(requester.id);
       if (projectIds.length === 0) return [];
       return this.repo.findAllInRange({ from, to, projectIds });

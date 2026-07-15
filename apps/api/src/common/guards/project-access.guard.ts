@@ -13,7 +13,7 @@ export class ProjectAccessGuard implements CanActivate {
     if (!projectId) return true;
 
     const user = req.user as { id: string; role: SystemRole };
-    if (user.role !== SystemRole.PORTAL) return true;
+    if (user.role !== SystemRole.CLIENTE) return true;
 
     const access = await this.prisma.projectAccess.findUnique({
       where: { projectId_userId: { projectId, userId: user.id } },

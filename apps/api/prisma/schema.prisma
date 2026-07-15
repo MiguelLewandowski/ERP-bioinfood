@@ -8,9 +8,8 @@
 //                                    -> ProjectStakeholder (join real, tipado)
 //   3. Charter.projectOwner (String) -> Charter.projectOwnerId (FK -> Contact)
 //   4. Charter.approvedById (solto)  -> relação real approvedBy (-> User)
-//   5. User.role = CLIENTE (mistura auth com negócio)
-//                                    -> User.contactId (identidade liga a Contact)
-//                                       SystemRole.CLIENTE -> PORTAL (só permissão)
+//   5. User.role: identidade do cliente liga a Contact via User.contactId;
+//                                       SystemRole.CLIENTE = só permissão de portal.
 //   6. Ganchos LIMS / Estoque / Compras agora apontam para Organization.id
 // ============================================================================
 
@@ -31,7 +30,7 @@ enum SystemRole {
   APROVA
   INSERE
   CONSULTA
-  PORTAL // antes 'CLIENTE': login externo restrito. "Ser cliente" é papel da Organization, não do login.
+  CLIENTE // login externo restrito (portal do cliente). Vê só projetos liberados via ProjectAccess.
 }
 
 // -- Projetos (existentes) --
