@@ -21,6 +21,12 @@ export interface UserDto {
   createdAt: string;
 }
 
+export interface UserProjectAccessDto {
+  id: string;
+  name: string;
+  status: ProjectStatus;
+}
+
 // ── Organizations (dados mestres) ───────────────────────────────────────────
 
 // Higiene de registro. O estágio COMERCIAL (prospect/ativo/VIP) é CustomerProfile.stage.

@@ -13,6 +13,12 @@ export class CreateUserUseCase {
     if (exists) throw new ConflictException('E-mail já cadastrado');
 
     const passwordHash = await bcrypt.hash(input.password, 10);
-    return this.repo.create({ name: input.name, email: input.email, passwordHash, role: input.role });
+    return this.repo.create({
+      name: input.name,
+      email: input.email,
+      passwordHash,
+      role: input.role,
+      mustChangePassword: true,
+    });
   }
 }

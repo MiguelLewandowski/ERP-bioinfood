@@ -6,6 +6,7 @@ export interface UserView {
   email: string;
   role: SystemRole;
   isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -15,6 +16,7 @@ export interface CreateUserData {
   email: string;
   passwordHash: string;
   role?: SystemRole;
+  mustChangePassword: boolean;
 }
 
 export interface UpdateUserData {

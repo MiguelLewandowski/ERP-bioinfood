@@ -8,4 +8,6 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<UserView | null>;
   create(data: CreateUserData): Promise<UserView>;
   update(id: string, data: UpdateUserData): Promise<UserView>;
+  resetPassword(id: string, passwordHash: string): Promise<UserView>;
+  revokeAllRefreshTokens(userId: string): Promise<void>;
 }

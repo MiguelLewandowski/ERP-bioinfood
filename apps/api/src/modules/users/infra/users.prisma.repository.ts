@@ -9,6 +9,7 @@ const USER_SELECT = {
   email: true,
   role: true,
   isActive: true,
+  mustChangePassword: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -40,5 +41,20 @@ export class UsersPrismaRepository implements IUserRepository {
 
   async update(id: string, data: UpdateUserData): Promise<UserView> {
     return this.prisma.user.update({ where: { id }, data, select: USER_SELECT });
+  }
+
+  async resetPassword(id: string, passwordHash: string): Promise<UserView> {
+    return this.prisma.user.update({
+      where: { id },
+      data: { passwordHash, mustChangePassword: true },
+      select: USER_SELECT,
+    });
+  }
+
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }
