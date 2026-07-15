@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -66,16 +67,23 @@ export default function Sidebar({ session }: SidebarProps) {
         )}
       >
         {collapsed ? (
-          <span className="text-xl font-bold" style={{ color: '#147F23' }}>B</span>
+          <Image
+            src="/logo/logotipo-vertical.png"
+            alt="Bioinfood"
+            width={1801}
+            height={1968}
+            priority
+            className="h-14 w-auto"
+          />
         ) : (
-          <div>
-            <span className="text-xl font-bold tracking-tight">
-              <span style={{ color: '#147F23' }}>BIO</span>
-              <span className="text-xs font-normal mx-0.5 relative" style={{ color: '#DD8005', top: '-1px' }}>in</span>
-              <span style={{ color: '#147F23' }}>FOOD</span>
-            </span>
-            <p className="text-xs text-gray-500 mt-0.5">ERP</p>
-          </div>
+          <Image
+            src="/logo/logotipo-horizontal.png"
+            alt="Bioinfood"
+            width={2618}
+            height={1084}
+            priority
+            className="h-14 w-auto"
+          />
         )}
         {!collapsed && (
           <button
