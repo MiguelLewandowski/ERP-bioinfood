@@ -1,22 +1,33 @@
-import { Clock, User2, Folder, Lock, Link2 } from 'lucide-react';
+import { Clock, User2, Folder, Lock, Link2, AlertTriangle } from 'lucide-react';
 import type { ActivityDto } from '@bioinfood/shared';
-import { STATUS_META, PRIORITY_META, formatTime } from '@/lib/activities';
+import { STATUS_META, PRIORITY_META, formatTime, isOverdue } from '@/lib/activities';
 
 interface ActivityCardProps {
   activity: ActivityDto;
   showProject?: boolean;
+  onClick?: (activity: ActivityDto) => void;
 }
 
-export function ActivityCard({ activity, showProject = true }: ActivityCardProps) {
+export function ActivityCard({ activity, showProject = true, onClick }: ActivityCardProps) {
   const status = STATUS_META[activity.status];
   const priority = PRIORITY_META[activity.priority];
   const time = formatTime(activity);
   // Bloqueada enquanto alguma antecessora não estiver concluída.
   const blockingPredecessors = activity.predecessors.filter((p) => p.status !== 'DONE');
   const isBlocked = blockingPredecessors.length > 0;
+  const overdue = isOverdue(activity);
+  const clickable = !!onClick;
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 hover:border-gray-300 transition-colors">
+    <div
+      onClick={clickable ? () => onClick!(activity) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(activity); } } : undefined}
+      className={`flex items-start gap-3 rounded-lg border bg-white px-4 py-3 transition-colors ${
+        overdue ? 'border-[#F5C2C6]' : 'border-gray-200'
+      } ${clickable ? 'cursor-pointer hover:border-[#52B552] focus:border-[#52B552] focus:outline-none' : 'hover:border-gray-300'}`}
+    >
       <span
         className="mt-1 h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: priority.color }}
@@ -38,6 +49,15 @@ export function ActivityCard({ activity, showProject = true }: ActivityCardProps
               title="Aguardando a conclusão da atividade antecessora"
             >
               <Lock size={10} /> Bloqueada
+            </span>
+          )}
+          {overdue && (
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{ backgroundColor: '#FBE3E5', color: '#D64550' }}
+              title="Prazo vencido e ainda não concluída"
+            >
+              <AlertTriangle size={10} /> Atrasada
             </span>
           )}
         </div>

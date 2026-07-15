@@ -2,21 +2,26 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  startOfWeek, endOfWeek, addWeeks, format, isSameDay,
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  addWeeks, addMonths, format, isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, CalendarDays, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import type { ActivityDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { activitiesApi } from '@/lib/api-hooks';
-import { groupByDay, formatDayLabel } from '@/lib/activities';
+import {
+  groupByDay, formatDayLabel, filterActivities, summarize,
+  STATUS_META, OVERDUE_COLOR, EMPTY_FILTERS, type ActivityFilters,
+} from '@/lib/activities';
 import { ActivityCard } from '@/components/activities/activity-card';
+import { MonthCalendar } from './month-calendar';
+import { ActivitiesFilters } from './activities-filters';
+import { ActivityDetail } from './activity-detail';
+import { DayDetail } from './day-detail';
 
-function toInputValue(date: Date): string {
-  return format(date, 'yyyy-MM-dd');
-}
+type ViewMode = 'month' | 'week';
 
-// Limites ISO cobrindo o dia inteiro (início 00:00 → fim 23:59:59.999).
 function dayStart(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -28,95 +33,150 @@ function dayEnd(date: Date): Date {
   return d;
 }
 
+function rangeFor(mode: ViewMode, cursor: Date): { start: Date; end: Date } {
+  if (mode === 'week') {
+    return {
+      start: startOfWeek(cursor, { weekStartsOn: 1 }),
+      end: endOfWeek(cursor, { weekStartsOn: 1 }),
+    };
+  }
+  return {
+    start: startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 }),
+    end: endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 }),
+  };
+}
+
 export function ActivitiesClient() {
-  const { token } = useAuth();
-  const [from, setFrom] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [to, setTo] = useState(() => endOfWeek(new Date(), { weekStartsOn: 1 }));
+  const { token, session } = useAuth();
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [cursor, setCursor] = useState(() => new Date());
   const [activities, setActivities] = useState<ActivityDto[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [filters, setFilters] = useState<ActivityFilters>({ ...EMPTY_FILTERS, currentUserId: session.sub });
+  const [selectedActivity, setSelectedActivity] = useState<ActivityDto | null>(null);
+  const [selectedDay, setSelectedDay] = useState<{ date: Date; activities: ActivityDto[] } | null>(null);
+
+  const { start, end } = useMemo(() => rangeFor(viewMode, cursor), [viewMode, cursor]);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     activitiesApi
-      .list({ from: dayStart(from).toISOString(), to: dayEnd(to).toISOString() }, token)
+      .list({ from: dayStart(start).toISOString(), to: dayEnd(end).toISOString() }, token)
       .then((data) => { if (active) setActivities(data); })
       .catch(() => { if (active) setActivities([]); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [from, to, token]);
+  }, [start, end, token]);
 
+  const filtered = useMemo(() => filterActivities(activities, filters), [activities, filters]);
+  const summary = useMemo(() => summarize(filtered), [filtered]);
   const blocks = useMemo(
-    () => groupByDay(activities, { start: dayStart(from), end: dayEnd(to) }),
-    [activities, from, to],
+    () => groupByDay(filtered, { start: dayStart(start), end: dayEnd(end) }),
+    [filtered, start, end],
   );
 
-  function shiftWeek(direction: -1 | 1) {
-    setFrom((f) => addWeeks(f, direction));
-    setTo((t) => addWeeks(t, direction));
+  function shift(direction: -1 | 1) {
+    setCursor((c) => (viewMode === 'week' ? addWeeks(c, direction) : addMonths(c, direction)));
   }
 
-  function goToThisWeek() {
-    setFrom(startOfWeek(new Date(), { weekStartsOn: 1 }));
-    setTo(endOfWeek(new Date(), { weekStartsOn: 1 }));
+  function patchFilters(patch: Partial<ActivityFilters>) {
+    setFilters((f) => ({ ...f, ...patch }));
   }
+
+  const periodLabel = viewMode === 'month'
+    ? format(cursor, "MMMM 'de' yyyy", { locale: ptBR })
+    : `${format(start, 'dd MMM', { locale: ptBR })} – ${format(end, 'dd MMM', { locale: ptBR })}`;
 
   return (
     <div>
-      {/* Barra de filtro de período */}
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-        <div className="flex items-center gap-1">
+      {/* Barra de controles */}
+      <div className="mb-4 space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => shift(-1)}
+              className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
+              title={viewMode === 'week' ? 'Semana anterior' : 'Mês anterior'}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => shift(1)}
+              className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
+              title={viewMode === 'week' ? 'Próxima semana' : 'Próximo mês'}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
           <button
-            onClick={() => shiftWeek(-1)}
-            className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
-            title="Semana anterior"
+            onClick={() => setCursor(new Date())}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-[#575756] hover:bg-gray-50"
           >
-            <ChevronLeft size={16} />
+            <CalendarDays size={13} /> Hoje
           </button>
-          <button
-            onClick={() => shiftWeek(1)}
-            className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
-            title="Próxima semana"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-        <button
-          onClick={goToThisWeek}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-[#575756] hover:bg-gray-50"
-        >
-          <CalendarDays size={13} /> Semana atual
-        </button>
+          <span className="text-sm font-semibold capitalize text-[#1D1D1B]">{periodLabel}</span>
 
-        <div className="ml-auto flex items-center gap-2 text-xs text-[#575756]">
-          <label className="flex items-center gap-1.5">
-            De
-            <input
-              type="date"
-              value={toInputValue(from)}
-              max={toInputValue(to)}
-              onChange={(e) => e.target.value && setFrom(new Date(`${e.target.value}T00:00:00`))}
-              className="rounded-lg border border-gray-200 px-2 py-1.5 focus:border-[#52B552] focus:outline-none"
-            />
-          </label>
-          <label className="flex items-center gap-1.5">
-            até
-            <input
-              type="date"
-              value={toInputValue(to)}
-              min={toInputValue(from)}
-              onChange={(e) => e.target.value && setTo(new Date(`${e.target.value}T00:00:00`))}
-              className="rounded-lg border border-gray-200 px-2 py-1.5 focus:border-[#52B552] focus:outline-none"
-            />
-          </label>
+          <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-200 p-0.5">
+            {(['month', 'week'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                style={viewMode === mode
+                  ? { backgroundColor: '#147F23', color: '#FFFFFF' }
+                  : { color: '#575756' }}
+              >
+                {mode === 'month' ? 'Mês' : 'Semana'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-3">
+          <ActivitiesFilters
+            activities={activities}
+            filters={filters}
+            onChange={patchFilters}
+            onReset={() => setFilters({ ...EMPTY_FILTERS, currentUserId: session.sub })}
+          />
+        </div>
+      </div>
+
+      {/* Resumo + legenda */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <SummaryChip label="Total" value={summary.total} color="#1D1D1B" />
+          <SummaryChip label="A fazer" value={summary.todo} color="#575756" />
+          <SummaryChip label="Em andamento" value={summary.inProgress} color="#C16C06" />
+          <SummaryChip label="Concluídas" value={summary.done} color="#156D1D" />
+          <SummaryChip label="Atrasadas" value={summary.overdue} color={OVERDUE_COLOR} />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#878787]">
+          {(Object.keys(STATUS_META) as Array<keyof typeof STATUS_META>).map((s) => (
+            <span key={s} className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_META[s].bg, border: `1px solid ${STATUS_META[s].color}` }} />
+              {STATUS_META[s].label}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm border-l-2" style={{ borderLeftColor: OVERDUE_COLOR, backgroundColor: '#FBE3E5' }} />
+            Atrasada
+          </span>
         </div>
       </div>
 
       {/* Conteúdo */}
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-20 text-sm text-[#878787]">
-          <Loader2 size={16} className="animate-spin" /> Carregando atividades…
-        </div>
+        viewMode === 'month' ? <MonthSkeleton /> : <WeekSkeleton />
+      ) : viewMode === 'month' ? (
+        <MonthCalendar
+          cursor={cursor}
+          activities={filtered}
+          onSelectActivity={setSelectedActivity}
+          onSelectDay={(date, acts) => setSelectedDay({ date, activities: acts })}
+        />
       ) : blocks.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 py-20 text-center text-sm text-[#878787]">
           Nenhuma atividade no período selecionado.
@@ -140,13 +200,76 @@ export function ActivitiesClient() {
               </div>
               <div className="space-y-2">
                 {block.activities.map((activity) => (
-                  <ActivityCard key={activity.id} activity={activity} />
+                  <ActivityCard key={activity.id} activity={activity} onClick={setSelectedActivity} />
                 ))}
               </div>
             </section>
           ))}
         </div>
       )}
+
+      {/* Dialogs */}
+      {selectedDay && (
+        <DayDetail
+          date={selectedDay.date}
+          activities={selectedDay.activities}
+          onClose={() => setSelectedDay(null)}
+          onSelectActivity={(a) => { setSelectedDay(null); setSelectedActivity(a); }}
+        />
+      )}
+      {selectedActivity && (
+        <ActivityDetail activity={selectedActivity} onClose={() => setSelectedActivity(null)} />
+      )}
+    </div>
+  );
+}
+
+function SummaryChip({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+      <span className="text-lg font-bold leading-none" style={{ color }}>{value}</span>
+      <span className="text-xs text-[#706F6F]">{label}</span>
+    </div>
+  );
+}
+
+function MonthSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="px-2 py-2 text-center">
+            <span className="mx-auto block h-2 w-6 rounded bg-gray-200" />
+          </div>
+        ))}
+      </div>
+      {Array.from({ length: 6 }).map((_, r) => (
+        <div key={r} className="grid grid-cols-7 border-b border-gray-200 last:border-b-0">
+          {Array.from({ length: 7 }).map((_, c) => (
+            <div key={c} className="min-h-[116px] border-r border-gray-100 p-2 last:border-r-0">
+              <span className="block h-5 w-5 rounded-full bg-gray-100" />
+              <span className="mt-2 block h-3 w-3/4 rounded bg-gray-100" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WeekSkeleton() {
+  return (
+    <div className="space-y-6">
+      {Array.from({ length: 3 }).map((_, s) => (
+        <section key={s}>
+          <span className="mb-2 block h-4 w-40 rounded bg-gray-200" />
+          <div className="space-y-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-lg border border-gray-200 bg-gray-50" />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

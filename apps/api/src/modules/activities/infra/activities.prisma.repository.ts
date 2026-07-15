@@ -11,8 +11,9 @@ export class ActivitiesPrismaRepository implements IActivitiesRepository {
   async findAllInRange(filters: ActivityFilters): Promise<ActivityListItem[]> {
     const { from, to, projectIds } = filters;
 
-    // Data-âncora: startDate quando existe, senão dueDate (mesma regra de
-    // `taskAnchorDate` em @bioinfood/shared, aqui expressa em SQL).
+    // Sobreposição de intervalo: a atividade entra se seu intervalo
+    // [startDate, dueDate] cruza [from, to]. Quando só há uma das datas, ela
+    // ocupa um único dia (mesma âncora de `taskAnchorDate` em @bioinfood/shared).
     const range: Prisma.DateTimeFilter = {};
     if (from) range.gte = from;
     if (to) range.lte = to;
@@ -20,7 +21,16 @@ export class ActivitiesPrismaRepository implements IActivitiesRepository {
 
     const dateCondition: Prisma.TaskWhereInput[] = hasRange
       ? [
-          { startDate: range },
+          // tem as duas datas: intervalos se sobrepõem
+          {
+            AND: [
+              ...(to ? [{ startDate: { lte: to } }] : []),
+              ...(from ? [{ dueDate: { gte: from } }] : []),
+            ],
+          },
+          // só startDate: cai no range
+          { AND: [{ dueDate: null }, { startDate: range }] },
+          // só dueDate: cai no range
           { AND: [{ startDate: null }, { dueDate: range }] },
         ]
       : [{ startDate: { not: null } }, { dueDate: { not: null } }];
