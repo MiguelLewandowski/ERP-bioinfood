@@ -109,7 +109,7 @@ export class TasksController {
     @Param('id') id: string,
     @Body() dto: AddDependencyDto,
   ) {
-    return this.addDependency.execute(projectId, id, dto.predecessorId);
+    return this.addDependency.execute(projectId, id, dto.predecessorId, dto.type, dto.lag);
   }
 
   @Delete(':id/dependencies/:depId')

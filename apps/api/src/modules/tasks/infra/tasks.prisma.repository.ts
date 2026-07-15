@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
+import { Prisma, TaskDependencyType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ITaskRepository } from '../domain/tasks.repository.interface';
 import { CreateTaskData, TaskChecklistItemEntity, TaskFilters, TaskWithRelations, UpdateTaskData } from '../domain/task.entity';
@@ -7,8 +8,8 @@ import { TaskDependencyEntity } from '../domain/task-dependency.entity';
 const WITH_RELATIONS = {
   assignee: { select: { id: true, name: true } },
   wbsNode: { select: { id: true, code: true, title: true } },
-  successors: { select: { id: true, successorId: true } },
-  predecessors: { select: { id: true, predecessorId: true } },
+  successors: { select: { id: true, successorId: true, type: true, lag: true } },
+  predecessors: { select: { id: true, predecessorId: true, type: true, lag: true } },
   checklist: { orderBy: { order: 'asc' as const } },
 } as const;
 
@@ -88,18 +89,29 @@ export class TasksPrismaRepository implements ITaskRepository {
     return deps.map((d) => d.predecessor);
   }
 
-  addDependency(predecessorId: string, successorId: string): Promise<TaskDependencyEntity> {
-    return this.prisma.taskDependency.create({
-      data: { predecessorId, successorId },
-    });
+  async addDependency(
+    predecessorId: string,
+    successorId: string,
+    type: TaskDependencyType = TaskDependencyType.FS,
+    lag = 0,
+  ): Promise<TaskDependencyEntity> {
+    try {
+      return await this.prisma.taskDependency.create({
+        data: { predecessorId, successorId, type, lag },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('Já existe uma dependência entre essas tarefas');
+      }
+      throw err;
+    }
   }
 
   async removeDependency(id: string): Promise<void> {
-    await this.prisma.taskDependency.delete({ where: { id } });
-  }
-
-  findDependency(id: string): Promise<TaskDependencyEntity | null> {
-    return this.prisma.taskDependency.findUnique({ where: { id } });
+    // Idempotente: se já não existe (ex.: link efêmero da UI que nunca chegou
+    // a persistir), o objetivo do chamador — o vínculo não existir — já foi
+    // alcançado, então não é um erro.
+    await this.prisma.taskDependency.deleteMany({ where: { id } });
   }
 
   addChecklistItem(taskId: string, text: string, order: number): Promise<TaskChecklistItemEntity> {

@@ -4,6 +4,8 @@ export type SystemRole = 'ADMIN' | 'APROVA' | 'INSERE' | 'CONSULTA' | 'CLIENTE';
 export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+// PMBOK: FS (Finish-to-Start), SS (Start-to-Start), FF (Finish-to-Finish), SF (Start-to-Finish).
+export type TaskDependencyType = 'FS' | 'SS' | 'FF' | 'SF';
 export type RiskProbability = 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 export type RiskImpact = 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 
@@ -330,8 +332,8 @@ export interface TaskDto {
   baselineEnd: string | null;
   actualStart: string | null;
   actualEnd: string | null;
-  predecessors: Array<{ id: string; predecessorId: string }>;
-  successors: Array<{ id: string; successorId: string }>;
+  predecessors: Array<{ id: string; predecessorId: string; type: TaskDependencyType; lag: number }>;
+  successors: Array<{ id: string; successorId: string; type: TaskDependencyType; lag: number }>;
   checklist: TaskChecklistItemDto[];
   deletedAt: string | null;
 }

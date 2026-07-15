@@ -1,6 +1,7 @@
 'use client'; // DnD reorder + status filters
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   DndContext,
   DragEndEvent,
@@ -41,6 +42,17 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [editingTask, setEditingTask]   = useState<Task | null>(null);
   const [creating, setCreating]         = useState(false);
+
+  // Abre o dialog de edição quando chega do calendário via ?task=<id>.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const taskId = searchParams.get('task');
+    if (!taskId) return;
+    const match = tasks.find((t) => t.id === taskId);
+    if (match) setEditingTask(match);
+    // Depende só do id da URL: reabrir ao navegar de volta com outro task.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 

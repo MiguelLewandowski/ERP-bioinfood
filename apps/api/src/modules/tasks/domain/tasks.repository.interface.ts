@@ -1,3 +1,4 @@
+import { TaskDependencyType } from '@prisma/client';
 import { TaskDependencyEntity } from './task-dependency.entity';
 import {
   CreateTaskData,
@@ -19,9 +20,13 @@ export interface ITaskRepository {
   findAllDependenciesByProject(projectId: string): Promise<TaskDependencyEntity[]>;
   // Antecessoras (predecessoras) desta task que ainda não foram concluídas.
   findIncompletePredecessors(taskId: string): Promise<Array<{ id: string; title: string }>>;
-  addDependency(predecessorId: string, successorId: string): Promise<TaskDependencyEntity>;
+  addDependency(
+    predecessorId: string,
+    successorId: string,
+    type?: TaskDependencyType,
+    lag?: number,
+  ): Promise<TaskDependencyEntity>;
   removeDependency(id: string): Promise<void>;
-  findDependency(id: string): Promise<TaskDependencyEntity | null>;
   // checklist
   addChecklistItem(taskId: string, text: string, order: number): Promise<TaskChecklistItemEntity>;
   updateChecklistItem(itemId: string, data: { text?: string; checked?: boolean }): Promise<TaskChecklistItemEntity>;

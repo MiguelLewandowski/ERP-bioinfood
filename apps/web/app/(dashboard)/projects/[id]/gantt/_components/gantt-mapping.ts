@@ -7,6 +7,7 @@ import {
   type MilestoneDto,
   type TaskStatus,
   type SystemRole,
+  type TaskDependencyType,
 } from '@bioinfood/shared';
 
 export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'APROVA', 'INSERE'];
@@ -121,11 +122,37 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
   return [...taskItems, ...msItems];
 }
 
+// Formato de link nativo da SVAR (@svar-ui/gantt-store): e2s=FS, s2s=SS, e2e=FF, s2e=SF.
+export type SvarLinkType = 'e2s' | 's2s' | 'e2e' | 's2e';
+
+const PMBOK_TO_SVAR: Record<TaskDependencyType, SvarLinkType> = {
+  FS: 'e2s',
+  SS: 's2s',
+  FF: 'e2e',
+  SF: 's2e',
+};
+
+const SVAR_TO_PMBOK: Record<SvarLinkType, TaskDependencyType> = {
+  e2s: 'FS',
+  s2s: 'SS',
+  e2e: 'FF',
+  s2e: 'SF',
+};
+
+export function toSvarLinkType(type: TaskDependencyType | undefined): SvarLinkType {
+  return type ? PMBOK_TO_SVAR[type] : 'e2s';
+}
+
+export function toPmbokDependencyType(type: unknown): TaskDependencyType {
+  return SVAR_TO_PMBOK[type as SvarLinkType] ?? 'FS';
+}
+
 export interface GanttLink {
   id: string;
   source: string;
   target: string;
-  type: 'e2s';
+  type: SvarLinkType;
+  lag?: number;
 }
 
 // `visibleIds`: ids das tarefas presentes no Gantt. Links cujo predecessor OU
@@ -139,7 +166,8 @@ export function buildGanttLinks(tasks: TaskDto[], visibleIds: Set<string>): Gant
         id: p.id,
         source: p.predecessorId,
         target: t.id,
-        type: 'e2s' as const,
+        type: toSvarLinkType(p.type),
+        lag: p.lag,
       })),
   );
 }

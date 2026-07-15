@@ -7,7 +7,7 @@ import { useEffect, useRef, type MutableRefObject } from 'react';
 import type { TaskDto } from '@bioinfood/shared';
 import { tasksApi, milestonesApi } from '@/lib/api-hooks';
 import { useConfirm } from '@/components/providers/confirm-provider';
-import { isMilestoneId, stripMs, progressToStatus, type GanttLink } from './gantt-mapping';
+import { isMilestoneId, stripMs, progressToStatus, toPmbokDependencyType, type GanttLink } from './gantt-mapping';
 
 interface Options {
   editable: boolean;
@@ -173,12 +173,20 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
 
     api.on('add-link', async (ev: any) => {
       const link = ev.link ?? {};
-      if (isMilestoneId(link.source) || isMilestoneId(link.target)) return;
+      if (isMilestoneId(link.source) || isMilestoneId(link.target)) {
+        // Marcos não são Task — a dependência não tem onde ser persistida.
+        // Desfaz o link otimista que a SVAR já inseriu na store para não
+        // deixar um vínculo "fantasma" (visível na tela, inexistente no
+        // backend) que geraria confusão ao tentar removê-lo depois.
+        if (ev.id != null) api.exec('delete-link', { id: ev.id });
+        return;
+      }
       const predecessorId = resolveTaskId(link.source);
       const successorId = resolveTaskId(link.target);
+      const type = toPmbokDependencyType(link.type);
       try {
         const dep = (await tasksApi.addDependency(
-          projectId, successorId, predecessorId, token,
+          projectId, successorId, predecessorId, token, type, link.lag,
         )) as { id?: string };
         if (ev.id != null) {
           if (dep?.id) linkIdMap.current.set(String(ev.id), dep.id);
@@ -188,8 +196,15 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
     });
 
     api.on('delete-link', (ev: any) => {
-      const depId = linkIdMap.current.get(String(ev.id)) ?? String(ev.id);
-      const taskId = linkTarget.current.get(String(ev.id)) ?? '_';
+      const key = String(ev.id);
+      // Se o `add-link` correspondente ainda não resolveu (ou nunca chegou a
+      // persistir, ex.: vínculo com marco), não há id real do backend — mas a
+      // exclusão no backend é idempotente, então enviar o id efêmero da SVAR
+      // não gera erro, só um no-op.
+      const depId = linkIdMap.current.get(key) ?? key;
+      const taskId = linkTarget.current.get(key) ?? '_';
+      linkIdMap.current.delete(key);
+      linkTarget.current.delete(key);
       tasksApi.removeDependency(projectId, taskId, depId, token).catch(onError);
     });
   }, [api, editable, projectId, token, onError, onEditTask, confirm]);

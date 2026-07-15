@@ -177,9 +177,14 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         { predecessorId: selectedPred },
         token,
       );
-      setPredecessors((prev) => [...prev, dep as { id: string; predecessorId: string }]);
+      const next = [...predecessors, dep as (typeof predecessors)[number]];
+      setPredecessors(next);
       setSelectedPred('');
       setAddingDep(false);
+      // Já persistida — não depende do botão "Salvar". Avisa quem renderiza a
+      // tarefa (Gantt/Kanban/Backlog) para refletir a mudança imediatamente.
+      onUpdated?.({ ...task!, predecessors: next, checklist });
+      toast.success('Dependência adicionada');
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -191,7 +196,10 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
     if (!isEdit) return;
     try {
       await api.delete(`/projects/${projectId}/tasks/${task!.id}/dependencies/${depId}`, token);
-      setPredecessors((prev) => prev.filter((d) => d.id !== depId));
+      const next = predecessors.filter((d) => d.id !== depId);
+      setPredecessors(next);
+      onUpdated?.({ ...task!, predecessors: next, checklist });
+      toast.success('Dependência removida');
     } catch (err) {
       toast.error(getErrorMessage(err));
     }

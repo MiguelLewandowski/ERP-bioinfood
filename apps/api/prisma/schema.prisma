@@ -55,6 +55,14 @@ enum TaskPriority {
   CRITICAL
 }
 
+// PMBOK: FS (Finish-to-Start), SS (Start-to-Start), FF (Finish-to-Finish), SF (Start-to-Finish).
+enum TaskDependencyType {
+  FS
+  SS
+  FF
+  SF
+}
+
 enum RiskProbability {
   VERY_LOW
   LOW
@@ -817,10 +825,12 @@ model TaskChecklistItem {
 }
 
 model TaskDependency {
-  id            String   @id @default(cuid())
+  id            String             @id @default(cuid())
   predecessorId String
   successorId   String
-  createdAt     DateTime @default(now())
+  type          TaskDependencyType @default(FS)
+  lag           Int                @default(0)
+  createdAt     DateTime           @default(now())
 
   predecessor Task @relation("Predecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
   successor   Task @relation("Successor", fields: [successorId], references: [id], onDelete: Cascade)

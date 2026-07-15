@@ -1,4 +1,4 @@
-import { TaskStatus, TaskPriority } from '@prisma/client';
+import { TaskStatus, TaskPriority, TaskDependencyType } from '@prisma/client';
 
 export interface TaskEntity {
   id: string;
@@ -36,8 +36,8 @@ export interface TaskChecklistItemEntity {
 export interface TaskWithRelations extends TaskEntity {
   assignee: { id: string; name: string } | null;
   wbsNode: { id: string; code: string; title: string } | null;
-  successors: Array<{ id: string; successorId: string }>;
-  predecessors: Array<{ id: string; predecessorId: string }>;
+  successors: Array<{ id: string; successorId: string; type: TaskDependencyType; lag: number }>;
+  predecessors: Array<{ id: string; predecessorId: string; type: TaskDependencyType; lag: number }>;
   checklist: TaskChecklistItemEntity[];
 }
 

@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   TaskDto,
   TaskChecklistItemDto,
+  TaskDependencyType,
   RiskDto,
   StakeholderDto,
   MilestoneDto,
@@ -66,8 +67,19 @@ export const tasksApi = {
   removeChecklist: (projectId: string, taskId: string, itemId: string, token: string) =>
     api.delete<void>(`/projects/${projectId}/tasks/${taskId}/checklist/${itemId}`, token),
 
-  addDependency: (projectId: string, taskId: string, predecessorId: string, token: string) =>
-    api.post<unknown>(`/projects/${projectId}/tasks/${taskId}/dependencies`, { predecessorId }, token),
+  addDependency: (
+    projectId: string,
+    taskId: string,
+    predecessorId: string,
+    token: string,
+    type?: TaskDependencyType,
+    lag?: number,
+  ) =>
+    api.post<unknown>(
+      `/projects/${projectId}/tasks/${taskId}/dependencies`,
+      { predecessorId, type, lag },
+      token,
+    ),
 
   removeDependency: (projectId: string, taskId: string, depId: string, token: string) =>
     api.delete<void>(`/projects/${projectId}/tasks/${taskId}/dependencies/${depId}`, token),

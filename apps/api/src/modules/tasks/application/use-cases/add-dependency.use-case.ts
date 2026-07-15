@@ -1,11 +1,18 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { TaskDependencyType } from '@prisma/client';
 import { ITaskRepository, TASK_REPOSITORY } from '../../domain/tasks.repository.interface';
 
 @Injectable()
 export class AddDependencyUseCase {
   constructor(@Inject(TASK_REPOSITORY) private repo: ITaskRepository) {}
 
-  async execute(projectId: string, successorId: string, predecessorId: string) {
+  async execute(
+    projectId: string,
+    successorId: string,
+    predecessorId: string,
+    type: TaskDependencyType = TaskDependencyType.FS,
+    lag = 0,
+  ) {
     const [successor, predecessor] = await Promise.all([
       this.repo.findById(successorId),
       this.repo.findById(predecessorId),
@@ -18,7 +25,7 @@ export class AddDependencyUseCase {
     const hasCycle = await this.detectCycle(projectId, predecessorId, successorId);
     if (hasCycle) throw new BadRequestException('Dependency would create a cycle');
 
-    return this.repo.addDependency(predecessorId, successorId);
+    return this.repo.addDependency(predecessorId, successorId, type, lag);
   }
 
   private async detectCycle(projectId: string, startId: string, targetId: string): Promise<boolean> {
