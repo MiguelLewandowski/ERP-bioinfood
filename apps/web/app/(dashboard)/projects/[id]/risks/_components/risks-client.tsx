@@ -34,7 +34,7 @@ interface RisksClientProps {
 }
 
 function scoreColor(score: number): { bg: string; text: string } {
-  if (score >= 16) return { bg: '#147F23', text: '#FFFFFF' };
+  if (score >= 16) return { bg: '#D64550', text: '#FFFFFF' };
   if (score >= 9)  return { bg: '#DD8005', text: '#FFFFFF' };
   if (score >= 4)  return { bg: '#FFB000', text: '#C16C06' };
   return { bg: '#86C175', text: '#156D1D' };
@@ -93,7 +93,7 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
           <h2 className="text-xl font-bold text-[#1D1D1B]">Matriz de Riscos</h2>
           <p className="text-sm text-[#706F6F] mt-0.5">
             {risks.length} riscos identificados
-            {critical > 0 && <span className="ml-2 text-[#147F23] font-semibold">· {critical} críticos</span>}
+            {critical > 0 && <span className="ml-2 text-[#D64550] font-semibold">· {critical} críticos</span>}
             {high > 0 && <span className="ml-2 text-[#DD8005] font-semibold">· {high} altos</span>}
           </p>
         </div>

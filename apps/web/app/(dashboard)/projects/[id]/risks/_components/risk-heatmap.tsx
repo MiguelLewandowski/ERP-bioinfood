@@ -9,7 +9,7 @@ const LEVEL_NUM: Record<string, number> = { VERY_LOW: 1, LOW: 2, MEDIUM: 3, HIGH
 
 function cellColor(prob: number, impact: number): string {
   const score = prob * impact;
-  if (score >= 16) return '#147F23';
+  if (score >= 16) return '#D64550';
   if (score >= 9)  return '#DD8005';
   if (score >= 4)  return '#FFB000';
   return '#86C175';
@@ -79,7 +79,7 @@ export function RiskHeatmap({ risks, onCellClick }: RiskHeatmapProps) {
             { color: '#86C175', label: 'Baixo (1–3)' },
             { color: '#FFB000', label: 'Moderado (4–8)' },
             { color: '#DD8005', label: 'Alto (9–15)' },
-            { color: '#147F23', label: 'Crítico (16–25)' },
+            { color: '#D64550', label: 'Crítico (16–25)' },
           ].map(({ color, label }) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
