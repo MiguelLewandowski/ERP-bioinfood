@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Save, AlertTriangle } from 'lucide-react';
+import { Save, AlertTriangle, Trash2 } from 'lucide-react';
 import type { ProjectDto } from '@bioinfood/shared';
 import { api } from '@/lib/api';
+import { projectsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
+import { useAuth } from '@/components/providers/auth-provider';
+import { useConfirm } from '@/components/providers/confirm-provider';
 import { OrganizationSelect } from '@/components/shared/organization-select';
 
 const STATUS_OPTIONS = [
@@ -49,9 +52,37 @@ function toDateInput(d: string | null | undefined): string {
 
 export function ProjectSettingsClient({ projectId, token, project }: ProjectSettingsClientProps) {
   const router = useRouter();
+  const { session } = useAuth();
+  const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const isAdmin = session.role === 'ADMIN';
+
+  async function onDelete() {
+    const ok = await confirm({
+      title: 'Excluir projeto definitivamente?',
+      description:
+        'Esta ação é irreversível. O projeto e todos os seus dados (tarefas, riscos, marcos, WBS, TAP, stakeholders e acessos) serão apagados permanentemente.',
+      confirmLabel: 'Excluir definitivamente',
+      cancelLabel: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+
+    setDeleting(true);
+    setError('');
+    try {
+      await projectsApi.remove(projectId, token);
+      router.push('/projects');
+      router.refresh();
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setDeleting(false);
+    }
+  }
 
   const { register, handleSubmit, control, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -191,6 +222,31 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           </button>
         </div>
       </form>
+
+      {/* Zona de perigo — exclusão definitiva, restrita a ADMIN */}
+      {isAdmin && (
+        <section className="mt-8 rounded-xl border border-red-200 bg-red-50/50 p-5">
+          <h3 className="text-sm font-bold text-red-700 border-b border-red-100 pb-2">Zona de perigo</h3>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#1D1D1B]">Excluir projeto definitivamente</p>
+              <p className="text-xs text-[#706F6F] mt-0.5">
+                Apaga o projeto e todos os seus dados. Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: '#D64550' }}
+            >
+              <Trash2 size={15} />
+              {deleting ? 'Excluindo…' : 'Excluir projeto'}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

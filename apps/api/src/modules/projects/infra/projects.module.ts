@@ -8,7 +8,9 @@ import { CreateProjectUseCase } from '../application/create-project.use-case';
 import { GetProjectUseCase } from '../application/get-project.use-case';
 import { UpdateProjectUseCase } from '../application/update-project.use-case';
 import { CancelProjectUseCase } from '../application/cancel-project.use-case';
+import { DeleteProjectUseCase } from '../application/delete-project.use-case';
 import { GrantAccessUseCase } from '../application/grant-access.use-case';
+import { RevokeAccessUseCase } from '../application/revoke-access.use-case';
 import { SetBaselineUseCase } from '../application/set-baseline.use-case';
 
 @Module({
@@ -21,8 +23,11 @@ import { SetBaselineUseCase } from '../application/set-baseline.use-case';
     GetProjectUseCase,
     UpdateProjectUseCase,
     CancelProjectUseCase,
+    DeleteProjectUseCase,
     GrantAccessUseCase,
+    RevokeAccessUseCase,
     SetBaselineUseCase,
   ],
+  exports: [PROJECT_REPOSITORY],
 })
 export class ProjectsModule {}

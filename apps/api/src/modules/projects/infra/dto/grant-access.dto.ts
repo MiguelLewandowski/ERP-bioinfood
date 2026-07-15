@@ -1,6 +1,7 @@
-import { IsUUID } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class GrantAccessDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   userId: string;
 }

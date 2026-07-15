@@ -8,7 +8,9 @@ import { CreateProjectUseCase } from '../application/create-project.use-case';
 import { GetProjectUseCase } from '../application/get-project.use-case';
 import { UpdateProjectUseCase } from '../application/update-project.use-case';
 import { CancelProjectUseCase } from '../application/cancel-project.use-case';
+import { DeleteProjectUseCase } from '../application/delete-project.use-case';
 import { GrantAccessUseCase } from '../application/grant-access.use-case';
+import { RevokeAccessUseCase } from '../application/revoke-access.use-case';
 import { SetBaselineUseCase } from '../application/set-baseline.use-case';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -25,7 +27,9 @@ export class ProjectsController {
     private getProject: GetProjectUseCase,
     private updateProject: UpdateProjectUseCase,
     private cancelProject: CancelProjectUseCase,
+    private deleteProject: DeleteProjectUseCase,
     private grantAccess: GrantAccessUseCase,
+    private revokeAccess: RevokeAccessUseCase,
     private setBaseline: SetBaselineUseCase,
   ) {}
 
@@ -71,10 +75,23 @@ export class ProjectsController {
     return this.cancelProject.execute(id);
   }
 
+  // Exclusão definitiva — apenas ADMIN. Remove o projeto e suas relações (cascade).
+  @Delete(':id/permanent')
+  @Roles(SystemRole.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.deleteProject.execute(id);
+  }
+
   @Post(':id/access')
   @Roles(SystemRole.APROVA, SystemRole.ADMIN)
   access(@Param('id') projectId: string, @Body() dto: GrantAccessDto, @CurrentUser() user: AuthUser) {
     return this.grantAccess.execute(projectId, dto.userId, user.id);
+  }
+
+  @Delete(':id/access/:userId')
+  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  revokeAccessEndpoint(@Param('id') projectId: string, @Param('userId') userId: string) {
+    return this.revokeAccess.execute(projectId, userId);
   }
 
   @Post(':id/baseline')

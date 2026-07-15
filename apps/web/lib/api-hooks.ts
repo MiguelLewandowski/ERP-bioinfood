@@ -191,6 +191,10 @@ export const projectsApi = {
   cancel: (id: string, token: string) =>
     api.delete<void>(`/projects/${id}`, token),
 
+  // Exclusão definitiva (hard delete) — apenas ADMIN no backend.
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/projects/${id}/permanent`, token),
+
   grantAccess: (id: string, userId: string, token: string) =>
     api.post<void>(`/projects/${id}/access`, { userId }, token),
 

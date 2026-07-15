@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ProjectStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IProjectRepository } from '../domain/project.repository';
@@ -72,6 +72,13 @@ export class ProjectsPrismaRepository implements IProjectRepository {
     });
   }
 
+  async delete(id: string): Promise<void> {
+    // Hard delete: o cascade do schema (onDelete: Cascade) remove tasks, riscos,
+    // marcos, WBS, charter, stakeholders e acessos. LabOrder tem projectId
+    // opcional → é desvinculado (SetNull), preservando o histórico do LIMS.
+    await this.prisma.project.delete({ where: { id } });
+  }
+
   async setBaseline(projectId: string, userId: string): Promise<ProjectWithRelations> {
     // Copia as datas atuais das atividades para os campos de baseline (PMBOK).
     await this.prisma.$transaction([
@@ -98,5 +105,12 @@ export class ProjectsPrismaRepository implements IProjectRepository {
       update: {},
       create: { projectId, userId, grantedById },
     });
+  }
+
+  async revokeAccess(projectId: string, userId: string): Promise<void> {
+    const { count } = await this.prisma.projectAccess.deleteMany({
+      where: { projectId, userId },
+    });
+    if (count === 0) throw new NotFoundException('Acesso não encontrado');
   }
 }
