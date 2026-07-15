@@ -33,7 +33,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
   const { session } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('table');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
 
