@@ -17,7 +17,30 @@ export class AuthPrismaRepository implements IAuthRepository {
         role: true,
         isActive: true,
         passwordHash: true,
+        mustChangePassword: true,
       },
+    });
+  }
+
+  async findById(id: string): Promise<UserForAuth | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        passwordHash: true,
+        mustChangePassword: true,
+      },
+    });
+  }
+
+  async updatePassword(id: string, passwordHash: string, mustChangePassword: boolean): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash, mustChangePassword },
     });
   }
 

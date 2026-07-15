@@ -39,6 +39,13 @@ export async function POST(req: NextRequest) {
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
   });
+  res.cookies.set('must_change_password', data.user.mustChangePassword ? '1' : '0', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  });
 
   return res;
 }

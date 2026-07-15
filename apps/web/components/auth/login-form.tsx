@@ -34,7 +34,8 @@ export default function LoginForm() {
         setError(body.message ?? 'E-mail ou senha inválidos');
         return;
       }
-      router.push('/projects');
+      const body = await res.json();
+      router.push(body.user?.mustChangePassword ? '/change-password' : '/projects');
       router.refresh();
     } catch (err) {
       setError(getErrorMessage(err));

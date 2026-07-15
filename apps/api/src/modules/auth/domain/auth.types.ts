@@ -19,6 +19,7 @@ export interface UserForAuth {
   role: SystemRole;
   isActive: boolean;
   passwordHash: string;
+  mustChangePassword: boolean;
 }
 
 export interface AuthUser {

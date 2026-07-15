@@ -6,7 +6,7 @@ import { TokenPair } from '../domain/auth.types';
 
 export interface LoginResult {
   tokens: TokenPair;
-  user: { id: string; name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string; mustChangePassword: boolean };
 }
 
 @Injectable()
@@ -33,7 +33,13 @@ export class LoginUseCase {
 
     return {
       tokens: { accessToken, refreshToken },
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
     };
   }
 }

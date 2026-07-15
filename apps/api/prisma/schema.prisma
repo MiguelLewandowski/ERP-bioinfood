@@ -184,6 +184,7 @@ model User {
   passwordHash String
   role         SystemRole @default(CONSULTA)
   isActive     Boolean    @default(true)
+  mustChangePassword Boolean @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?

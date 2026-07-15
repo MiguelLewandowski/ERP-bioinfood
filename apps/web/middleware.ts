@@ -65,6 +65,11 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     return clearAuthAndRedirect(req);
   }
 
+  const mustChangePassword = req.cookies.get('must_change_password')?.value === '1';
+  if (mustChangePassword && pathname !== '/change-password') {
+    return NextResponse.redirect(new URL('/change-password', req.url));
+  }
+
   // Access token presente e ainda válido → deixa passar
   if (accessToken) {
     const exp = jwtExp(accessToken);

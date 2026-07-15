@@ -20,10 +20,16 @@ export class RefreshUseCase {
       throw new UnauthorizedException('Token revogado ou inválido');
     }
 
+    const user = await this.authRepo.findById(payload.sub);
+    if (!user || !user.isActive) {
+      await this.authRepo.revokeRefreshToken(payload.jti);
+      throw new UnauthorizedException('Usuário inativo');
+    }
+
     await this.authRepo.revokeRefreshToken(payload.jti);
 
     const { accessToken, refreshToken: newRefreshToken, jti, expiresAt } =
-      this.tokenService.generatePair({ sub: payload.sub, email: payload.email, role: payload.role });
+      this.tokenService.generatePair({ sub: user.id, email: user.email, role: user.role });
 
     await this.authRepo.saveRefreshToken({ userId: payload.sub, jti, expiresAt });
 

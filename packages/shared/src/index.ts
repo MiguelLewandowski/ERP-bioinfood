@@ -15,6 +15,7 @@ export interface UserDto {
   email: string;
   role: SystemRole;
   isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: string;
 }
 
