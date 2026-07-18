@@ -97,14 +97,14 @@ export function ActivitiesClient() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => shift(-1)}
-              className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-gray-100"
               title={viewMode === 'week' ? 'Semana anterior' : 'Mês anterior'}
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => shift(1)}
-              className="rounded-lg p-1.5 text-[#575756] hover:bg-gray-100"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-gray-100"
               title={viewMode === 'week' ? 'Próxima semana' : 'Próximo mês'}
             >
               <ChevronRight size={16} />
@@ -112,11 +112,11 @@ export function ActivitiesClient() {
           </div>
           <button
             onClick={() => setCursor(new Date())}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-[#575756] hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-gray-50"
           >
             <CalendarDays size={13} /> Hoje
           </button>
-          <span className="text-sm font-semibold capitalize text-[#1D1D1B]">{periodLabel}</span>
+          <span className="text-sm font-semibold capitalize text-foreground">{periodLabel}</span>
 
           <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-200 p-0.5">
             {(['month', 'week'] as ViewMode[]).map((mode) => (
@@ -125,8 +125,8 @@ export function ActivitiesClient() {
                 onClick={() => setViewMode(mode)}
                 className="rounded-md px-3 py-1 text-xs font-medium transition-colors"
                 style={viewMode === mode
-                  ? { backgroundColor: '#147F23', color: '#FFFFFF' }
-                  : { color: '#575756' }}
+                  ? { backgroundColor: 'hsl(var(--primary))', color: 'white' }
+                  : { color: 'hsl(var(--muted-foreground))' }}
               >
                 {mode === 'month' ? 'Mês' : 'Semana'}
               </button>
@@ -147,13 +147,13 @@ export function ActivitiesClient() {
       {/* Resumo + legenda */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          <SummaryChip label="Total" value={summary.total} color="#1D1D1B" />
-          <SummaryChip label="A fazer" value={summary.todo} color="#575756" />
-          <SummaryChip label="Em andamento" value={summary.inProgress} color="#C16C06" />
-          <SummaryChip label="Concluídas" value={summary.done} color="#156D1D" />
+          <SummaryChip label="Total" value={summary.total} color="hsl(var(--foreground))" />
+          <SummaryChip label="A fazer" value={summary.todo} color="hsl(var(--muted-foreground))" />
+          <SummaryChip label="Em andamento" value={summary.inProgress} color="hsl(var(--accent))" />
+          <SummaryChip label="Concluídas" value={summary.done} color="hsl(var(--primary-dark))" />
           <SummaryChip label="Atrasadas" value={summary.overdue} color={OVERDUE_COLOR} />
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#878787]">
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           {(Object.keys(STATUS_META) as Array<keyof typeof STATUS_META>).map((s) => (
             <span key={s} className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_META[s].bg, border: `1px solid ${STATUS_META[s].color}` }} />
@@ -161,7 +161,7 @@ export function ActivitiesClient() {
             </span>
           ))}
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border-l-2" style={{ borderLeftColor: OVERDUE_COLOR, backgroundColor: '#FBE3E5' }} />
+            <span className="h-2.5 w-2.5 rounded-sm border-l-2" style={{ borderLeftColor: OVERDUE_COLOR, backgroundColor: 'hsl(var(--destructive) / 0.1)' }} />
             Atrasada
           </span>
         </div>
@@ -178,7 +178,7 @@ export function ActivitiesClient() {
           onSelectDay={(date, acts) => setSelectedDay({ date, activities: acts })}
         />
       ) : blocks.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 py-20 text-center text-sm text-[#878787]">
+        <div className="rounded-xl border border-dashed border-gray-300 py-20 text-center text-sm text-muted-foreground">
           Nenhuma atividade no período selecionado.
         </div>
       ) : (
@@ -186,15 +186,15 @@ export function ActivitiesClient() {
           {blocks.map((block) => (
             <section key={block.key}>
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-sm font-bold capitalize text-[#1D1D1B]">
+                <h2 className="text-sm font-bold capitalize text-foreground">
                   {formatDayLabel(block.date)}
                 </h2>
                 {isSameDay(block.date, new Date()) && (
-                  <span className="rounded-full bg-[#DCEFD6] px-2 py-0.5 text-[10px] font-semibold text-[#156D1D]">
+                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-semibold text-primary-dark">
                     Hoje
                   </span>
                 )}
-                <span className="text-xs text-[#878787]">
+                <span className="text-xs text-muted-foreground">
                   {block.activities.length} {block.activities.length === 1 ? 'atividade' : 'atividades'}
                 </span>
               </div>
@@ -228,7 +228,7 @@ function SummaryChip({ label, value, color }: { label: string; value: number; co
   return (
     <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
       <span className="text-lg font-bold leading-none" style={{ color }}>{value}</span>
-      <span className="text-xs text-[#706F6F]">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

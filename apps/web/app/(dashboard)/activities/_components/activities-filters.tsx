@@ -16,7 +16,7 @@ interface ActivitiesFiltersProps {
 }
 
 const SELECT_CLASS =
-  'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-[#575756] focus:border-[#52B552] focus:outline-none';
+  'rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-muted-foreground focus:border-ring focus:outline-none';
 
 export function ActivitiesFilters({ activities, filters, onChange, onReset }: ActivitiesFiltersProps) {
   const projects = useMemo(() => distinctProjects(activities), [activities]);
@@ -31,8 +31,8 @@ export function ActivitiesFilters({ activities, filters, onChange, onReset }: Ac
         onClick={() => onChange({ mine: !filters.mine })}
         className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
         style={filters.mine
-          ? { backgroundColor: '#147F23', borderColor: '#147F23', color: '#FFFFFF' }
-          : { borderColor: '#E5E7EB', color: '#575756' }}
+          ? { backgroundColor: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', color: 'white' }
+          : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}
       >
         <User size={13} /> Minhas atividades
       </button>
@@ -89,7 +89,7 @@ export function ActivitiesFilters({ activities, filters, onChange, onReset }: Ac
       {hasActive && (
         <button
           onClick={onReset}
-          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#706F6F] hover:bg-gray-100"
+          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-gray-100"
         >
           <X size={13} /> Limpar
         </button>

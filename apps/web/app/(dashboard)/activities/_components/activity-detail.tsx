@@ -3,9 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { X, User2, Folder, CalendarRange, ArrowUpRight, Lock, AlertTriangle, Link2 } from 'lucide-react';
+import { User2, Folder, CalendarRange, ArrowUpRight, Lock, AlertTriangle, Link2 } from 'lucide-react';
 import type { ActivityDto } from '@bioinfood/shared';
 import { STATUS_META, PRIORITY_META, isOverdue } from '@/lib/activities';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface ActivityDetailProps {
   activity: ActivityDto;
@@ -29,27 +31,15 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div className="flex items-start gap-2">
-            <span
-              className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: priority.color }}
-              title={`Prioridade: ${priority.label}`}
-            />
-            <h2 className="text-lg font-semibold leading-snug text-[#1D1D1B]">{activity.title}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded p-0.5 text-[#706F6F] hover:text-[#575756] focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            aria-label="Fechar"
-          >
-            <X size={20} />
-          </button>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <div className="flex items-start gap-2 pr-6">
+          <span
+            className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: priority.color }}
+            title={`Prioridade: ${priority.label}`}
+          />
+          <DialogTitle className="leading-snug">{activity.title}</DialogTitle>
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -59,50 +49,50 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
           >
             {status.label}
           </span>
-          <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-[#575756]">
+          <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
             Prioridade: {priority.label}
           </span>
           {blocking.length > 0 && (
-            <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: '#FBE3E5', color: '#D64550' }}>
+            <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))' }}>
               <Lock size={11} /> Bloqueada
             </span>
           )}
           {overdue && (
-            <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: '#FBE3E5', color: '#D64550' }}>
+            <span className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))' }}>
               <AlertTriangle size={11} /> Atrasada
             </span>
           )}
         </div>
 
         {activity.description && (
-          <p className="mb-4 whitespace-pre-line text-sm text-[#706F6F]">{activity.description}</p>
+          <p className="mb-4 whitespace-pre-line text-sm text-muted-foreground">{activity.description}</p>
         )}
 
         <dl className="space-y-2.5 text-sm">
-          <div className="flex items-center gap-2 text-[#575756]">
-            <Folder size={14} className="text-[#878787]" />
-            <span className="text-[#878787]">Projeto:</span> {activity.project.name}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Folder size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground">Projeto:</span> {activity.project.name}
           </div>
-          <div className="flex items-center gap-2 text-[#575756]">
-            <User2 size={14} className="text-[#878787]" />
-            <span className="text-[#878787]">Responsável:</span> {activity.assignee?.name ?? 'Não atribuído'}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <User2 size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground">Responsável:</span> {activity.assignee?.name ?? 'Não atribuído'}
           </div>
-          <div className="flex items-center gap-2 text-[#575756]">
-            <CalendarRange size={14} className="text-[#878787]" />
-            <span className="text-[#878787]">Período:</span> {fmt(activity.startDate)} — {fmt(activity.dueDate)}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <CalendarRange size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground">Período:</span> {fmt(activity.startDate)} — {fmt(activity.dueDate)}
           </div>
           {activity.predecessors.length > 0 && (
-            <div className="flex items-start gap-2 text-[#575756]">
-              <Link2 size={14} className="mt-0.5 text-[#878787]" />
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <Link2 size={14} className="mt-0.5 text-muted-foreground" />
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[#878787]">Depende de:</span>
+                <span className="text-muted-foreground">Depende de:</span>
                 {activity.predecessors.map((p) => (
                   <span
                     key={p.id}
                     className="rounded px-1.5 py-0.5 text-[11px] font-medium"
                     style={p.status === 'DONE'
-                      ? { backgroundColor: '#DCEFD6', color: '#156D1D' }
-                      : { backgroundColor: '#F0F0F0', color: '#575756' }}
+                      ? { backgroundColor: 'hsl(var(--success) / 0.2)', color: 'hsl(var(--primary-dark))' }
+                      : { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}
                   >
                     {p.title}
                   </span>
@@ -112,22 +102,13 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
           )}
         </dl>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-[#575756] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-          >
-            Fechar
-          </button>
-          <button
-            onClick={openInProject}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#156D1D] focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            style={{ backgroundColor: '#147F23' }}
-          >
+        <div className="mt-2 flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+          <Button onClick={openInProject}>
             Abrir no projeto <ArrowUpRight size={15} />
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

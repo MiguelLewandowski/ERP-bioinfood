@@ -39,7 +39,7 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
           <div
             key={label}
             className={`px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide ${
-              i >= 5 ? 'text-[#B5B5B5]' : 'text-[#878787]'
+              i >= 5 ? 'text-muted-foreground/60' : 'text-muted-foreground'
             }`}
           >
             {label}
@@ -67,24 +67,24 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
                 <button
                   key={day.toISOString()}
                   onClick={() => onSelectDay(day, activitiesForDay(day))}
-                  className={`flex min-h-[116px] flex-col border-r border-gray-100 px-1 pt-1 text-left transition-colors last:border-r-0 hover:bg-[#F0F7EF] ${
-                    isToday ? 'bg-[#F3FAF2]' : !inMonth ? 'bg-gray-50/60' : isWeekend ? 'bg-gray-50/40' : ''
+                  className={`flex min-h-[116px] flex-col border-r border-gray-100 px-1 pt-1 text-left transition-colors last:border-r-0 hover:bg-success/10 ${
+                    isToday ? 'bg-success/10' : !inMonth ? 'bg-gray-50/60' : isWeekend ? 'bg-gray-50/40' : ''
                   }`}
                 >
                   <span
                     className={`ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
                       isToday
-                        ? 'bg-[#147F23] font-bold text-white'
+                        ? 'bg-primary font-bold text-white'
                         : inMonth
-                          ? 'text-[#1D1D1B]'
-                          : 'text-[#B5B5B5]'
+                          ? 'text-foreground'
+                          : 'text-muted-foreground/60'
                     }`}
                   >
                     {format(day, 'd')}
                   </span>
                   {hiddenCount > 0 && (
                     <span
-                      className="mt-auto truncate whitespace-nowrap rounded pb-1 pl-1 text-[10px] font-medium text-[#575756]"
+                      className="mt-auto truncate whitespace-nowrap rounded pb-1 pl-1 text-[10px] font-medium text-muted-foreground"
                       title={`Mais ${hiddenCount} ${hiddenCount === 1 ? 'atividade' : 'atividades'} — clique para ver`}
                     >
                       +{hiddenCount} mais
