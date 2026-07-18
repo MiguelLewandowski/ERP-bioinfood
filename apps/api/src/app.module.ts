@@ -20,6 +20,7 @@ import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { OpportunitiesModule } from './modules/opportunities/opportunities.module';
 import { InteractionsModule } from './modules/interactions/interactions.module';
 import { CrmActivitiesModule } from './modules/crm-activities/crm-activities.module';
+import { SearchModule } from './modules/search/search.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ProjectAccessGuard } from './common/guards/project-access.guard';
@@ -47,6 +48,7 @@ import { AuditModule } from './common/audit/audit.module';
     OpportunitiesModule,
     InteractionsModule,
     CrmActivitiesModule,
+    SearchModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
