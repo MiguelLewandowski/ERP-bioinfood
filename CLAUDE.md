@@ -71,6 +71,7 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | Skill | Quando usar |
 |---|---|
 | `/planejar <feature>` | Antes de qualquer feature nova — plano, fluxo, riscos |
+| `/implementar-plano <plano>` | Orquestrar a execução de um plano já definido, tarefa a tarefa, delegando às skills |
 | `/novo-modulo <nome>` | Criar módulo NestJS completo (Clean Architecture + RBAC) |
 | `/nova-migration <desc>` | Alterar schema Prisma |
 | `/nova-pagina <rota>` | Criar página Next.js (App Router) |
