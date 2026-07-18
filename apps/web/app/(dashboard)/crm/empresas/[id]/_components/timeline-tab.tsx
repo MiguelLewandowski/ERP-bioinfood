@@ -14,6 +14,8 @@ import type {
 import { interactionsApi, crmActivitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
 
 const inputCls =
   'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none';
@@ -95,17 +97,19 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        {canEdit && !showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: 'hsl(var(--primary))' }}
-          >
-            <Plus size={15} /> Registrar interação
-          </button>
-        )}
-      </div>
+      {initialInteractions.length > 0 && (
+        <div className="flex items-center justify-end">
+          {canEdit && !showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
+            >
+              <Plus size={15} /> Registrar interação
+            </button>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -149,9 +153,16 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
       )}
 
       {initialInteractions.length === 0 && !showForm && (
-        <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
-          <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
-        </div>
+        <EmptyState
+          icon={MessageCircle}
+          title="Nenhuma interação registrada ainda"
+          description="Registre e-mails, ligações, reuniões e visitas para montar o histórico deste cliente."
+          action={canEdit && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus size={15} /> Registrar interação
+            </Button>
+          )}
+        />
       )}
 
       <ol className="space-y-2">

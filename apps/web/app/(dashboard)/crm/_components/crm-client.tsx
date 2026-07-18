@@ -7,7 +7,9 @@ import {
   PointerSensor, useSensor, useSensors, closestCorners,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Settings, Snowflake, Sun } from 'lucide-react';
+import {
+  Plus, Settings, Snowflake, Sun, Search, User, X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type {
   PipelineDto, OpportunityDto, PipelineSummaryDto, CrmActivityDto,
@@ -18,6 +20,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -38,7 +41,7 @@ interface CrmClientProps {
 }
 
 export function CrmClient(props: CrmClientProps) {
-  const { token } = useAuth();
+  const { token, session } = useAuth();
   const [pipeline, setPipeline] = useState(props.currentPipeline);
   const [opps, setOpps] = useState(props.initialOpportunities);
   const [summary, setSummary] = useState(props.summary);
@@ -47,6 +50,8 @@ export function CrmClient(props: CrmClientProps) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<OpportunityDto | null>(null);
   const [pendingLost, setPendingLost] = useState<{ oppId: string; stageId: string } | null>(null);
+  const [search, setSearch] = useState('');
+  const [onlyMine, setOnlyMine] = useState(false);
 
   // Atrasadas vêm antes das de hoje na lista — a primeira ocorrência por
   // negócio "vence" e é a mais urgente (achado #1 da análise de UI/UX).
@@ -155,6 +160,19 @@ export function CrmClient(props: CrmClientProps) {
 
   const frozenOpps = opps.filter((o) => o.frozenAt);
 
+  // Filtro do board (achado #5 da análise de UI/UX): busca por título/empresa
+  // e "meus negócios" — client-side, sobre o que já foi carregado.
+  const filterActive = search.trim() !== '' || onlyMine;
+  function matchesFilter(o: OpportunityDto): boolean {
+    if (onlyMine && o.responsible?.id !== session.sub) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const org = (o.organization.tradeName ?? o.organization.legalName).toLowerCase();
+      if (!o.title.toLowerCase().includes(q) && !org.includes(q)) return false;
+    }
+    return true;
+  }
+
   if (!pipeline) {
     return (
       <div className="rounded-xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
@@ -197,11 +215,57 @@ export function CrmClient(props: CrmClientProps) {
         </div>
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] max-w-xs flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar negócio ou empresa…"
+            className="h-8 pl-8 pr-7 text-xs"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Limpar busca"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOnlyMine((v) => !v)}
+          className={cn(
+            'flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors',
+            onlyMine
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-input text-muted-foreground hover:bg-muted/60',
+          )}
+        >
+          <User size={13} /> Meus negócios
+        </button>
+        {filterActive && (
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setOnlyMine(false); }}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
       {summary && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Metric label="Em aberto" value={formatBRL(summary.openTotal)} />
           <Metric label="Ponderado" value={formatBRL(summary.weightedTotal)} />
-          <Metric label="Conversão" value={`${Math.round(summary.conversionRate * 100)}%`} />
+          <Metric
+            label="Conversão"
+            value={`${Math.round(summary.conversionRate * 100)}%`}
+            tone={summary.conversionRate > 0 ? 'success' : 'default'}
+          />
           <Metric label="Ganhos / Perdidos" value={`${summary.wonCount} / ${summary.lostCount}`} />
         </div>
       )}
@@ -211,7 +275,7 @@ export function CrmClient(props: CrmClientProps) {
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
             {stages.map((stage) => {
               // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
-              const colOpps = opps.filter((o) => o.stageId === stage.id && !o.frozenAt);
+              const colOpps = opps.filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o));
               return (
                 <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>
@@ -227,7 +291,9 @@ export function CrmClient(props: CrmClientProps) {
                     ))}
                   </SortableContext>
                   {colOpps.length === 0 && (
-                    <p className="py-4 text-center text-[11px] text-muted-foreground">Vazio</p>
+                    <p className="py-4 text-center text-[11px] text-muted-foreground">
+                      {filterActive ? 'Nenhum resultado' : 'Vazio'}
+                    </p>
                   )}
                 </CrmColumn>
               );
@@ -306,11 +372,15 @@ export function CrmClient(props: CrmClientProps) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label, value, tone = 'default',
+}: { label: string; value: string; tone?: 'default' | 'success' }) {
   return (
     <Card className="px-4 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-lg font-bold text-foreground">{value}</p>
+      <p className={cn('mt-0.5 text-lg font-bold', tone === 'success' ? 'text-success' : 'text-foreground')}>
+        {value}
+      </p>
     </Card>
   );
 }

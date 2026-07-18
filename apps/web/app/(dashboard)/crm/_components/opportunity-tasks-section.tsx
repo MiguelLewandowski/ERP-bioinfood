@@ -22,6 +22,27 @@ const TYPE_LABELS: Record<CrmActivityType, string> = {
   VISIT: 'Visita',
 };
 
+// Mesmo vocabulário de urgência da aba Tarefas e do card do kanban (achado #7
+// da análise de UI/UX): vencida = destructive, hoje = accent.
+function isOverdueTask(dueDate: string | null): boolean {
+  if (!dueDate) return false;
+  return dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
+
+function isDueToday(dueDate: string | null): boolean {
+  if (!dueDate) return false;
+  return dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10);
+}
+
+function sortByUrgency(a: CrmActivityDto, b: CrmActivityDto): number {
+  if (a.status === 'DONE' && b.status !== 'DONE') return 1;
+  if (a.status !== 'DONE' && b.status === 'DONE') return -1;
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return a.dueDate < b.dueDate ? -1 : 1;
+}
+
 interface TaskFormValues {
   type: CrmActivityType;
   title: string;
@@ -94,30 +115,38 @@ export function OpportunityTasksSection({ opportunityId, orgId }: { opportunityI
         <p className="text-xs text-muted-foreground">Nenhuma tarefa registrada para este negócio.</p>
       )}
 
-      <ul className="space-y-1.5">
-        {tasks.map((t) => (
-          <li key={t.id} className="flex items-center gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
-            <button
-              type="button"
-              onClick={() => toggleDone(t)}
-              className="shrink-0 text-muted-foreground hover:text-primary"
-              aria-label={t.status === 'DONE' ? 'Reabrir tarefa' : 'Concluir tarefa'}
-            >
-              {t.status === 'DONE' ? <CheckCircle2 size={16} className="text-primary" /> : <Circle size={16} />}
-            </button>
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {TYPE_LABELS[t.type]}
-            </span>
-            <span className={`flex-1 truncate text-sm ${t.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-              {t.title}
-            </span>
-            {t.dueDate && (
-              <span className="shrink-0 text-[11px] text-muted-foreground">
-                {new Date(t.dueDate).toLocaleDateString('pt-BR')}
+      <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
+        {[...tasks].sort(sortByUrgency).map((t) => {
+          const overdue = t.status !== 'DONE' && isOverdueTask(t.dueDate);
+          const dueToday = t.status !== 'DONE' && isDueToday(t.dueDate);
+          return (
+            <li key={t.id} className="flex items-center gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
+              <button
+                type="button"
+                onClick={() => toggleDone(t)}
+                className="shrink-0 text-muted-foreground hover:text-primary"
+                aria-label={t.status === 'DONE' ? 'Reabrir tarefa' : 'Concluir tarefa'}
+              >
+                {t.status === 'DONE' ? <CheckCircle2 size={16} className="text-primary" /> : <Circle size={16} />}
+              </button>
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {TYPE_LABELS[t.type]}
               </span>
-            )}
-          </li>
-        ))}
+              <span className={`flex-1 truncate text-sm ${t.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                {t.title}
+              </span>
+              {t.dueDate && (
+                <span
+                  className={`shrink-0 text-[11px] font-medium ${
+                    overdue ? 'text-destructive' : dueToday ? 'text-accent' : 'text-muted-foreground'
+                  }`}
+                >
+                  {new Date(t.dueDate).toLocaleDateString('pt-BR')}
+                </span>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {showForm && (

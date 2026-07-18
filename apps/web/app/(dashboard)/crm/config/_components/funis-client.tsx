@@ -111,13 +111,14 @@ function PipelineCard({
         </div>
         <div className="flex items-center gap-2">
           {!pipeline.isDefault && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => run(() => pipelinesApi.update(pipeline.id, { isDefault: true }, token))}
               disabled={busy}
-              className="text-xs font-medium text-primary hover:underline"
             >
-              Definir padrão
-            </button>
+              <Star size={13} /> Definir padrão
+            </Button>
           )}
           {!pipeline.isDefault && (
             <Button
