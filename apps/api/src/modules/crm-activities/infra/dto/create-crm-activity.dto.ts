@@ -1,4 +1,4 @@
-import { TaskPriority } from '@prisma/client';
+import { ActivityType, TaskPriority } from '@prisma/client';
 import {
   IsDateString, IsEnum, IsOptional, IsString, MaxLength,
 } from 'class-validator';
@@ -18,6 +18,10 @@ export class CreateCrmActivityDto {
 
   @IsOptional()
   @IsString()
+  opportunityId?: string;
+
+  @IsOptional()
+  @IsString()
   responsibleId?: string;
 
   @IsString()
@@ -28,6 +32,10 @@ export class CreateCrmActivityDto {
   @IsString()
   @MaxLength(1000)
   description?: string;
+
+  @IsOptional()
+  @IsEnum(ActivityType)
+  type?: ActivityType;
 
   @IsOptional()
   @IsEnum(TaskPriority)

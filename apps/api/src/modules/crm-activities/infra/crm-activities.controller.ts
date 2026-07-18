@@ -30,11 +30,14 @@ export class CrmActivitiesController {
   @Get()
   async list(
     @Query('orgId') orgId?: string,
+    @Query('opportunityId') opportunityId?: string,
     @Query('responsibleId') responsibleId?: string,
     @Query('due') due?: DueFilter,
     @Query('status') status?: ActivityStatus,
   ) {
-    const items = await this.listCrmActivities.execute({ orgId, responsibleId, due, status });
+    const items = await this.listCrmActivities.execute({
+      orgId, opportunityId, responsibleId, due, status,
+    });
     return items.map(toCrmActivityDto);
   }
 

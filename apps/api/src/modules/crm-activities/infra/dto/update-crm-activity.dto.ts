@@ -1,4 +1,4 @@
-import { ActivityStatus, TaskPriority } from '@prisma/client';
+import { ActivityStatus, ActivityType, TaskPriority } from '@prisma/client';
 import {
   IsDateString, IsEnum, IsOptional, IsString, MaxLength,
 } from 'class-validator';
@@ -13,6 +13,10 @@ export class UpdateCrmActivityDto {
   @IsString()
   @MaxLength(1000)
   description?: string | null;
+
+  @IsOptional()
+  @IsEnum(ActivityType)
+  type?: ActivityType;
 
   @IsOptional()
   @IsEnum(TaskPriority)

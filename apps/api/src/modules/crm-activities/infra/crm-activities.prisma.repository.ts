@@ -14,9 +14,11 @@ const SELECT = {
   orgId: true,
   contactId: true,
   interactionId: true,
+  opportunityId: true,
   responsibleId: true,
   title: true,
   description: true,
+  type: true,
   priority: true,
   status: true,
   dueDate: true,
@@ -24,6 +26,7 @@ const SELECT = {
   createdAt: true,
   organization: { select: { id: true, legalName: true, tradeName: true } },
   contact: { select: { id: true, name: true } },
+  opportunity: { select: { id: true, title: true } },
   responsible: { select: { id: true, name: true } },
 } as const;
 
@@ -72,6 +75,7 @@ export class CrmActivitiesPrismaRepository implements ICrmActivityRepository {
     const rows = await this.prisma.activity.findMany({
       where: {
         orgId: filter.orgId,
+        opportunityId: filter.opportunityId,
         responsibleId: filter.responsibleId,
         status: filter.status,
         ...dueWhere(filter.due),
