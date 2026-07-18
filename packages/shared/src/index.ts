@@ -49,6 +49,7 @@ export interface OrganizationDto {
   phone: string | null;
   whatsapp: string | null;
   sector: { id: string; name: string } | null;
+  category: { id: string; name: string } | null;
   roleTypes: PartyRoleType[];
 }
 
@@ -77,6 +78,7 @@ export interface OrgCustomerProfileDto {
   paymentTerms: string | null;
   creditLimit: string | null;
   salesRepId: string | null;
+  salesRep: { id: string; name: string } | null;
 }
 
 export interface OrganizationDetailDto extends OrganizationDto {
@@ -90,6 +92,8 @@ export interface OrganizationDetailDto extends OrganizationDto {
   notes: string | null;
   sectorId: string | null;
   sourceId: string | null;
+  categoryId: string | null;
+  productServices: Array<{ id: string; name: string }>;
   email: string | null;
   phone: string | null;
   mobile: string | null;
@@ -113,6 +117,7 @@ export interface EnrichmentResultDto {
   tradeName?: string;
   registrationStatus?: RegistrationStatus;
   cnae?: string;
+  description?: string;
   address?: {
     street?: string;
     number?: string;
@@ -155,8 +160,11 @@ export interface OpportunityDto {
   probability: number | null;
   pipelineId: string;
   stageId: string;
+  startDate: string | null;
+  description: string | null;
   expectedCloseDate: string | null;
   closedAt: string | null;
+  frozenAt: string | null;
   engagementStageId: string | null;
   organization: { id: string; legalName: string; tradeName: string | null };
   mainContact: { id: string; name: string } | null;
@@ -201,6 +209,7 @@ export interface ContactListItemDto {
   email: string | null;
   phone: string | null;
   mobile: string | null;
+  source: { id: string; name: string } | null;
   // Present only when the list is filtered by organization.
   link?: {
     linkId: string;
@@ -265,15 +274,18 @@ export interface InteractionDto {
 
 export type ActivityStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 export type DueFilter = 'today' | 'overdue' | 'week';
+export type CrmActivityType = 'NOTE' | 'EMAIL' | 'CALL' | 'WHATSAPP' | 'PROPOSAL' | 'MEETING' | 'VISIT';
 
 export interface CrmActivityDto {
   id: string;
   orgId: string | null;
   contactId: string | null;
   interactionId: string | null;
+  opportunityId: string | null;
   responsibleId: string | null;
   title: string;
   description: string | null;
+  type: CrmActivityType;
   priority: TaskPriority;
   status: ActivityStatus;
   dueDate: string | null;
@@ -281,6 +293,7 @@ export interface CrmActivityDto {
   createdAt: string;
   organization: { id: string; legalName: string; tradeName: string | null } | null;
   contact: { id: string; name: string } | null;
+  opportunity: { id: string; title: string } | null;
   responsible: { id: string; name: string } | null;
 }
 
