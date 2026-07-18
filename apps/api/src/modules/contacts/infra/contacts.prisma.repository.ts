@@ -12,7 +12,10 @@ import {
   UpdateLinkData,
 } from '../domain/contact.entity';
 
-const LIST_SELECT = { id: true, name: true, email: true, phone: true, mobile: true } as const;
+const LIST_SELECT = {
+  id: true, name: true, email: true, phone: true, mobile: true,
+  source: { select: { id: true, name: true } },
+} as const;
 
 const LINK_SELECT = {
   id: true,

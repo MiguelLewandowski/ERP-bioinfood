@@ -76,4 +76,8 @@ export class UpdateContactDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceId?: string | null;
 }

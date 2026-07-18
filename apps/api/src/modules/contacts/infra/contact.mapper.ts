@@ -6,6 +6,7 @@ export interface ContactListItemDto {
   email: string | null;
   phone: string | null;
   mobile: string | null;
+  source: { id: string; name: string } | null;
   link?: ContactListItem['link'];
 }
 
@@ -38,7 +39,9 @@ export interface ContactDetailDto extends ContactListItemDto {
 }
 
 export function toContactListItemDto(c: ContactListItem): ContactListItemDto {
-  return { id: c.id, name: c.name, email: c.email, phone: c.phone, mobile: c.mobile, link: c.link };
+  return {
+    id: c.id, name: c.name, email: c.email, phone: c.phone, mobile: c.mobile, source: c.source, link: c.link,
+  };
 }
 
 export function toContactLinkDto(l: ContactOrgLink): ContactLinkDto {

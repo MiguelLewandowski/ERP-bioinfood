@@ -75,4 +75,8 @@ export class CreateContactDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceId?: string;
 }

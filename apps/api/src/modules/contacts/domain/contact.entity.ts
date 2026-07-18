@@ -4,6 +4,7 @@ export interface ContactListItem {
   email: string | null;
   phone: string | null;
   mobile: string | null;
+  source: { id: string; name: string } | null;
   // Present only when the list is filtered by organization: the link markers
   // for that org, so the org's contact tab can show decisor/primary/etc.
   link?: {
@@ -60,9 +61,10 @@ export interface CreateContactData {
   skype?: string;
   instagram?: string;
   notes?: string;
+  sourceId?: string;
 }
 
-export type UpdateContactData = Partial<CreateContactData>;
+export type UpdateContactData = Omit<Partial<CreateContactData>, 'sourceId'> & { sourceId?: string | null };
 
 export interface CreateLinkData {
   orgId: string;
