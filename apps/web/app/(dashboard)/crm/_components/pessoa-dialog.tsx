@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Trash2, Plus, X } from 'lucide-react';
 import type { ContactDetailDto, ContactListItemDto, TaxonomyDto } from '@bioinfood/shared';
@@ -9,6 +9,8 @@ import { contactsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { OrganizationSelect } from '@/components/shared/organization-select';
+import { MaskedInput } from '@/components/ui/masked-input';
+import { maskPhone } from '@/lib/masks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -28,11 +30,12 @@ interface PessoaDialogProps {
 
 interface FormValues {
   name: string;
-  email: string;
-  phone: string;
-  mobile: string;
   whatsapp: string;
+  email: string;
   sourceId: string;
+  jobTitle: string;
+  linkedin: string;
+  orgId: string;
 }
 
 export function PessoaDialog({
@@ -42,12 +45,15 @@ export function PessoaDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(mode === 'edit');
   const [detail, setDetail] = useState<ContactDetailDto | null>(null);
-  const [newOrgId, setNewOrgId] = useState<string | undefined>();
   const {
-    register, handleSubmit, reset, formState: { errors },
+    register, handleSubmit, reset, control, formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { name: '', email: '', phone: '', mobile: '', whatsapp: '', sourceId: '' },
+    defaultValues: {
+      name: '', whatsapp: '', email: '', sourceId: '', jobTitle: '', linkedin: '', orgId: '',
+    },
   });
+
+  const primaryLink = detail?.orgLinks[0];
 
   useEffect(() => {
     if (mode !== 'edit' || !contactId) return;
@@ -55,8 +61,13 @@ export function PessoaDialog({
       .then((c) => {
         setDetail(c);
         reset({
-          name: c.name, email: c.email ?? '', phone: c.phone ?? '', mobile: c.mobile ?? '',
-          whatsapp: c.whatsapp ?? '', sourceId: c.source?.id ?? '',
+          name: c.name,
+          whatsapp: c.whatsapp ?? '',
+          email: c.email ?? '',
+          sourceId: c.source?.id ?? '',
+          jobTitle: c.orgLinks[0]?.jobTitle ?? '',
+          linkedin: c.linkedin ?? '',
+          orgId: c.orgLinks[0]?.orgId ?? '',
         });
       })
       .catch((err) => toast.error(getErrorMessage(err)))
@@ -64,21 +75,31 @@ export function PessoaDialog({
   }, [mode, contactId, token, reset]);
 
   async function onSubmit(v: FormValues) {
+    if (mode === 'create' && !v.orgId) {
+      toast.error('Selecione a empresa');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         name: v.name,
-        email: v.email || undefined,
-        phone: v.phone || undefined,
-        mobile: v.mobile || undefined,
         whatsapp: v.whatsapp || undefined,
+        email: v.email || undefined,
         sourceId: v.sourceId || undefined,
+        linkedin: v.linkedin || undefined,
       };
-      const saved = mode === 'create'
-        ? await contactsApi.create(payload, token)
-        : await contactsApi.update(contactId!, payload, token);
-      onSaved(saved);
-      if (mode === 'create') onClose();
+      if (mode === 'create') {
+        const contact = await contactsApi.create(payload, token);
+        await contactsApi.addLink(contact.id, { orgId: v.orgId, jobTitle: v.jobTitle || undefined }, token);
+        onSaved(contact);
+        onClose();
+      } else {
+        const contact = await contactsApi.update(contactId!, payload, token);
+        if (primaryLink && v.jobTitle !== (primaryLink.jobTitle ?? '')) {
+          await contactsApi.updateLink(contactId!, primaryLink.id, { jobTitle: v.jobTitle || undefined }, token);
+        }
+        onSaved(contact);
+      }
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -97,17 +118,6 @@ export function PessoaDialog({
       toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function addLink() {
-    if (!contactId || !newOrgId) return;
-    try {
-      const link = await contactsApi.addLink(contactId, { orgId: newOrgId }, token);
-      setDetail((prev) => (prev ? { ...prev, orgLinks: [...prev.orgLinks, link] } : prev));
-      setNewOrgId(undefined);
-    } catch (err) {
-      toast.error(getErrorMessage(err));
     }
   }
 
@@ -138,10 +148,57 @@ export function PessoaDialog({
                 <Input id="pessoa-name" {...register('name', { required: true })} placeholder="Nome completo" />
                 {errors.name && <p className="mt-1 text-xs text-destructive">Nome é obrigatório</p>}
               </div>
+
+              {mode === 'create' ? (
+                <div>
+                  <Label>Empresa *</Label>
+                  <Controller
+                    name="orgId"
+                    control={control}
+                    render={({ field }) => (
+                      <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
+                    )}
+                  />
+                </div>
+              ) : (
+                detail && detail.orgLinks.length > 0 && (
+                  <div>
+                    <Label>Empresas vinculadas</Label>
+                    <ul className="space-y-1.5">
+                      {detail.orgLinks.map((l) => (
+                        <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
+                          <span className="truncate text-sm text-foreground">
+                            {l.organization.tradeName ?? l.organization.legalName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeLink(l.id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label="Remover vínculo"
+                          >
+                            <X size={14} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              )}
+
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="pessoa-whatsapp">WhatsApp</Label>
+                  <MaskedInput id="pessoa-whatsapp" format={maskPhone} {...register('whatsapp')} placeholder="(00) 00000-0000" />
+                </div>
                 <div>
                   <Label htmlFor="pessoa-email">E-mail</Label>
                   <Input id="pessoa-email" {...register('email')} type="email" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="pessoa-job-title">Cargo</Label>
+                  <Input id="pessoa-job-title" {...register('jobTitle')} placeholder="Ex: CTO" />
                 </div>
                 <div>
                   <Label htmlFor="pessoa-source">Origem</Label>
@@ -151,19 +208,9 @@ export function PessoaDialog({
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="pessoa-phone">Telefone</Label>
-                  <Input id="pessoa-phone" {...register('phone')} />
-                </div>
-                <div>
-                  <Label htmlFor="pessoa-mobile">Celular</Label>
-                  <Input id="pessoa-mobile" {...register('mobile')} />
-                </div>
-                <div>
-                  <Label htmlFor="pessoa-whatsapp">WhatsApp</Label>
-                  <Input id="pessoa-whatsapp" {...register('whatsapp')} />
-                </div>
+              <div>
+                <Label htmlFor="pessoa-linkedin">LinkedIn</Label>
+                <Input id="pessoa-linkedin" {...register('linkedin')} placeholder="linkedin.com/in/…" />
               </div>
 
               <div className="flex items-center justify-between pt-2">
@@ -187,41 +234,40 @@ export function PessoaDialog({
               </div>
             </form>
 
-            {mode === 'edit' && detail && (
+            {mode === 'edit' && detail && detail.orgLinks.length === 0 && (
               <div className="mt-2 border-t border-border pt-4">
-                <h3 className="mb-2 text-sm font-semibold text-foreground">Empresas vinculadas</h3>
-                {detail.orgLinks.length === 0 && (
-                  <p className="mb-2 text-xs text-muted-foreground">Nenhuma empresa vinculada.</p>
-                )}
-                <ul className="mb-2 space-y-1.5">
-                  {detail.orgLinks.map((l) => (
-                    <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
-                      <span className="truncate text-sm text-foreground">
-                        {l.organization.tradeName ?? l.organization.legalName}
-                        {l.jobTitle && <span className="text-xs text-muted-foreground"> · {l.jobTitle}</span>}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeLink(l.id)}
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                        aria-label="Remover vínculo"
-                      >
-                        <X size={14} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center gap-1.5">
-                  <OrganizationSelect token={token} value={newOrgId} onChange={setNewOrgId} />
-                  <Button type="button" size="icon" onClick={addLink} disabled={!newOrgId} aria-label="Vincular empresa">
-                    <Plus size={15} />
-                  </Button>
-                </div>
+                <h3 className="mb-2 text-sm font-semibold text-foreground">Vincular a uma empresa</h3>
+                <LinkOrgInline contactId={contactId!} onLinked={(link) => setDetail((prev) => (prev ? { ...prev, orgLinks: [link] } : prev))} />
               </div>
             )}
           </>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LinkOrgInline({ contactId, onLinked }: { contactId: string; onLinked: (link: ContactDetailDto['orgLinks'][number]) => void }) {
+  const { token } = useAuth();
+  const [orgId, setOrgId] = useState<string | undefined>();
+
+  async function addLink() {
+    if (!orgId) return;
+    try {
+      const link = await contactsApi.addLink(contactId, { orgId }, token);
+      onLinked(link);
+      setOrgId(undefined);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <OrganizationSelect token={token} value={orgId} onChange={setOrgId} />
+      <Button type="button" size="icon" onClick={addLink} disabled={!orgId} aria-label="Vincular empresa">
+        <Plus size={15} />
+      </Button>
+    </div>
   );
 }

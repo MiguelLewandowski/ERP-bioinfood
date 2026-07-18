@@ -1,15 +1,21 @@
 'use client';
 // Create dialog for Organization with best-effort CNPJ enrichment (decision 6).
+// Campos completos do spec de Empresa (crm-redesign-2026-07): nome, cnpj,
+// razão social, responsável, descrição, categoria, origem, setor,
+// produtos e serviço. Sem endereço/contato — isso vive na Pessoa.
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Sparkles, Loader2 } from 'lucide-react';
-import type { OrganizationDto } from '@bioinfood/shared';
+import { toast } from 'sonner';
+import type { OrganizationDto, TaxonomyDto, UserDto } from '@bioinfood/shared';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { MaskedInput } from '@/components/ui/masked-input';
+import { maskDocument } from '@/lib/masks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -28,6 +34,10 @@ const schema = z
     document: z.string().max(20, 'Máximo de 20 caracteres').optional(),
     documentType: z.enum(['CNPJ', 'CPF', 'FOREIGN', 'OTHER']),
     notes: z.string().max(4000, 'Máximo de 4000 caracteres').optional(),
+    sectorId: z.string().optional(),
+    sourceId: z.string().optional(),
+    categoryId: z.string().optional(),
+    salesRepId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.documentType !== 'FOREIGN' && !data.document?.trim()) {
@@ -45,12 +55,20 @@ interface ClienteDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated: (organization: OrganizationDto) => void;
+  sectors: TaxonomyDto[];
+  sources: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
+  users: UserDto[];
 }
 
-export default function ClienteDialog({ open, onOpenChange, onCreated }: ClienteDialogProps) {
+export default function ClienteDialog({
+  open, onOpenChange, onCreated, sectors, sources, categories, productServices, users,
+}: ClienteDialogProps) {
   const { token } = useAuth();
   const [enriching, setEnriching] = useState(false);
   const [enrichNote, setEnrichNote] = useState('');
+  const [selectedProductServices, setSelectedProductServices] = useState<string[]>([]);
 
   const {
     register, handleSubmit, reset, setError, setValue, watch, formState: { errors, isSubmitting },
@@ -82,10 +100,40 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
     }
   }
 
+  function toggleProductService(id: string) {
+    setSelectedProductServices((prev) => (
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    ));
+  }
+
   async function onSubmit(data: FormData) {
     try {
-      const organization = await organizationsApi.create(data, token);
+      const { salesRepId, sectorId, sourceId, categoryId, ...orgData } = data;
+      const organization = await organizationsApi.create({
+        ...orgData,
+        sectorId: sectorId || undefined,
+        sourceId: sourceId || undefined,
+        categoryId: categoryId || undefined,
+      }, token);
+
+      // Responsável e produtos/serviço dependem da empresa já existir — feitos
+      // em seguida, best-effort (a empresa já foi criada com sucesso).
+      const followUps: Promise<unknown>[] = [];
+      if (salesRepId) {
+        followUps.push(organizationsApi.saveCustomerProfile(organization.id, { salesRepId }, token));
+      }
+      for (const productServiceId of selectedProductServices) {
+        followUps.push(organizationsApi.addProductService(organization.id, productServiceId, token));
+      }
+      if (followUps.length > 0) {
+        const results = await Promise.allSettled(followUps);
+        if (results.some((r) => r.status === 'rejected')) {
+          toast.warning('Cliente criado, mas alguns dados (responsável/produtos) não foram salvos — ajuste na ficha.');
+        }
+      }
+
       reset();
+      setSelectedProductServices([]);
       setEnrichNote('');
       onCreated(organization);
     } catch (err) {
@@ -96,6 +144,7 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
   function handleOpenChange(v: boolean) {
     if (!v) {
       reset();
+      setSelectedProductServices([]);
       setEnrichNote('');
     }
     onOpenChange(v);
@@ -103,9 +152,9 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Cliente</DialogTitle>
+          <DialogTitle>Nova Empresa</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -121,11 +170,12 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
             </div>
             <div>
               <Label htmlFor="cliente-doc">
-                {documentType === 'FOREIGN' ? 'Documento (opcional)' : 'Documento *'}
+                {documentType === 'FOREIGN' ? 'Documento (opcional)' : 'CNPJ *'}
               </Label>
               <div className="relative">
-                <Input
+                <MaskedInput
                   id="cliente-doc"
+                  format={maskDocument}
                   {...register('document', { onBlur: (e) => handleCnpjBlur(e.target.value) })}
                   placeholder={documentType === 'CNPJ' ? 'Só números — busca automática' : 'Documento'}
                 />
@@ -151,8 +201,16 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
           </div>
 
           <div>
-            <Label htmlFor="cliente-trade-name">Nome fantasia</Label>
+            <Label htmlFor="cliente-trade-name">Nome</Label>
             <Input id="cliente-trade-name" {...register('tradeName')} placeholder="Como o cliente é conhecido" />
+          </div>
+
+          <div>
+            <Label htmlFor="cliente-sales-rep">Responsável</Label>
+            <Select id="cliente-sales-rep" {...register('salesRepId')}>
+              <option value="">—</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
           </div>
 
           <div>
@@ -160,17 +218,62 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
             <Textarea id="cliente-notes" {...register('notes')} rows={2} placeholder="Sobre a empresa…" />
           </div>
 
-          <p className="-mt-2 text-[11px] text-muted-foreground">
-            Cadastro rápido — setor, origem, categoria, responsável, telefone, WhatsApp, redes
-            sociais, contatos e endereço são preenchidos na ficha do cliente logo em seguida.
-          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label htmlFor="cliente-sector">Setor</Label>
+              <Select id="cliente-sector" {...register('sectorId')}>
+                <option value="">—</option>
+                {sectors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="cliente-source">Origem</Label>
+              <Select id="cliente-source" {...register('sourceId')}>
+                <option value="">—</option>
+                {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="cliente-category">Categoria</Label>
+              <Select id="cliente-category" {...register('categoryId')}>
+                <option value="">—</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label>Produtos e serviço</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {productServices.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum cadastrado — configure em Configurações do CRM.</p>
+              )}
+              {productServices.map((ps) => {
+                const active = selectedProductServices.includes(ps.id);
+                return (
+                  <button
+                    key={ps.id}
+                    type="button"
+                    onClick={() => toggleProductService(ps.id)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-input text-muted-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {ps.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Criando...' : 'Criar Cliente'}
+              {isSubmitting ? 'Criando...' : 'Criar Empresa'}
             </Button>
           </DialogFooter>
         </form>

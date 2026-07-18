@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Building2, Users as UsersIcon, Kanban, ListChecks } from 'lucide-react';
 import type {
   PipelineDto, OpportunityDto, PipelineSummaryDto, OrganizationDto, ContactListItemDto, TaxonomyDto,
-  CrmActivityDto,
+  CrmActivityDto, UserDto,
 } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import ClientesClient from '@/components/clientes/clientes-client';
@@ -17,6 +17,10 @@ interface CrmTabsProps {
   organizations: OrganizationDto[];
   contacts: ContactListItemDto[];
   sources: TaxonomyDto[];
+  sectors: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
+  users: UserDto[];
   pipelines: PipelineDto[];
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
@@ -56,7 +60,16 @@ export function CrmTabs(props: CrmTabsProps) {
         ))}
       </div>
 
-      {tab === 'empresas' && <ClientesClient organizations={props.organizations} />}
+      {tab === 'empresas' && (
+        <ClientesClient
+          organizations={props.organizations}
+          sectors={props.sectors}
+          sources={props.sources}
+          categories={props.categories}
+          productServices={props.productServices}
+          users={props.users}
+        />
+      )}
       {tab === 'pessoas' && (
         <PessoasTab initialContacts={props.contacts} sources={props.sources} canEdit={props.canEdit} />
       )}
@@ -67,6 +80,7 @@ export function CrmTabs(props: CrmTabsProps) {
           initialOpportunities={props.initialOpportunities}
           summary={props.summary}
           initialUrgentTasks={props.urgentTasks}
+          users={props.users}
           canEdit={props.canEdit}
         />
       )}

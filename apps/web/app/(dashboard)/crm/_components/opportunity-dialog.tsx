@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Trash2, ExternalLink, Snowflake, Sun,
 } from 'lucide-react';
-import type { OpportunityDto } from '@bioinfood/shared';
+import type { OpportunityDto, UserDto } from '@bioinfood/shared';
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { OpportunityTasksSection } from './opportunity-tasks-section';
 
@@ -26,6 +27,7 @@ interface OpportunityDialogProps {
   pipelineId: string;
   defaultStageId: string;
   opportunity?: OpportunityDto;
+  users: UserDto[];
   onSaved: (o: OpportunityDto) => void;
   onDeleted?: (id: string) => void;
   onClose: () => void;
@@ -34,6 +36,7 @@ interface OpportunityDialogProps {
 interface FormValues {
   title: string;
   clientId: string;
+  responsibleId: string;
   amount: string;
   startDate: string;
   expectedCloseDate: string;
@@ -41,7 +44,7 @@ interface FormValues {
 }
 
 export function OpportunityDialog({
-  mode, pipelineId, defaultStageId, opportunity, onSaved, onDeleted, onClose,
+  mode, pipelineId, defaultStageId, opportunity, users, onSaved, onDeleted, onClose,
 }: OpportunityDialogProps) {
   const { token } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -50,6 +53,7 @@ export function OpportunityDialog({
     defaultValues: {
       title: opportunity?.title ?? '',
       clientId: opportunity?.organization.id ?? '',
+      responsibleId: opportunity?.responsible?.id ?? '',
       amount: opportunity?.amount ?? '',
       startDate: opportunity?.startDate?.slice(0, 10) ?? '',
       expectedCloseDate: opportunity?.expectedCloseDate?.slice(0, 10) ?? '',
@@ -66,6 +70,7 @@ export function OpportunityDialog({
     try {
       const payload = {
         title: v.title,
+        responsibleId: v.responsibleId || undefined,
         amount: v.amount === '' ? undefined : Number(v.amount),
         startDate: v.startDate || undefined,
         expectedCloseDate: v.expectedCloseDate || undefined,
@@ -162,6 +167,14 @@ export function OpportunityDialog({
               />
             </div>
           )}
+
+          <div>
+            <Label htmlFor="opp-responsible">Responsável</Label>
+            <Select id="opp-responsible" {...register('responsibleId')}>
+              <option value="">—</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </Select>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

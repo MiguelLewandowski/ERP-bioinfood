@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 import {
   Settings, Archive, ArchiveRestore, Pencil, Search, Mail, Phone, X, Building2,
 } from 'lucide-react';
-import type { OrganizationDto, PartyRoleType, SystemRole } from '@bioinfood/shared';
+import type {
+  OrganizationDto, PartyRoleType, SystemRole, TaxonomyDto, UserDto,
+} from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { organizationsApi } from '@/lib/api-hooks';
@@ -25,6 +27,11 @@ import ClienteDialog from './cliente-dialog';
 
 interface ClientesClientProps {
   organizations: OrganizationDto[];
+  sectors: TaxonomyDto[];
+  sources: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
+  users: UserDto[];
 }
 
 // Escrita do CRM é exclusiva do ADMIN (decisão do owner).
@@ -50,7 +57,9 @@ function initials(name: string): string {
   return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
 }
 
-export default function ClientesClient({ organizations }: ClientesClientProps) {
+export default function ClientesClient({
+  organizations, sectors, sources, categories, productServices, users,
+}: ClientesClientProps) {
   const { session, token } = useAuth();
   const router = useRouter();
   const confirm = useConfirm();
@@ -77,9 +86,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
 
   function onCreated(organization: OrganizationDto) {
     setOpen(false);
-    // Cadastro rápido só pede nome/documento — manda direto para a ficha completa
-    // (aba Dados) para preencher telefone, e-mail, redes sociais etc.
-    toast.success('Cliente criado — complete o cadastro na ficha');
+    toast.success('Cliente criado');
     router.push(`/crm/empresas/${organization.id}`);
   }
 
@@ -120,7 +127,16 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
           }
           className="py-20"
         />
-        <ClienteDialog open={open} onOpenChange={setOpen} onCreated={onCreated} />
+        <ClienteDialog
+          open={open}
+          onOpenChange={setOpen}
+          onCreated={onCreated}
+          sectors={sectors}
+          sources={sources}
+          categories={categories}
+          productServices={productServices}
+          users={users}
+        />
       </>
     );
   }
@@ -269,7 +285,16 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
         {filtered.length} de {organizations.length} cliente{organizations.length === 1 ? '' : 's'}
       </p>
 
-      <ClienteDialog open={open} onOpenChange={setOpen} onCreated={onCreated} />
+      <ClienteDialog
+          open={open}
+          onOpenChange={setOpen}
+          onCreated={onCreated}
+          sectors={sectors}
+          sources={sources}
+          categories={categories}
+          productServices={productServices}
+          users={users}
+        />
     </>
   );
 }

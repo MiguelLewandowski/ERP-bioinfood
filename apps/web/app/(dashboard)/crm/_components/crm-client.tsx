@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type {
-  PipelineDto, OpportunityDto, PipelineSummaryDto, CrmActivityDto,
+  PipelineDto, OpportunityDto, PipelineSummaryDto, CrmActivityDto, UserDto,
 } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { crmActivitiesApi, opportunitiesApi, pipelinesApi } from '@/lib/api-hooks';
@@ -37,6 +37,7 @@ interface CrmClientProps {
   initialOpportunities: OpportunityDto[];
   summary: PipelineSummaryDto | null;
   initialUrgentTasks: CrmActivityDto[];
+  users: UserDto[];
   canEdit: boolean;
 }
 
@@ -341,6 +342,7 @@ export function CrmClient(props: CrmClientProps) {
           mode="create"
           pipelineId={pipeline.id}
           defaultStageId={firstOpen.id}
+          users={props.users}
           onSaved={onSaved}
           onClose={() => setCreating(false)}
         />
@@ -352,6 +354,7 @@ export function CrmClient(props: CrmClientProps) {
           pipelineId={pipeline.id}
           defaultStageId={editing.stageId}
           opportunity={editing}
+          users={props.users}
           onSaved={onSaved}
           onDeleted={onDeleted}
           onClose={() => setEditing(null)}

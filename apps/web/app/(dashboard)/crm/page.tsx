@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import type { CrmActivityDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
 import { getSession } from '@/lib/auth';
 import {
-  contactsApi, crmActivitiesApi, opportunitiesApi, organizationsApi, pipelinesApi, taxonomiesApi,
+  contactsApi, crmActivitiesApi, opportunitiesApi, organizationsApi, pipelinesApi, taxonomiesApi, usersApi,
 } from '@/lib/api-hooks';
 import { PageHeader } from '@/components/ui/page-header';
 import { CrmTabs, type TabId } from './_components/crm-tabs';
@@ -25,11 +25,18 @@ export default async function CrmPage({ searchParams }: Props) {
   const token = cookieStore.get('access_token')?.value ?? '';
 
   // Erros de API borbulham para o error.tsx do segmento (sem falso-vazio).
-  const [pipelines, organizations, contacts, sources, overdueTasks, todayTasks] = await Promise.all([
+  const [
+    pipelines, organizations, contacts, sources, sectors, categories, productServices, users,
+    overdueTasks, todayTasks,
+  ] = await Promise.all([
     pipelinesApi.list(token),
     organizationsApi.list(token),
     contactsApi.list(token),
     taxonomiesApi.list('sources', token),
+    taxonomiesApi.list('sectors', token),
+    taxonomiesApi.list('categories', token),
+    taxonomiesApi.list('product-services', token),
+    usersApi.list(token),
     // Sinal de urgência nos cards do kanban — best-effort, não derruba o CRM.
     crmActivitiesApi.list(token, { due: 'overdue' }).catch(() => [] as CrmActivityDto[]),
     crmActivitiesApi.list(token, { due: 'today' }).catch(() => [] as CrmActivityDto[]),
@@ -58,6 +65,10 @@ export default async function CrmPage({ searchParams }: Props) {
         organizations={organizations}
         contacts={contacts}
         sources={sources}
+        sectors={sectors}
+        categories={categories}
+        productServices={productServices}
+        users={users}
         pipelines={pipelines}
         currentPipeline={currentPipeline}
         initialOpportunities={opportunities}
