@@ -29,7 +29,7 @@ interface TaskFormValues {
 }
 
 export function OpportunityTasksSection({ opportunityId, orgId }: { opportunityId: string; orgId: string }) {
-  const { token } = useAuth();
+  const { token, session } = useAuth();
   const [tasks, setTasks] = useState<CrmActivityDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -52,7 +52,10 @@ export function OpportunityTasksSection({ opportunityId, orgId }: { opportunityI
     setSaving(true);
     try {
       const created = await crmActivitiesApi.create(
-        { opportunityId, orgId, type: v.type, title: v.title, dueDate: v.dueDate || undefined },
+        {
+          opportunityId, orgId, type: v.type, title: v.title, dueDate: v.dueDate || undefined,
+          responsibleId: session.sub,
+        },
         token,
       );
       setTasks((prev) => [created, ...prev]);

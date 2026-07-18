@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import {
   AlertTriangle, CalendarDays, FolderKanban, Target, ArrowRight, CheckCircle2,
 } from 'lucide-react';
-import type { ActivityDto, ProjectDto } from '@bioinfood/shared';
+import type { ActivityDto, CrmActivityDto, ProjectDto } from '@bioinfood/shared';
 import { getSession } from '@/lib/auth';
 import { activitiesApi, crmActivitiesApi, projectsApi } from '@/lib/api-hooks';
 import { PageHeader } from '@/components/ui/page-header';
@@ -36,12 +36,18 @@ export default async function DashboardPage() {
   const from = iso(new Date(now.getTime() - 60 * DAY_MS));
   const to = iso(new Date(now.getTime() + 7 * DAY_MS));
 
-  const [activities, projects, crmOverdue] = await Promise.all([
+  const [activities, projects, myCrmOverdue, myCrmToday] = await Promise.all([
     activitiesApi.list({ from, to }, token),
     projectsApi.list(token),
-    // Métrica lateral best-effort: não derruba o dashboard se o CRM falhar.
-    canCrm ? crmActivitiesApi.list(token, { due: 'overdue' }).catch(() => []) : Promise.resolve([]),
+    // Minhas tarefas do CRM (responsável = eu) — best-effort, não derruba o dashboard.
+    canCrm
+      ? crmActivitiesApi.list(token, { responsibleId: session.sub, due: 'overdue' }).catch(() => [])
+      : Promise.resolve([]),
+    canCrm
+      ? crmActivitiesApi.list(token, { responsibleId: session.sub, due: 'today' }).catch(() => [])
+      : Promise.resolve([]),
   ]);
+  const myCrmTasks = [...myCrmOverdue, ...myCrmToday];
 
   const open = (a: ActivityDto) => a.status !== 'DONE';
   const mine = activities.filter((a) => open(a) && a.assignee?.id === session.sub);
@@ -136,23 +142,22 @@ export default async function DashboardPage() {
             <Card>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <Target size={15} className="text-primary" /> CRM
+                  <Target size={15} className="text-primary" /> Minhas tarefas (CRM)
+                  {myCrmOverdue.length > 0 && (
+                    <Badge variant="accent">
+                      {myCrmOverdue.length} atrasada{myCrmOverdue.length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <Link href="/crm" className="flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                  Abrir funil <ArrowRight size={12} />
+                  Ver tudo <ArrowRight size={12} />
                 </Link>
               </CardHeader>
-              <CardContent>
-                {crmOverdue.length > 0 ? (
-                  <Link
-                    href="/crm"
-                    className="flex items-center gap-2 rounded-lg bg-warning/15 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-warning/25"
-                  >
-                    <AlertTriangle size={15} className="shrink-0 text-accent" />
-                    {crmOverdue.length} follow-up{crmOverdue.length > 1 ? 's' : ''} atrasado{crmOverdue.length > 1 ? 's' : ''}
-                  </Link>
+              <CardContent className="flex flex-col gap-1.5">
+                {myCrmTasks.length === 0 ? (
+                  <p className="py-2 text-sm text-muted-foreground">Nenhuma tarefa do CRM para hoje.</p>
                 ) : (
-                  <p className="py-2 text-sm text-muted-foreground">Nenhum follow-up atrasado.</p>
+                  myCrmTasks.slice(0, 6).map((t) => <CrmTaskRow key={t.id} task={t} today={todayIso} />)
                 )}
               </CardContent>
             </Card>
@@ -177,6 +182,31 @@ function TaskRow({ activity, today }: { activity: ActivityDto; today: string }) 
           {activity.title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{activity.project.name}</span>
+      </span>
+      {due && (
+        <Badge variant={isOverdue ? 'accent' : isToday ? 'warning' : 'neutral'}>
+          {isToday ? 'Hoje' : formatDate(due)}
+        </Badge>
+      )}
+    </Link>
+  );
+}
+
+function CrmTaskRow({ task, today }: { task: CrmActivityDto; today: string }) {
+  const due = task.dueDate?.slice(0, 10);
+  const isOverdue = !!due && due < today;
+  const isToday = due === today;
+  const orgName = task.organization?.tradeName ?? task.organization?.legalName ?? task.contact?.name;
+  return (
+    <Link
+      href="/crm"
+      className="group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/60"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-foreground group-hover:text-primary">
+          {task.title}
+        </span>
+        {orgName && <span className="block truncate text-xs text-muted-foreground">{orgName}</span>}
       </span>
       {due && (
         <Badge variant={isOverdue ? 'accent' : isToday ? 'warning' : 'neutral'}>
