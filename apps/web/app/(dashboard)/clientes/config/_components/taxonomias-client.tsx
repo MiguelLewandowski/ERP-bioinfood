@@ -75,17 +75,17 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-4">
-      <h2 className="text-sm font-bold text-[#1D1D1B] mb-3">{title}</h2>
+      <h2 className="text-sm font-bold text-foreground mb-3">{title}</h2>
 
       <ul className="space-y-1 mb-3">
-        {items.length === 0 && <li className="text-xs text-[#878787] py-2">Nenhum item.</li>}
+        {items.length === 0 && <li className="text-xs text-muted-foreground py-2">Nenhum item.</li>}
         {items.map((item, i) => (
           <li key={item.id} className="flex items-center gap-1 rounded-lg border border-gray-100 px-2 py-1.5">
             <div className="flex flex-col">
-              <button onClick={() => move(i, -1)} disabled={busy || i === 0} className="text-[#878787] hover:text-[#1D1D1B] disabled:opacity-30" aria-label="Mover para cima">
+              <button onClick={() => move(i, -1)} disabled={busy || i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Mover para cima">
                 <ChevronUp size={12} />
               </button>
-              <button onClick={() => move(i, 1)} disabled={busy || i === items.length - 1} className="text-[#878787] hover:text-[#1D1D1B] disabled:opacity-30" aria-label="Mover para baixo">
+              <button onClick={() => move(i, 1)} disabled={busy || i === items.length - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Mover para baixo">
                 <ChevronDown size={12} />
               </button>
             </div>
@@ -97,19 +97,19 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && saveRename(item.id)}
                   autoFocus
-                  className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded focus:border-[#52B552] focus:outline-none"
+                  className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded focus:border-ring focus:outline-none"
                 />
-                <button onClick={() => saveRename(item.id)} className="text-[#147F23]" aria-label="Salvar"><Check size={15} /></button>
-                <button onClick={() => setEditingId(null)} className="text-[#878787]" aria-label="Cancelar"><X size={15} /></button>
+                <button onClick={() => saveRename(item.id)} className="text-primary" aria-label="Salvar"><Check size={15} /></button>
+                <button onClick={() => setEditingId(null)} className="text-muted-foreground" aria-label="Cancelar"><X size={15} /></button>
               </>
             ) : (
               <>
-                <span className={`flex-1 text-sm ${item.isActive ? 'text-[#1D1D1B]' : 'text-[#878787] line-through'}`}>
+                <span className={`flex-1 text-sm ${item.isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
                   {item.name}
                 </span>
                 <button
                   onClick={() => { setEditingId(item.id); setEditName(item.name); }}
-                  className="text-[#878787] hover:text-[#1D1D1B]"
+                  className="text-muted-foreground hover:text-foreground"
                   aria-label="Renomear"
                 >
                   <Pencil size={13} />
@@ -117,7 +117,7 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
                 <button
                   onClick={() => toggleActive(item)}
                   disabled={busy}
-                  className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.isActive ? 'bg-[#86C175]/20 text-[#156D1D]' : 'bg-gray-100 text-[#878787]'}`}
+                  className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.isActive ? 'bg-success/20 text-primary-dark' : 'bg-gray-100 text-muted-foreground'}`}
                 >
                   {item.isActive ? 'Ativo' : 'Inativo'}
                 </button>
@@ -133,13 +133,13 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Novo item…"
-          className="flex-1 text-sm px-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+          className="flex-1 text-sm px-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
         />
         <button
           onClick={add}
           disabled={busy || !newName.trim()}
           className="rounded-lg p-1.5 text-white disabled:opacity-40"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
           aria-label="Adicionar"
         >
           <Plus size={15} />

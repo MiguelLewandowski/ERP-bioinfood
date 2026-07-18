@@ -6,13 +6,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  Settings, Archive, ArchiveRestore, Pencil, Search, Mail, Phone, X,
+  Settings, Archive, ArchiveRestore, Pencil, Search, Mail, Phone, X, Building2,
 } from 'lucide-react';
 import type { OrganizationDto, PartyRoleType, SystemRole } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  TableContainer, Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import ClienteDialog from './cliente-dialog';
 
 interface ClientesClientProps {
@@ -25,11 +33,6 @@ const canCreate = (role: SystemRole) => role === 'ADMIN';
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Ativo',
   ARCHIVED: 'Arquivado',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-700',
-  ARCHIVED: 'bg-gray-100 text-gray-600',
 };
 
 const ROLE_LABELS: Record<PartyRoleType, string> = {
@@ -106,31 +109,17 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
   if (organizations.length === 0) {
     return (
       <>
-        <div className="flex items-center justify-end gap-2 mb-4">
-          {canCreate(session.role) && (
-            <button
-              onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            >
-              + Novo Cliente
-            </button>
-          )}
-        </div>
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-            <span className="text-3xl">🏢</span>
-          </div>
-          <h3 className="text-lg font-semibold text-[#575756]">Nenhum cliente cadastrado</h3>
-          <p className="text-sm text-[#706F6F] mt-1 mb-4">Cadastre o primeiro cliente para começar</p>
-          {canCreate(session.role) && (
-            <button
-              onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            >
-              + Novo Cliente
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={Building2}
+          title="Nenhum cliente cadastrado"
+          description="Cadastre o primeiro cliente para começar"
+          action={
+            canCreate(session.role) && (
+              <Button onClick={() => setOpen(true)}>+ Novo Cliente</Button>
+            )
+          }
+          className="py-20"
+        />
         <ClienteDialog open={open} onOpenChange={setOpen} onCreated={onCreated} />
       </>
     );
@@ -138,20 +127,20 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex flex-1 items-center gap-2 min-w-[220px] max-w-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-[220px] max-w-sm flex-1 items-center gap-2">
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#878787]" />
-            <input
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nome, documento ou e-mail…"
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+              className="pl-9 pr-8"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#878787] hover:text-[#575756]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 aria-label="Limpar busca"
               >
                 <X size={14} />
@@ -162,108 +151,96 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
 
         <div className="flex items-center gap-2">
           {archivedCount > 0 && (
-            <label className="flex items-center gap-1.5 text-xs text-[#575756] px-2">
+            <label className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
                 checked={showArchived}
                 onChange={(e) => setShowArchived(e.target.checked)}
-                className="accent-[#147F23]"
+                className="accent-[hsl(var(--primary))]"
               />
               Mostrar arquivados ({archivedCount})
             </label>
           )}
           {session.role === 'ADMIN' && (
-            <Link
-              href="/clientes/config"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
+            <Link href="/clientes/config" className={cn(buttonVariants({ variant: 'outline' }))}>
               <Settings size={15} /> Configurar
             </Link>
           )}
           {canCreate(session.role) && (
-            <button
-              onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            >
-              + Novo Cliente
-            </button>
+            <Button onClick={() => setOpen(true)}>+ Novo Cliente</Button>
           )}
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center">
-          <p className="text-sm text-[#878787]">Nenhum cliente encontrado para &quot;{search}&quot;.</p>
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-sm text-muted-foreground">Nenhum cliente encontrado para &quot;{search}&quot;.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-left text-[11px] font-semibold uppercase tracking-wide text-[#878787]">
-                <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Papel</th>
-                <th className="px-4 py-3">Setor</th>
-                <th className="px-4 py-3">Contato</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
+        <TableContainer>
+          <Table>
+            <TableHeader>
+              <TableRow className="uppercase tracking-wide hover:bg-transparent">
+                <TableHead>Cliente</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead>Setor</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((org) => (
-                <tr key={org.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/clientes/${org.id}`} className="flex items-center gap-3 group">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#86C175]/25 text-[11px] font-bold text-[#156D1D]">
+                <TableRow key={org.id}>
+                  <TableCell>
+                    <Link href={`/clientes/${org.id}`} className="group flex items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/25 text-[11px] font-bold text-primary-dark">
                         {initials(org.tradeName || org.legalName)}
                       </span>
                       <span className="min-w-0">
-                        <span className="block font-medium text-[#1D1D1B] group-hover:text-[#147F23] truncate">
+                        <span className="block truncate font-medium text-foreground group-hover:text-primary">
                           {org.tradeName || org.legalName}
                         </span>
-                        <span className="block text-xs text-[#878787] truncate">
+                        <span className="block truncate text-xs text-muted-foreground">
                           {org.tradeName ? org.legalName : (org.document ?? 'Sem documento')}
                         </span>
                       </span>
                     </Link>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
                     {org.roleTypes.length === 0 ? (
-                      <span className="text-xs text-[#878787]">—</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
                         {org.roleTypes.map((r) => (
-                          <span key={r} className="rounded-full bg-[#86C175]/20 px-2 py-0.5 text-[10px] font-medium text-[#156D1D]">
+                          <Badge key={r} variant="success" className="text-[10px]">
                             {ROLE_LABELS[r] ?? r}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-[#575756]">{org.sector?.name ?? '—'}</td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{org.sector?.name ?? '—'}</TableCell>
+                  <TableCell>
                     {org.email || org.phone ? (
-                      <div className="flex flex-col gap-0.5 text-xs text-[#706F6F]">
+                      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                         {org.email && <span className="inline-flex items-center gap-1"><Mail size={11} />{org.email}</span>}
                         {org.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{org.phone}</span>}
                       </div>
                     ) : (
-                      <span className="text-xs text-[#878787]">—</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_COLORS[org.status] ?? 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={org.status === 'ACTIVE' ? 'success' : 'neutral'}>
                       {STATUS_LABELS[org.status] ?? org.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center justify-end gap-3">
                       <Link
                         href={`/clientes/${org.id}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#575756] hover:text-[#147F23]"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary"
                         title="Editar cliente"
                       >
                         <Pencil size={14} /> Editar
@@ -272,7 +249,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
                         <button
                           onClick={() => toggleArchive(org)}
                           disabled={busyId === org.id}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#575756] hover:text-red-600 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50"
                           title={org.status === 'ARCHIVED' ? 'Reativar cliente' : 'Arquivar cliente'}
                         >
                           {org.status === 'ARCHIVED' ? <ArchiveRestore size={14} /> : <Archive size={14} />}
@@ -280,15 +257,15 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
                         </button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      <p className="mt-2 text-xs text-[#878787]">
+      <p className="mt-2 text-xs text-muted-foreground">
         {filtered.length} de {organizations.length} cliente{organizations.length === 1 ? '' : 's'}
       </p>
 

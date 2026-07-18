@@ -11,7 +11,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 
 const inputCls =
-  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none';
+  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none';
 
 interface ContatosTabProps {
   organizationId: string;
@@ -173,7 +173,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
           <button
             onClick={openCreate}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: '#147F23' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
           >
             <Plus size={15} /> Novo contato
           </button>
@@ -182,7 +182,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
 
       {initialContacts.length === 0 && !showForm && (
         <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
-          <p className="text-sm text-[#878787]">Nenhum contato vinculado a este cliente.</p>
+          <p className="text-sm text-muted-foreground">Nenhum contato vinculado a este cliente.</p>
         </div>
       )}
 
@@ -191,22 +191,22 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
           <li key={c.id} className="flex items-start justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#1D1D1B]">{c.name}</span>
+                <span className="text-sm font-medium text-foreground">{c.name}</span>
                 {c.link?.isPrimary && (
-                  <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#DD8005]">
+                  <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-accent">
                     <Star size={11} fill="#DD8005" /> Principal
                   </span>
                 )}
-                {c.link?.jobTitle && <span className="text-xs text-[#878787]">· {c.link.jobTitle}</span>}
+                {c.link?.jobTitle && <span className="text-xs text-muted-foreground">· {c.link.jobTitle}</span>}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#706F6F]">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {c.email && <span className="inline-flex items-center gap-1"><Mail size={12} />{c.email}</span>}
                 {c.phone && <span className="inline-flex items-center gap-1"><Phone size={12} />{c.phone}</span>}
               </div>
               {c.link && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {MARKERS.filter((m) => c.link![m.key]).map((m) => (
-                    <span key={m.key} className="rounded-full bg-[#86C175]/20 px-2 py-0.5 text-[10px] font-medium text-[#156D1D]">
+                    <span key={m.key} className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-medium text-primary-dark">
                       {m.label}
                     </span>
                   ))}
@@ -218,12 +218,12 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
                 <button
                   onClick={() => openEdit(c)}
                   disabled={loadingEdit === c.id}
-                  className="text-[#878787] hover:text-[#147F23] disabled:opacity-50"
+                  className="text-muted-foreground hover:text-primary disabled:opacity-50"
                   aria-label="Editar contato"
                 >
                   <Pencil size={15} />
                 </button>
-                <button onClick={() => unlink(c)} className="text-[#878787] hover:text-red-600" aria-label="Remover vínculo">
+                <button onClick={() => unlink(c)} className="text-muted-foreground hover:text-red-600" aria-label="Remover vínculo">
                   <X size={16} />
                 </button>
               </div>
@@ -234,7 +234,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
 
       {showForm && (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h3 className="text-xs font-bold text-[#1D1D1B]">{mode.kind === 'edit' ? 'Editar contato' : 'Novo contato'}</h3>
+          <h3 className="text-xs font-bold text-foreground">{mode.kind === 'edit' ? 'Editar contato' : 'Novo contato'}</h3>
 
           <div className="grid grid-cols-2 gap-2">
             <input {...register('name', { required: true })} placeholder="Nome *" className={inputCls} />
@@ -264,15 +264,15 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
           </div>
           <input {...register('skype')} placeholder="Skype" className={inputCls} />
 
-          <div className="flex flex-wrap gap-4 text-xs text-[#575756]">
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isPrimary')} className="accent-[#147F23]" /> Principal</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isDecision')} className="accent-[#147F23]" /> Decisor</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isFinance')} className="accent-[#147F23]" /> Financeiro</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isTechnical')} className="accent-[#147F23]" /> Técnico</label>
+          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isPrimary')} className="accent-[hsl(var(--primary))]" /> Principal</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isDecision')} className="accent-[hsl(var(--primary))]" /> Decisor</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isFinance')} className="accent-[hsl(var(--primary))]" /> Financeiro</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isTechnical')} className="accent-[hsl(var(--primary))]" /> Técnico</label>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={closeForm} className="px-3 py-1.5 text-xs font-medium text-[#575756]">Cancelar</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+            <button type="button" onClick={closeForm} className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Cancelar</button>
+            <button type="submit" disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'hsl(var(--primary))' }}>
               {saving ? 'Salvando…' : mode.kind === 'edit' ? 'Salvar' : 'Adicionar'}
             </button>
           </div>

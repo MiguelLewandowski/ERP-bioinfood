@@ -76,7 +76,7 @@ export function FichaClient(props: FichaClientProps) {
     <div className="max-w-4xl mx-auto px-6 py-8">
       <Link
         href="/clientes"
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#575756] hover:text-[#1D1D1B] mb-4"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground mb-4"
       >
         <ArrowLeft size={14} /> Voltar para Clientes
       </Link>
@@ -84,20 +84,20 @@ export function FichaClient(props: FichaClientProps) {
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-[#1D1D1B]">{organization.legalName}</h1>
+            <h1 className="text-xl font-bold text-foreground">{organization.legalName}</h1>
             {organization.status === 'ARCHIVED' && (
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Arquivado</span>
             )}
           </div>
           {organization.tradeName && (
-            <p className="text-sm text-[#706F6F] mt-0.5">{organization.tradeName}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{organization.tradeName}</p>
           )}
         </div>
         {session.role === 'ADMIN' && (
           <button
             onClick={toggleArchive}
             disabled={archiving}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-[#575756] border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
           >
             {organization.status === 'ARCHIVED' ? <ArchiveRestore size={14} /> : <Archive size={14} />}
             {organization.status === 'ARCHIVED' ? 'Reativar cliente' : 'Arquivar cliente'}
@@ -117,14 +117,14 @@ export function FichaClient(props: FichaClientProps) {
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
                 tab === id
-                  ? 'border-[#147F23] text-[#147F23]'
-                  : 'border-transparent text-[#575756] hover:text-[#1D1D1B]',
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon size={15} />
               {label}
               {count !== undefined && count > 0 && (
-                <span className="ml-1 rounded-full bg-gray-100 px-1.5 text-[11px] text-[#575756]">{count}</span>
+                <span className="ml-1 rounded-full bg-gray-100 px-1.5 text-[11px] text-muted-foreground">{count}</span>
               )}
             </button>
           );

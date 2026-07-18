@@ -16,7 +16,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 
 const inputCls =
-  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none';
+  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none';
 
 const TYPE_LABELS: Record<InteractionType, string> = {
   EMAIL: 'E-mail', CALL: 'Ligação', MEETING: 'Reunião', VISIT: 'Visita', WHATSAPP: 'WhatsApp', OTHER: 'Outro',
@@ -100,7 +100,7 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: '#147F23' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
           >
             <Plus size={15} /> Registrar interação
           </button>
@@ -127,8 +127,8 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
           <textarea {...register('summary')} placeholder="Resumo (3 linhas)" rows={2} className={inputCls} />
           <textarea {...register('fullContent')} placeholder="Conteúdo completo (opcional)" rows={3} className={inputCls} />
 
-          <label className="flex items-center gap-1.5 text-xs text-[#575756]">
-            <input type="checkbox" {...register('createFollowUp')} className="accent-[#147F23]" />
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input type="checkbox" {...register('createFollowUp')} className="accent-[hsl(var(--primary))]" />
             Criar follow-up junto
           </label>
 
@@ -140,8 +140,8 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
           )}
 
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { reset(); setShowForm(false); }} className="px-3 py-1.5 text-xs font-medium text-[#575756]">Cancelar</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+            <button type="button" onClick={() => { reset(); setShowForm(false); }} className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Cancelar</button>
+            <button type="submit" disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'hsl(var(--primary))' }}>
               {saving ? 'Salvando…' : 'Registrar'}
             </button>
           </div>
@@ -150,7 +150,7 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
 
       {initialInteractions.length === 0 && !showForm && (
         <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
-          <p className="text-sm text-[#878787]">Nenhuma interação registrada ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
         </div>
       )}
 
@@ -170,31 +170,31 @@ function TimelineItem({ interaction }: { interaction: InteractionDto }) {
   return (
     <li className="rounded-xl border border-gray-200 bg-white px-4 py-3">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#86C175]/20 text-[#156D1D]">
+        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success/20 text-primary-dark">
           <Icon size={14} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="text-sm font-medium text-[#1D1D1B]">{TYPE_LABELS[interaction.type]}</span>
-            {interaction.direction !== 'INTERNAL' && <DirIcon size={12} className="text-[#878787]" />}
-            {interaction.subject && <span className="text-sm text-[#575756]">— {interaction.subject}</span>}
+            <span className="text-sm font-medium text-foreground">{TYPE_LABELS[interaction.type]}</span>
+            {interaction.direction !== 'INTERNAL' && <DirIcon size={12} className="text-muted-foreground" />}
+            {interaction.subject && <span className="text-sm text-muted-foreground">— {interaction.subject}</span>}
           </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#878787]">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             <span>{date.toLocaleString('pt-BR')}</span>
             {interaction.contact && <span>· {interaction.contact.name}</span>}
             {interaction.user && <span>· por {interaction.user.name}</span>}
           </div>
           {interaction.summary && (
-            <p className="mt-1.5 text-sm text-[#575756]">{interaction.summary}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">{interaction.summary}</p>
           )}
           {interaction.fullContent && (
             <>
               {expanded && (
-                <p className="mt-1.5 whitespace-pre-wrap text-sm text-[#706F6F]">{interaction.fullContent}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted-foreground">{interaction.fullContent}</p>
               )}
               <button
                 onClick={() => setExpanded((e) => !e)}
-                className="mt-1 flex items-center gap-0.5 text-xs font-medium text-[#147F23] hover:underline"
+                className="mt-1 flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
               >
                 {expanded ? <>Recolher <ChevronUp size={12} /></> : <>Ver conteúdo completo <ChevronDown size={12} /></>}
               </button>

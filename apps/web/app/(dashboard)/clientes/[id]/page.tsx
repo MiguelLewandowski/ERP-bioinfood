@@ -1,21 +1,12 @@
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import type {
-  OrganizationDetailDto, TaxonomyDto, ContactListItemDto, InteractionDto, OpportunityDto,
-} from '@bioinfood/shared';
+import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
+import {
+  contactsApi, interactionsApi, opportunitiesApi, organizationsApi, taxonomiesApi,
+} from '@/lib/api-hooks';
+import { ApiError } from '@/lib/errors';
+import { RegisterBreadcrumbLabel } from '@/components/layout/breadcrumb-context';
 import { FichaClient } from './_components/ficha-client';
-
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-async function fetchJson<T>(path: string, token: string, fallback: T): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-  if (!res.ok) return fallback;
-  return res.json();
-}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -29,23 +20,17 @@ export default async function ClientePage({ params }: Props) {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const organization = await fetchJson<OrganizationDetailDto | null>(
-    `/organizations/${id}`, token, null,
-  );
-  if (!organization) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-[#706F6F]">Cliente não encontrado.</p>
-      </div>
-    );
-  }
+  const organization = await organizationsApi.get(id, token).catch((err) => {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err; // outros erros borbulham para o error boundary
+  });
 
   const [sectors, sources, contacts, interactions, opportunities] = await Promise.all([
-    fetchJson<TaxonomyDto[]>('/taxonomies/sectors', token, []),
-    fetchJson<TaxonomyDto[]>('/taxonomies/sources', token, []),
-    fetchJson<ContactListItemDto[]>(`/contacts?orgId=${id}`, token, []),
-    fetchJson<InteractionDto[]>(`/interactions?orgId=${id}`, token, []),
-    fetchJson<OpportunityDto[]>(`/opportunities?orgId=${id}`, token, []),
+    taxonomiesApi.list('sectors', token),
+    taxonomiesApi.list('sources', token),
+    contactsApi.list(token, { orgId: id }),
+    interactionsApi.list(id, token),
+    opportunitiesApi.listByOrg(id, token),
   ]);
 
   // Escrita do CRM é exclusiva do ADMIN (decisão do owner).
@@ -53,6 +38,8 @@ export default async function ClientePage({ params }: Props) {
   const canManageRoles = session.role === 'ADMIN';
 
   return (
+    <>
+    <RegisterBreadcrumbLabel id={id} label={organization.tradeName ?? organization.legalName} />
     <FichaClient
       organizationId={id}
       organization={organization}
@@ -64,5 +51,6 @@ export default async function ClientePage({ params }: Props) {
       canEdit={canEdit}
       canManageRoles={canManageRoles}
     />
+    </>
   );
 }
