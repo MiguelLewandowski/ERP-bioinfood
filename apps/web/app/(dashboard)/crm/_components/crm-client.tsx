@@ -13,6 +13,15 @@ import type { PipelineDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood
 import { useAuth } from '@/components/providers/auth-provider';
 import { opportunitiesApi, pipelinesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { CrmColumn } from './crm-column';
 import { CrmCard, formatBRL } from './crm-card';
 import { OpportunityDialog } from './opportunity-dialog';
@@ -111,7 +120,7 @@ export function CrmClient(props: CrmClientProps) {
 
   if (!pipeline) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-[#878787]">
+      <div className="rounded-xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
         Nenhum funil configurado.
       </div>
     );
@@ -119,46 +128,40 @@ export function CrmClient(props: CrmClientProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {props.pipelines.length > 1 ? (
-            <select
+            <Select
               value={pipeline.id}
               onChange={(e) => switchPipeline(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-[#52B552] focus:outline-none bg-white"
+              className="w-auto"
+              aria-label="Funil"
             >
               {props.pipelines.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}{p.isDefault ? ' (padrão)' : ''}</option>
               ))}
-            </select>
+            </Select>
           ) : (
-            <span className="text-sm font-semibold text-[#1D1D1B]">{pipeline.name}</span>
+            <span className="text-sm font-semibold text-foreground">{pipeline.name}</span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {props.canEdit && (
-            <Link
-              href="/crm/config"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50"
-            >
+            <Link href="/crm/config" className={cn(buttonVariants({ variant: 'outline' }))}>
               <Settings size={15} /> Funis
             </Link>
           )}
           {props.canEdit && firstOpen && (
-            <button
-              onClick={() => setCreating(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ backgroundColor: '#147F23' }}
-            >
+            <Button onClick={() => setCreating(true)}>
               <Plus size={15} /> Nova Oportunidade
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Metric label="Em aberto" value={formatBRL(summary.openTotal)} />
           <Metric label="Ponderado" value={formatBRL(summary.weightedTotal)} />
           <Metric label="Conversão" value={`${Math.round(summary.conversionRate * 100)}%`} />
@@ -168,7 +171,7 @@ export function CrmClient(props: CrmClientProps) {
 
       <div className="overflow-x-auto pb-2">
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="grid gap-3 items-start" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
+          <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
             {stages.map((stage) => {
               const colOpps = opps.filter((o) => o.stageId === stage.id);
               return (
@@ -178,7 +181,9 @@ export function CrmClient(props: CrmClientProps) {
                       <CrmCard key={o.id} opportunity={o} onEdit={props.canEdit ? setEditing : undefined} draggable={props.canEdit} />
                     ))}
                   </SortableContext>
-                  {colOpps.length === 0 && <p className="text-[11px] text-[#878787] text-center py-4">Vazio</p>}
+                  {colOpps.length === 0 && (
+                    <p className="py-4 text-center text-[11px] text-muted-foreground">Vazio</p>
+                  )}
                 </CrmColumn>
               );
             })}
@@ -225,37 +230,37 @@ export function CrmClient(props: CrmClientProps) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#878787]">{label}</p>
-      <p className="text-lg font-bold text-[#1D1D1B] mt-0.5">{value}</p>
-    </div>
+    <Card className="px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-lg font-bold text-foreground">{value}</p>
+    </Card>
   );
 }
 
 function LostReasonDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (reason: string) => void }) {
   const [reason, setReason] = useState('');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-[#1D1D1B] mb-3">Marcar como perdida</h2>
-        <label className="block text-sm font-medium text-[#575756] mb-1">Motivo da perda (opcional)</label>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={3}
-          autoFocus
-          className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
-          placeholder="Ex: preço acima do orçamento do cliente"
-        />
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50">
-            Cancelar
-          </button>
-          <button onClick={() => onConfirm(reason)} className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D]">
-            Confirmar
-          </button>
+    <Dialog open onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Marcar como perdida</DialogTitle>
+        </DialogHeader>
+        <div>
+          <Label htmlFor="lost-reason">Motivo da perda (opcional)</Label>
+          <Textarea
+            id="lost-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="Ex: preço acima do orçamento do cliente"
+          />
         </div>
-      </div>
-    </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button onClick={() => onConfirm(reason)}>Confirmar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

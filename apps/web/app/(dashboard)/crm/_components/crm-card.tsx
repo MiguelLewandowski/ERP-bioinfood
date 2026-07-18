@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Building2, User } from 'lucide-react';
 import type { OpportunityDto } from '@bioinfood/shared';
+import { cn } from '@/lib/utils';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
   if (amount === null) return '—';
@@ -40,12 +41,14 @@ export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: Cr
       {...(draggable ? sortable.attributes : {})}
       {...(draggable ? sortable.listeners : {})}
       onClick={() => onEdit?.(opportunity)}
-      className={`rounded-lg border border-gray-200 bg-white p-3 ${
-        draggable ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${isOverlay ? 'shadow-lg' : 'hover:border-[#52B552]'} transition-colors`}
+      className={cn(
+        'rounded-lg border border-border bg-card p-3 transition-colors',
+        draggable && 'cursor-grab active:cursor-grabbing',
+        isOverlay ? 'shadow-lg' : 'hover:border-ring',
+      )}
     >
-      <p className="text-sm font-medium text-[#1D1D1B] leading-snug">{opportunity.title}</p>
-      <div className="mt-2 flex items-center gap-1 text-xs text-[#706F6F]">
+      <p className="text-sm font-medium leading-snug text-foreground">{opportunity.title}</p>
+      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
         <Building2 size={12} />
         {isOverlay ? (
           <span className="truncate">{org}</span>
@@ -53,20 +56,22 @@ export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: Cr
           <Link
             href={`/clientes/${opportunity.organization.id}`}
             onClick={(e) => e.stopPropagation()}
-            className="truncate hover:text-[#147F23] hover:underline"
+            className="truncate hover:text-primary hover:underline"
           >
             {org}
           </Link>
         )}
       </div>
       <div className="mt-1.5 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#147F23]">{formatBRL(opportunity.amount, opportunity.currency)}</span>
+        <span className="text-sm font-semibold text-primary">
+          {formatBRL(opportunity.amount, opportunity.currency)}
+        </span>
         {opportunity.probability !== null && (
-          <span className="text-[11px] text-[#878787]">{opportunity.probability}%</span>
+          <span className="text-[11px] text-muted-foreground">{opportunity.probability}%</span>
         )}
       </div>
       {opportunity.responsible && (
-        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-[#878787]">
+        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
           <User size={11} /> {opportunity.responsible.name}
         </div>
       )}
