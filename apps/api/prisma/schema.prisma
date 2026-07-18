@@ -176,6 +176,18 @@ enum StageType {
   LOST
 }
 
+// Tipo de tarefa/registro de contato (unifica o antigo conceito de Interaction
+// dentro de Activity — §crm-redesign-2026-07).
+enum ActivityType {
+  NOTE
+  EMAIL
+  CALL
+  WHATSAPP
+  PROPOSAL
+  MEETING
+  VISIT
+}
+
 // -- Estoque / Compras (stub) --
 enum StockMovementType {
   IN
@@ -289,6 +301,10 @@ model Organization {
   sector   Sector?             @relation(fields: [sectorId], references: [id])
   sourceId String?
   source   OrganizationSource? @relation(fields: [sourceId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  productServices OrganizationProductService[]
 
   // Hierarquia matriz → filiais
   parentId String?
@@ -400,6 +416,8 @@ model Contact {
   skype     String?
   instagram String?
   notes     String?
+  sourceId  String? // origem da pessoa (reaproveita a taxonomia de OrganizationSource)
+  source    OrganizationSource? @relation(fields: [sourceId], references: [id])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -471,10 +489,13 @@ model Activity {
   contact       Contact?       @relation(fields: [contactId], references: [id])
   interactionId String?
   interaction   Interaction?   @relation(fields: [interactionId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id])
   responsibleId String?
   responsible   User?          @relation(fields: [responsibleId], references: [id])
   title         String
   description   String?
+  type          ActivityType   @default(NOTE)
   priority      TaskPriority   @default(MEDIUM)
   status        ActivityStatus @default(PENDING)
   dueDate       DateTime?
@@ -483,6 +504,7 @@ model Activity {
   updatedAt     DateTime       @updatedAt
 
   @@index([orgId])
+  @@index([opportunityId])
   @@index([status, dueDate])
 }
 
@@ -509,6 +531,43 @@ model OrganizationSource {
   updatedAt DateTime @updatedAt
 
   organizations Organization[]
+  contacts      Contact[] // reaproveitada como "origem" da pessoa
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizations Organization[]
+}
+
+model ProductService {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizationLinks OrganizationProductService[]
+}
+
+// Empresa <-> produtos/serviços de interesse (M:N — §crm-redesign-2026-07, decisão 2).
+model OrganizationProductService {
+  id               String         @id @default(cuid())
+  orgId            String
+  organization     Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  productServiceId String
+  productService   ProductService @relation(fields: [productServiceId], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@unique([orgId, productServiceId])
+  @@index([orgId])
+  @@index([productServiceId])
 }
 
 // Escada de maturidade de P&D (Lab → Piloto → Escala) — global, não por
@@ -582,12 +641,19 @@ model Opportunity {
   amount            Decimal?  @db.Decimal(15, 2)
   currency          String    @default("BRL")
   probability       Int? // 0..100 — sobrescrito pelo default da etapa ao mover; editável
+  startDate         DateTime?
+  description       String?
   expectedCloseDate DateTime?
   closedAt          DateTime? // preenchido ao entrar em etapa WON/LOST
   lostReason        String?
+  // Congelado é um marcador ortogonal à etapa do funil (não é WON/LOST/OPEN):
+  // negócio pausado que some do funil ativo mas pode ser reativado depois.
+  frozenAt          DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
+
+  activities Activity[]
 
   @@index([orgId])
   @@index([pipelineId, stageId])

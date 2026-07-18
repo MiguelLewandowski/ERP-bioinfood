@@ -20,6 +20,8 @@ const prisma = new PrismaClient();
 const SECTORS = ['Indústria Food', 'Indústria Fuels', 'Indústria Feed', 'ICT', 'Biotecnologia'];
 const SOURCES = ['Network', 'Evento', 'Site', 'Busca ativa', 'UpLab'];
 const ENGAGEMENT_STAGES = ['Laboratório', 'Piloto', 'Escala'];
+const CATEGORIES = ['Cliente', 'Fornecedor', 'Parceiro', 'Agência de fomento'];
+const PRODUCT_SERVICES = ['Análise laboratorial', 'Desenvolvimento de produto', 'Consultoria técnica', 'Escala piloto'];
 
 const DEFAULT_PIPELINE_STAGES: Array<{
   name: string; type: StageType; probability: number; color: string;
@@ -41,6 +43,12 @@ async function seedCrmDefaults() {
   }
   for (const [order, name] of ENGAGEMENT_STAGES.entries()) {
     await prisma.engagementStage.upsert({ where: { name }, update: {}, create: { name, order } });
+  }
+  for (const [order, name] of CATEGORIES.entries()) {
+    await prisma.category.upsert({ where: { name }, update: {}, create: { name, order } });
+  }
+  for (const [order, name] of PRODUCT_SERVICES.entries()) {
+    await prisma.productService.upsert({ where: { name }, update: {}, create: { name, order } });
   }
 
   await prisma.pipeline.upsert({
