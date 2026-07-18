@@ -5,26 +5,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
+  /* Identidade Bioinfood (docs/design/design-tokens.md) — valores hsl equivalem
+     aos hex exatos da marca. Nova cor = novo token aqui + tailwind.config.ts. */
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
+    --foreground: 60 4% 11%; /* #1D1D1B */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 60 4% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    --primary: 130 70% 30%;
+    --popover-foreground: 60 4% 11%;
+    --primary: 128 73% 29%; /* #147F23 */
+    --primary-dark: 125 68% 25%; /* #156D1D — hover/ênfase */
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary-foreground: 60 4% 11%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 33 97% 44%;
+    --muted-foreground: 0 0% 44%; /* #706F6F */
+    --accent: 34 96% 44%; /* #DD8005 — âmbar, exclusivo para alerta/destaque */
     --accent-foreground: 0 0% 100%;
+    --success: 121 42% 48%; /* #46AD48 */
+    --success-foreground: 0 0% 100%;
+    --warning: 41 100% 50%; /* #FFB000 */
+    --warning-foreground: 60 4% 11%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 130 70% 30%;
+    --ring: 120 40% 52%; /* #52B552 — borda de foco da marca */
+    --sidebar: 60 4% 11%; /* #1D1D1B */
+    --sidebar-hover: 0 0% 19%; /* #303030 */
+    --sidebar-foreground: 0 0% 100%;
     --radius: 0.5rem;
   }
 }

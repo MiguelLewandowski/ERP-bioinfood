@@ -1,65 +1,78 @@
-## Paleta
+# Design Tokens — ERP Bioinfood
 
-| Token | Hex | Uso |
+> Fonte da identidade: `docs/design/bio_in_food.pdf` e `docs/design/paleta de cor.pdf`.
+> **Regra nº 1: cor entra SEMPRE por token semântico.** Hex inline (`bg-[#147F23]`,
+> `style={{ color: '#575756' }}`) é **proibido** — o ESLint acusa. Nova cor = novo
+> token em `apps/web/app/globals.css` + `apps/web/tailwind.config.ts`, nunca hex no componente.
+
+## Tokens semânticos (usar estes)
+
+| Classe Tailwind | Resolve para | Uso |
 |---|---|---|
-| `green-900` | `#156D1D` | primary-dark — ênfase, hover |
-| `green-800` | `#147F23` | primary — ações principais, CTA |
-| `green-600` | `#46AD48` | primary-mid — ícones ativos, badges |
-| `green-500` | `#52B552` | primary-light — bordas de foco, tags |
-| `green-300` | `#86C175` | primary-lighter — backgrounds de destaque suave |
-| `gray-950` | `#1D1D1B` | surface-dark — sidebar, navbar |
-| `gray-900` | `#303030` | surface — cards escuros |
-| `gray-800` | `#3C3C3B` | border-dark |
-| `gray-700` | `#575756` | text-secondary |
-| `gray-600` | `#706F6F` | text-muted, placeholder |
-| `gray-400` | `#878787` | disabled |
-| `black` | `#000000` | texto em fundo claro (raramente) |
-| `amber-800` | `#C16C06` | warning-dark — alertas críticos |
-| `amber-700` | `#DD8005` | warning — badges de atenção |
-| `amber-600` | `#FF910A` | warning-mid — intermediário (CMYK 0,43,96,0; hex no PDF incorreto) |
-| `amber-500` | `#FFB000` | accent — destaques, highlights |
-| `amber-400` | `#FFB727` | accent-light |
-| `amber-300` | `#FDC75F` | accent-lighter — backgrounds de aviso suave |
-| `white` | `#FFFFFF` | surface-light — fundo de página, texto em fundo escuro |
+| `bg-primary` / `text-primary` | `#147F23` | CTAs, botões principais, navegação ativa |
+| `bg-primary-dark` | `#156D1D` | hover/ênfase do primário (`hover:bg-primary-dark`) |
+| `text-primary-foreground` | `#FFFFFF` | texto sobre fundo primário |
+| `text-foreground` | `#1D1D1B` | texto principal (títulos, corpo) |
+| `text-muted-foreground` | `#706F6F` | texto secundário, placeholder, labels |
+| `bg-muted` / `bg-secondary` | cinza 96% | fundos suaves, hover de linha |
+| `border-border` / `border-input` | cinza 90% | bordas de cards, inputs |
+| `ring-ring` | `#52B552` | anel de foco (`focus-visible:ring-2 ring-ring`) |
+| `bg-success` / `text-success` | `#46AD48` | estados positivos (concluído, ativo, ganho) |
+| `bg-warning` / `text-warning` | `#FFB000` | destaque de atenção |
+| `bg-accent` / `text-accent` | `#DD8005` | alerta forte (âmbar da marca) |
+| `bg-destructive` / `text-destructive` | vermelho | ações destrutivas (excluir, perder) |
+| `bg-card` / `text-card-foreground` | branco / `#1D1D1B` | cards e superfícies |
+| `bg-sidebar` / `bg-sidebar-hover` / `text-sidebar-foreground` | `#1D1D1B` / `#303030` / branco | shell escura (sidebar/topbar) |
 
-## Classes Tailwind Mapeadas
+Não existe token `info` (a identidade Bioinfood não tem azul) — usar `muted` para neutro informativo.
 
-```css
-/* Primárias */
-bg-[#147F23]       /* primary */
-bg-[#156D1D]       /* primary-dark / hover */
-bg-[#46AD48]       /* primary-mid */
-bg-[#86C175]       /* primary-lighter / surface highlight */
-text-[#147F23]     /* primary text */
-text-[#46AD48]     /* primary-mid text */
-border-[#52B552]   /* foco / input ativo */
+## De-para de migração (hex antigo → token)
 
-/* Neutros */
-bg-[#1D1D1B]       /* sidebar / navbar */
-bg-[#303030]       /* card escuro */
-text-[#575756]     /* texto secundário */
-text-[#706F6F]     /* placeholder / muted */
-text-[#878787]     /* desabilitado */
-border-[#3C3C3B]   /* borda escura */
+| Hex encontrado no código | Substituir por |
+|---|---|
+| `#147F23` | `primary` |
+| `#156D1D` | `primary-dark` |
+| `#46AD48` | `success` |
+| `#52B552` | `ring` (foco) ou `success` (decorativo) |
+| `#86C175` | `success/40` (fundo suave; nunca texto) |
+| `#1D1D1B` | `foreground` (texto) ou `sidebar` (fundo escuro) |
+| `#303030` | `sidebar-hover` |
+| `#575756` / `#706F6F` | `muted-foreground` |
+| `#878787` | `muted-foreground` (ou `disabled:opacity-50`) |
+| `#DD8005` / `#C16C06` | `accent` |
+| `#FFB000` / `#FFB727` / `#FDC75F` | `warning` (fundo suave: `warning/20`) |
+| `text-red-600`, `red-*` ad-hoc | `destructive` |
 
-/* Accent / Warning */
-bg-[#DD8005]       /* warning badge */
-bg-[#FFB000]       /* accent highlight */
-bg-[#FDC75F]       /* aviso suave */
-text-[#C16C06]     /* warning text em fundo claro */
+## Paleta da marca (referência — NÃO usar direto no código)
 
-/* Superfícies */
-bg-white           /* page background */
-text-white         /* texto em fundos escuros */
-```
+Verde `#156D1D → #147F23 → #46AD48 → #52B552 → #86C175` · Cinza `#1D1D1B → #303030 → #3C3C3B → #575756 → #706F6F → #878787` · Âmbar `#C16C06 → #DD8005 → #FF910A → #FFB000 → #FFB727 → #FDC75F` · Branco `#FFFFFF`.
+Estes hex vivem exclusivamente nas variáveis de `globals.css`.
 
-## Regras de Uso
+## Regras de uso da marca
 
-- O verde `#147F23` é a cor primária da marca — usar em CTAs, botões principais e elementos de navegação ativa.
-- O laranja/âmbar é exclusivo para alertas, avisos e destaques de atenção — nunca usá-lo como cor primária de ação.
-- Texto branco (`#FFFFFF`) apenas sobre fundos verdes escuros (`#156D1D`, `#147F23`) ou neutros escuros (`#1D1D1B`, `#303030`).
-- Nunca combinar âmbar (`#DD8005`, `#FFB000`) com fundo verde — baixo contraste e conflito de identidade.
-- Os tons de cinza (`#575756` a `#878787`) são exclusivos para texto secundário, bordas e estados desabilitados — não usar como fundo de componentes interativos.
-- `#000000` puro deve ser evitado em textos corridos; preferir `#1D1D1B` para suavizar.
-- A escala de verdes deve ser usada em gradação de hierarquia: mais escuro = maior peso visual/prioridade.
-- Nunca usar `#86C175` (verde claro) para texto — contraste insuficiente em fundo branco.
+- O verde é a cor primária — CTAs, botões principais, navegação ativa. Mais escuro = maior peso.
+- O âmbar é **exclusivo** para alertas/atenção — nunca como cor de ação, nunca sobre fundo verde.
+- Texto branco apenas sobre fundos escuros (`primary`, `primary-dark`, `sidebar`).
+- Cinzas médios são para texto secundário/bordas/disabled — nunca fundo de elemento interativo.
+- Evitar `#000` puro: o "preto" da marca é `foreground` (`#1D1D1B`).
+- Nunca usar o verde claro (`#86C175`) como cor de texto — contraste insuficiente em branco.
+
+## Componentes base (`apps/web/components/ui/`)
+
+Antes de criar qualquer UI, verificar se já existe primitivo aqui — **não** reescrever
+markup de botão/modal/tabela na tela. Catálogo (criado na fase F1 da reforma de UX;
+exemplo canônico de uso: tela **Users**):
+
+| Componente | Uso |
+|---|---|
+| `button` | variantes default/secondary/outline/ghost/destructive |
+| `input`, `textarea`, `label`, `select` | formulários (com react-hook-form + zod) |
+| `dialog` | ÚNICO overlay permitido — nunca `fixed inset-0` manual |
+| `badge`, `status-badge` | status de entidades (mapa status→variante centralizado) |
+| `card`, `table`, `skeleton` | superfícies, listagens, loading |
+| `empty-state` | estado vazio com ícone + título + CTA |
+| `page-header` | cabeçalho de página (título + descrição + ações + breadcrumb) |
+| `dropdown-menu` | menus de ação |
+
+> Enquanto um componente do catálogo ainda não existir, criá-lo em `components/ui/`
+> (base shadcn/Radix — deps já instaladas) em vez de improvisar na tela.

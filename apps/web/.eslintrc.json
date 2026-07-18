@@ -1,0 +1,20 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXAttribute[name.name='className'] Literal[value=/#[0-9a-fA-F]{3,8}/]",
+        "message": "Cor hex em className é proibida — use tokens semânticos (bg-primary, text-muted-foreground…). Ver docs/design/design-tokens.md."
+      },
+      {
+        "selector": "JSXAttribute[name.name='className'] TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}/]",
+        "message": "Cor hex em className é proibida — use tokens semânticos (bg-primary, text-muted-foreground…). Ver docs/design/design-tokens.md."
+      },
+      {
+        "selector": "JSXAttribute[name.name='style'] Literal[value=/#[0-9a-fA-F]{3,8}/]",
+        "message": "Cor hex em style inline é proibida — use classes com tokens semânticos. Ver docs/design/design-tokens.md."
+      }
+    ]
+  }
+}

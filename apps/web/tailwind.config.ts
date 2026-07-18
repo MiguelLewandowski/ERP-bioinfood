@@ -17,7 +17,21 @@ const config: Config = {
         foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
+          dark: 'hsl(var(--primary-dark))',
           foreground: 'hsl(var(--primary-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar))',
+          hover: 'hsl(var(--sidebar-hover))',
+          foreground: 'hsl(var(--sidebar-foreground))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -42,15 +56,6 @@ const config: Config = {
         popover: {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
-        },
-        brand: {
-          green: '#147F23',
-          'green-dark': '#156D1D',
-          'green-light': '#46AD48',
-          orange: '#DD8005',
-          black: '#1D1D1B',
-          gray: '#303030',
-          'gray-mid': '#575756',
         },
       },
       fontFamily: {
