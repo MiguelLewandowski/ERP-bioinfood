@@ -9,12 +9,12 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
       <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
         <AlertTriangle className="text-red-500" size={24} />
       </div>
-      <h1 className="text-lg font-bold text-[#1D1D1B]">Não foi possível carregar a configuração</h1>
+      <h1 className="text-lg font-bold text-foreground">Não foi possível carregar a configuração</h1>
       <div className="mt-5 flex items-center justify-center gap-2">
-        <button onClick={reset} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: '#147F23' }}>
+        <button onClick={reset} className="px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: 'hsl(var(--primary))' }}>
           Tentar novamente
         </button>
-        <Link href="/clientes" className="px-4 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50">
+        <Link href="/clientes" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-gray-200 hover:bg-gray-50">
           Voltar
         </Link>
       </div>

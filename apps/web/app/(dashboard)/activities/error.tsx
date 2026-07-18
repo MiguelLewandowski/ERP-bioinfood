@@ -9,7 +9,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
         <AlertTriangle className="text-destructive" size={24} />
       </div>
-      <h1 className="text-lg font-bold text-foreground">Não foi possível carregar os funis</h1>
+      <h1 className="text-lg font-bold text-foreground">Não foi possível carregar as atividades</h1>
       <Button onClick={reset} className="mt-5">Tentar novamente</Button>
     </div>
   );
