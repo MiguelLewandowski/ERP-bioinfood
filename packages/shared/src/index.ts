@@ -291,6 +291,19 @@ export interface StaleOrganizationDto {
   lastInteractionAt: string | null;
 }
 
+// ── Busca global (command palette) ───────────────────────────────────────────
+
+export type SearchResultType = 'project' | 'organization' | 'opportunity' | 'contact';
+
+export interface SearchResultDto {
+  type: SearchResultType;
+  id: string;
+  title: string;
+  subtitle: string | null;
+  /** Id auxiliar para montar o link (orgId em contato/oportunidade). */
+  refId: string | null;
+}
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export interface ProjectDto {

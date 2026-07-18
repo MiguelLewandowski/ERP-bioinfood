@@ -28,6 +28,9 @@ import type {
   CrmActivityDto,
   DueFilter,
   StaleOrganizationDto,
+  UserDto,
+  UserProjectAccessDto,
+  SearchResultDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -385,4 +388,36 @@ export const crmActivitiesApi = {
 
   remove: (id: string, token: string) =>
     api.delete<void>(`/crm/activities/${id}`, token),
+};
+
+// ── Usuários (ADMIN/APROVA) ────────────────────────────────────────────────────
+
+export const usersApi = {
+  list: (token: string) =>
+    api.get<{ users: UserDto[] }>('/users?limit=100', token).then((d) => d.users ?? []),
+
+  create: (data: Record<string, unknown>, token: string) =>
+    api.post<UserDto>('/users', data, token),
+
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<UserDto>(`/users/${id}`, data, token),
+
+  resetPassword: (id: string, newPassword: string, token: string) =>
+    api.patch<void>(`/users/${id}/reset-password`, { newPassword }, token),
+
+  projectAccess: (id: string, token: string) =>
+    api.get<UserProjectAccessDto[]>(`/users/${id}/project-access`, token),
+
+  grantProjectAccess: (projectId: string, userId: string, token: string) =>
+    api.post<void>(`/projects/${projectId}/access`, { userId }, token),
+
+  revokeProjectAccess: (projectId: string, userId: string, token: string) =>
+    api.delete<void>(`/projects/${projectId}/access/${userId}`, token),
+};
+
+// ── Busca global (command palette ⌘K) ─────────────────────────────────────────
+
+export const searchApi = {
+  global: (q: string, token: string) =>
+    api.get<SearchResultDto[]>(`/search?q=${encodeURIComponent(q)}`, token),
 };
