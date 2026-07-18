@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Building2, User, Snowflake } from 'lucide-react';
-import type { OpportunityDto } from '@bioinfood/shared';
+import {
+  Building2, User, Snowflake, AlertTriangle, Clock, CheckCircle2,
+} from 'lucide-react';
+import type { CrmActivityDto, OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
@@ -14,14 +16,26 @@ export function formatBRL(amount: string | null, currency = 'BRL'): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(n);
 }
 
+function isOverdueTask(dueDate: string | null): boolean {
+  if (!dueDate) return false;
+  return dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
+
 interface CrmCardProps {
   opportunity: OpportunityDto;
   onEdit?: (o: OpportunityDto) => void;
   isOverlay?: boolean;
   draggable?: boolean;
+  // Tarefa mais urgente vinculada a este negócio (atrasada tem prioridade sobre
+  // a de hoje) — sinaliza no card sem precisar abrir o modal (achado #1 da
+  // análise de UI/UX 2026-07-18).
+  urgentTask?: CrmActivityDto | null;
+  onCompleteTask?: (taskId: string) => void;
 }
 
-export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: CrmCardProps) {
+export function CrmCard({
+  opportunity, onEdit, isOverlay, draggable = true, urgentTask, onCompleteTask,
+}: CrmCardProps) {
   const sortable = useSortable({
     id: opportunity.id,
     data: { stageId: opportunity.stageId },
@@ -80,6 +94,31 @@ export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: Cr
           <User size={11} /> {opportunity.responsible.name}
         </div>
       )}
+      {urgentTask && (() => {
+        const overdue = isOverdueTask(urgentTask.dueDate);
+        return (
+          <div
+            className={cn(
+              'mt-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px]',
+              overdue ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent',
+            )}
+          >
+            {overdue ? <AlertTriangle size={11} className="shrink-0" /> : <Clock size={11} className="shrink-0" />}
+            <span className="min-w-0 flex-1 truncate">{urgentTask.title}</span>
+            {onCompleteTask && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onCompleteTask(urgentTask.id); }}
+                className="shrink-0 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Concluir tarefa"
+                title="Concluir tarefa"
+              >
+                <CheckCircle2 size={13} />
+              </button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

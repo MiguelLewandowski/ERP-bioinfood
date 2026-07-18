@@ -22,17 +22,15 @@ export function CrmColumn({ stage, count, amount, children }: CrmColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-xl border bg-muted/40',
+        'flex flex-col overflow-hidden rounded-xl border bg-muted/40',
         isOver ? 'border-ring bg-success/10' : 'border-border',
       )}
     >
+      {/* Cor da etapa é dado configurável do usuário (não token do tema) — a
+          coluna inteira sinaliza a etapa, não só o dot ao lado do nome. */}
+      <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: stage.color || 'hsl(var(--muted-foreground))' }} />
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          {/* Cor da etapa é dado configurável do usuário, não token do tema. */}
-          <span
-            className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
-            style={stage.color ? { backgroundColor: stage.color } : undefined}
-          />
           <span className="truncate text-xs font-semibold text-foreground">{stage.name}</span>
           <span className="text-[11px] text-muted-foreground">{count}</span>
         </div>

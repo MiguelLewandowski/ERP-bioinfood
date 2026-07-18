@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Building2, Users as UsersIcon, Kanban, ListChecks } from 'lucide-react';
 import type {
   PipelineDto, OpportunityDto, PipelineSummaryDto, OrganizationDto, ContactListItemDto, TaxonomyDto,
+  CrmActivityDto,
 } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import ClientesClient from '@/components/clientes/clientes-client';
@@ -20,6 +21,7 @@ interface CrmTabsProps {
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
   summary: PipelineSummaryDto | null;
+  urgentTasks: CrmActivityDto[];
   canEdit: boolean;
 }
 
@@ -64,6 +66,7 @@ export function CrmTabs(props: CrmTabsProps) {
           currentPipeline={props.currentPipeline}
           initialOpportunities={props.initialOpportunities}
           summary={props.summary}
+          initialUrgentTasks={props.urgentTasks}
           canEdit={props.canEdit}
         />
       )}

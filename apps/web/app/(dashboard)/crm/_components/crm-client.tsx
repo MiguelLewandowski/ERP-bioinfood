@@ -1,6 +1,6 @@
 'use client'; // kanban with drag-and-drop requires client interaction
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
@@ -9,9 +9,11 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Settings, Snowflake, Sun } from 'lucide-react';
 import { toast } from 'sonner';
-import type { PipelineDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
+import type {
+  PipelineDto, OpportunityDto, PipelineSummaryDto, CrmActivityDto,
+} from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
-import { opportunitiesApi, pipelinesApi } from '@/lib/api-hooks';
+import { crmActivitiesApi, opportunitiesApi, pipelinesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +33,7 @@ interface CrmClientProps {
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
   summary: PipelineSummaryDto | null;
+  initialUrgentTasks: CrmActivityDto[];
   canEdit: boolean;
 }
 
@@ -39,10 +42,33 @@ export function CrmClient(props: CrmClientProps) {
   const [pipeline, setPipeline] = useState(props.currentPipeline);
   const [opps, setOpps] = useState(props.initialOpportunities);
   const [summary, setSummary] = useState(props.summary);
+  const [urgentTasks, setUrgentTasks] = useState(props.initialUrgentTasks);
   const [active, setActive] = useState<OpportunityDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<OpportunityDto | null>(null);
   const [pendingLost, setPendingLost] = useState<{ oppId: string; stageId: string } | null>(null);
+
+  // Atrasadas vêm antes das de hoje na lista — a primeira ocorrência por
+  // negócio "vence" e é a mais urgente (achado #1 da análise de UI/UX).
+  const urgentByOpportunity = useMemo(() => {
+    const map = new Map<string, CrmActivityDto>();
+    for (const t of urgentTasks) {
+      if (t.opportunityId && !map.has(t.opportunityId)) map.set(t.opportunityId, t);
+    }
+    return map;
+  }, [urgentTasks]);
+
+  async function completeUrgentTask(taskId: string) {
+    const prev = urgentTasks;
+    setUrgentTasks((p) => p.filter((t) => t.id !== taskId));
+    try {
+      await crmActivitiesApi.update(taskId, { status: 'DONE' }, token);
+      toast.success('Tarefa concluída');
+    } catch (err) {
+      setUrgentTasks(prev);
+      toast.error(getErrorMessage(err));
+    }
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -190,7 +216,14 @@ export function CrmClient(props: CrmClientProps) {
                 <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>
                     {colOpps.map((o) => (
-                      <CrmCard key={o.id} opportunity={o} onEdit={props.canEdit ? setEditing : undefined} draggable={props.canEdit} />
+                      <CrmCard
+                        key={o.id}
+                        opportunity={o}
+                        onEdit={props.canEdit ? setEditing : undefined}
+                        draggable={props.canEdit}
+                        urgentTask={urgentByOpportunity.get(o.id) ?? null}
+                        onCompleteTask={props.canEdit ? completeUrgentTask : undefined}
+                      />
                     ))}
                   </SortableContext>
                   {colOpps.length === 0 && (

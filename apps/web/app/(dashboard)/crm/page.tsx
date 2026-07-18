@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import type { OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
+import type { CrmActivityDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
 import { getSession } from '@/lib/auth';
 import {
-  contactsApi, opportunitiesApi, organizationsApi, pipelinesApi, taxonomiesApi,
+  contactsApi, crmActivitiesApi, opportunitiesApi, organizationsApi, pipelinesApi, taxonomiesApi,
 } from '@/lib/api-hooks';
 import { PageHeader } from '@/components/ui/page-header';
 import { CrmTabs, type TabId } from './_components/crm-tabs';
@@ -25,13 +25,18 @@ export default async function CrmPage({ searchParams }: Props) {
   const token = cookieStore.get('access_token')?.value ?? '';
 
   // Erros de API borbulham para o error.tsx do segmento (sem falso-vazio).
-  const [pipelines, organizations, contacts, sources] = await Promise.all([
+  const [pipelines, organizations, contacts, sources, overdueTasks, todayTasks] = await Promise.all([
     pipelinesApi.list(token),
     organizationsApi.list(token),
     contactsApi.list(token),
     taxonomiesApi.list('sources', token),
+    // Sinal de urgência nos cards do kanban — best-effort, não derruba o CRM.
+    crmActivitiesApi.list(token, { due: 'overdue' }).catch(() => [] as CrmActivityDto[]),
+    crmActivitiesApi.list(token, { due: 'today' }).catch(() => [] as CrmActivityDto[]),
   ]);
   const currentPipeline = pipelines.find((p) => p.isDefault) ?? pipelines[0] ?? null;
+  // Atrasadas antes das de hoje — a primeira ocorrência por negócio "vence" no map do client.
+  const urgentTasks = [...overdueTasks, ...todayTasks].filter((t) => t.opportunityId);
 
   const [opportunities, summary] = currentPipeline
     ? await Promise.all([
@@ -57,6 +62,7 @@ export default async function CrmPage({ searchParams }: Props) {
         currentPipeline={currentPipeline}
         initialOpportunities={opportunities}
         summary={summary}
+        urgentTasks={urgentTasks}
         canEdit={canEdit}
       />
     </div>
