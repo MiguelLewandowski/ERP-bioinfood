@@ -5,11 +5,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import type { UserDto } from '@bioinfood/shared';
-import { api } from '@/lib/api';
+import { usersApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 
 const ROLE_OPTIONS: Array<{ value: UserDto['role']; label: string }> = [
   { value: 'ADMIN', label: 'Admin' },
@@ -67,12 +73,10 @@ export default function UserDialog({ open, onOpenChange, user, onSaved }: UserDi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  if (!open) return null;
-
   async function onSubmitCreate(data: CreateFormData) {
     setServerError('');
     try {
-      await api.post<UserDto>('/users', data, token);
+      await usersApi.create(data, token);
       createForm.reset();
       onSaved();
     } catch (err) {
@@ -84,170 +88,134 @@ export default function UserDialog({ open, onOpenChange, user, onSaved }: UserDi
     if (!user) return;
     setServerError('');
     try {
-      await api.patch<UserDto>(`/users/${user.id}`, data, token);
+      await usersApi.update(user.id, data, token);
       onSaved();
     } catch (err) {
       setServerError(getErrorMessage(err));
     }
   }
 
-  function handleClose() {
-    createForm.reset();
-    editForm.reset();
-    onOpenChange(false);
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      createForm.reset();
+      editForm.reset();
+      setServerError('');
+    }
+    onOpenChange(v);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-[#1D1D1B]">
-            {isEdit ? 'Editar Usuário' : 'Novo Usuário'}
-          </h2>
-          <button
-            onClick={handleClose}
-            className="text-[#706F6F] hover:text-[#575756] focus:outline-none focus:ring-2 focus:ring-[#52B552] rounded"
-            aria-label="Fechar"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
+        </DialogHeader>
 
-        {isEdit ? (
+        {isEdit && user ? (
           <form onSubmit={editForm.handleSubmit(onSubmitEdit)} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">Nome *</label>
-              <input
-                {...editForm.register('name')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              />
+              <Label htmlFor="edit-name">Nome *</Label>
+              <Input id="edit-name" {...editForm.register('name')} />
               {editForm.formState.errors.name && (
-                <p className="text-xs text-red-500 mt-1">{editForm.formState.errors.name.message}</p>
+                <p className="mt-1 text-xs text-destructive">{editForm.formState.errors.name.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">E-mail</label>
-              <input
-                value={user.email}
-                readOnly
-                disabled
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-[#878787]"
-              />
+              <Label htmlFor="edit-email">E-mail</Label>
+              <Input id="edit-email" value={user.email} readOnly disabled />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">Perfil de acesso</label>
-              <select
-                {...editForm.register('role')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+              <Label htmlFor="edit-role">Perfil de acesso</Label>
+              <Select id="edit-role" {...editForm.register('role')}>
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" {...editForm.register('isActive')} className="h-4 w-4 rounded border-gray-300 accent-[#147F23]" />
-              <span className="text-sm font-medium text-[#575756]">Usuário ativo</span>
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                {...editForm.register('isActive')}
+                className="h-4 w-4 rounded border-input accent-[hsl(var(--primary))]"
+              />
+              <span className="text-sm font-medium text-muted-foreground">Usuário ativo</span>
             </label>
 
-            {serverError && <p className="text-xs text-red-500">{serverError}</p>}
+            {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
-            <div className="flex gap-3 justify-end pt-2">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={editForm.formState.isSubmitting}
-                className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+              </Button>
+              <Button type="submit" disabled={editForm.formState.isSubmitting}>
                 {editForm.formState.isSubmitting ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         ) : (
           <form onSubmit={createForm.handleSubmit(onSubmitCreate)} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">Nome *</label>
-              <input
-                {...createForm.register('name')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-                placeholder="Nome completo"
-              />
+              <Label htmlFor="create-name">Nome *</Label>
+              <Input id="create-name" {...createForm.register('name')} placeholder="Nome completo" />
               {createForm.formState.errors.name && (
-                <p className="text-xs text-red-500 mt-1">{createForm.formState.errors.name.message}</p>
+                <p className="mt-1 text-xs text-destructive">{createForm.formState.errors.name.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">E-mail *</label>
-              <input
-                {...createForm.register('email')}
+              <Label htmlFor="create-email">E-mail *</Label>
+              <Input
+                id="create-email"
                 type="email"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
+                {...createForm.register('email')}
                 placeholder="email@bioinfood.com"
               />
               {createForm.formState.errors.email && (
-                <p className="text-xs text-red-500 mt-1">{createForm.formState.errors.email.message}</p>
+                <p className="mt-1 text-xs text-destructive">{createForm.formState.errors.email.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">Senha temporária *</label>
-              <input
-                {...createForm.register('password')}
+              <Label htmlFor="create-password">Senha temporária *</Label>
+              <Input
+                id="create-password"
                 type="password"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
+                {...createForm.register('password')}
                 placeholder="••••••••"
               />
-              <p className="text-xs text-[#878787] mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 O usuário será obrigado a trocar essa senha no primeiro login.
               </p>
               {createForm.formState.errors.password && (
-                <p className="text-xs text-red-500 mt-1">{createForm.formState.errors.password.message}</p>
+                <p className="mt-1 text-xs text-destructive">{createForm.formState.errors.password.message}</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#575756] mb-1">Perfil de acesso</label>
-              <select
-                {...createForm.register('role')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+              <Label htmlFor="create-role">Perfil de acesso</Label>
+              <Select id="create-role" {...createForm.register('role')}>
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
-            {serverError && <p className="text-xs text-red-500">{serverError}</p>}
+            {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
-            <div className="flex gap-3 justify-end pt-2">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={createForm.formState.isSubmitting}
-                className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              >
+              </Button>
+              <Button type="submit" disabled={createForm.formState.isSubmitting}>
                 {createForm.formState.isSubmitting ? 'Criando...' : 'Criar Usuário'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -5,12 +5,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserDto } from '@bioinfood/shared';
-import { api } from '@/lib/api';
+import { usersApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const schema = z
   .object({
@@ -39,12 +44,10 @@ export default function ResetPasswordDialog({ open, onOpenChange, user, onReset 
     resolver: zodResolver(schema),
   });
 
-  if (!open) return null;
-
   async function onSubmit(data: FormData) {
     setServerError('');
     try {
-      await api.patch(`/users/${user.id}/reset-password`, { newPassword: data.newPassword }, token);
+      await usersApi.resetPassword(user.id, data.newPassword, token);
       toast.success('Senha redefinida. O usuário precisará trocá-la no próximo login.');
       reset();
       onReset();
@@ -53,72 +56,54 @@ export default function ResetPasswordDialog({ open, onOpenChange, user, onReset 
     }
   }
 
-  function handleClose() {
-    reset();
-    onOpenChange(false);
+  function handleOpenChange(v: boolean) {
+    if (!v) {
+      reset();
+      setServerError('');
+    }
+    onOpenChange(v);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-[#1D1D1B]">Resetar senha de {user.name}</h2>
-          <button
-            onClick={handleClose}
-            className="text-[#706F6F] hover:text-[#575756] focus:outline-none focus:ring-2 focus:ring-[#52B552] rounded"
-            aria-label="Fechar"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Resetar senha de {user.name}</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-[#575756] mb-1">Nova senha temporária *</label>
-            <input
-              {...register('newPassword')}
-              type="password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              placeholder="••••••••"
-            />
-            {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword.message}</p>}
+            <Label htmlFor="new-password">Nova senha temporária *</Label>
+            <Input id="new-password" type="password" {...register('newPassword')} placeholder="••••••••" />
+            {errors.newPassword && (
+              <p className="mt-1 text-xs text-destructive">{errors.newPassword.message}</p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#575756] mb-1">Confirmar nova senha *</label>
-            <input
-              {...register('confirmPassword')}
-              type="password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-              placeholder="••••••••"
-            />
-            {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>}
+            <Label htmlFor="confirm-password">Confirmar nova senha *</Label>
+            <Input id="confirm-password" type="password" {...register('confirmPassword')} placeholder="••••••••" />
+            {errors.confirmPassword && (
+              <p className="mt-1 text-xs text-destructive">{errors.confirmPassword.message}</p>
+            )}
           </div>
 
-          <p className="text-xs text-[#878787]">
+          <p className="text-xs text-muted-foreground">
             O usuário será desconectado de todas as sessões ativas e precisará trocar a senha no próximo login.
           </p>
 
-          {serverError && <p className="text-xs text-red-500">{serverError}</p>}
+          {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
-          <div className="flex gap-3 justify-end pt-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-[#575756] border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Salvando...' : 'Redefinir senha'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
