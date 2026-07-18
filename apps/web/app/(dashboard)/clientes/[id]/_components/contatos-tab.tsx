@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Plus, Mail, Phone, X, Star, Pencil } from 'lucide-react';
-import type { ContactListItemDto } from '@bioinfood/shared';
+import type { ContactListItemDto, TaxonomyDto } from '@bioinfood/shared';
 import { contactsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -16,6 +16,7 @@ const inputCls =
 interface ContatosTabProps {
   organizationId: string;
   initialContacts: ContactListItemDto[];
+  sources: TaxonomyDto[];
   canEdit: boolean;
 }
 
@@ -34,6 +35,7 @@ interface ContactForm {
   twitter: string;
   skype: string;
   instagram: string;
+  sourceId: string;
   jobTitle: string;
   isDecision: boolean;
   isFinance: boolean;
@@ -43,7 +45,7 @@ interface ContactForm {
 
 const EMPTY_FORM: ContactForm = {
   name: '', cpf: '', email: '', phone: '', mobile: '', whatsapp: '', fax: '', ramal: '',
-  birthDate: '', linkedin: '', facebook: '', twitter: '', skype: '', instagram: '',
+  birthDate: '', linkedin: '', facebook: '', twitter: '', skype: '', instagram: '', sourceId: '',
   jobTitle: '', isDecision: false, isFinance: false, isTechnical: false, isPrimary: false,
 };
 
@@ -55,7 +57,7 @@ const MARKERS: Array<{ key: LinkMarker; label: string }> = [
   { key: 'isTechnical', label: 'Técnico' },
 ];
 
-export function ContatosTab({ organizationId, initialContacts, canEdit }: ContatosTabProps) {
+export function ContatosTab({ organizationId, initialContacts, sources, canEdit }: ContatosTabProps) {
   const { token } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<{ kind: 'closed' } | { kind: 'create' } | { kind: 'edit'; contactId: string; linkId: string }>({ kind: 'closed' });
@@ -88,6 +90,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
         twitter: detail.twitter ?? '',
         skype: detail.skype ?? '',
         instagram: detail.instagram ?? '',
+        sourceId: detail.source?.id ?? '',
         jobTitle: contact.link.jobTitle ?? '',
         isDecision: contact.link.isDecision,
         isFinance: contact.link.isFinance,
@@ -124,6 +127,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
       twitter: v.twitter || undefined,
       skype: v.skype || undefined,
       instagram: v.instagram || undefined,
+      sourceId: v.sourceId || undefined,
     };
     const linkPayload = {
       jobTitle: v.jobTitle || undefined,
@@ -198,6 +202,7 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
                   </span>
                 )}
                 {c.link?.jobTitle && <span className="text-xs text-muted-foreground">· {c.link.jobTitle}</span>}
+                {c.source && <span className="text-xs text-muted-foreground">· {c.source.name}</span>}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {c.email && <span className="inline-flex items-center gap-1"><Mail size={12} />{c.email}</span>}
@@ -262,7 +267,13 @@ export function ContatosTab({ organizationId, initialContacts, canEdit }: Contat
             <input {...register('facebook')} placeholder="Facebook" className={inputCls} />
             <input {...register('twitter')} placeholder="Twitter" className={inputCls} />
           </div>
-          <input {...register('skype')} placeholder="Skype" className={inputCls} />
+          <div className="grid grid-cols-2 gap-2">
+            <input {...register('skype')} placeholder="Skype" className={inputCls} />
+            <select {...register('sourceId')} className={inputCls}>
+              <option value="">Origem…</option>
+              {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
 
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isPrimary')} className="accent-[hsl(var(--primary))]" /> Principal</label>

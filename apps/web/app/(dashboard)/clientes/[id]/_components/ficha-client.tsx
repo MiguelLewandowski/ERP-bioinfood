@@ -139,6 +139,7 @@ export function FichaClient(props: FichaClientProps) {
         <ContatosTab
           organizationId={props.organizationId}
           initialContacts={contacts}
+          sources={props.sources}
           canEdit={props.canEdit}
         />
       )}
