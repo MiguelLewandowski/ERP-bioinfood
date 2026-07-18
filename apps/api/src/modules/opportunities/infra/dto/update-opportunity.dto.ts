@@ -38,6 +38,15 @@ export class UpdateOpportunityDto {
 
   @IsOptional()
   @IsDateString()
+  startDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string | null;
+
+  @IsOptional()
+  @IsDateString()
   expectedCloseDate?: string | null;
 }
 

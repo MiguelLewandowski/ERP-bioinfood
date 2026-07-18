@@ -41,6 +41,7 @@ export class OpportunitiesController {
   async create(@Body() dto: CreateOpportunityDto) {
     const opp = await this.createOpportunity.execute({
       ...dto,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       expectedCloseDate: dto.expectedCloseDate ? new Date(dto.expectedCloseDate) : undefined,
     });
     return toOpportunityDto(opp);
@@ -49,9 +50,10 @@ export class OpportunitiesController {
   @Patch(':id')
   @Roles(SystemRole.ADMIN)
   async update(@Param('id') id: string, @Body() dto: UpdateOpportunityDto) {
-    const { expectedCloseDate, ...rest } = dto;
+    const { startDate, expectedCloseDate, ...rest } = dto;
     const opp = await this.updateOpportunity.execute(id, {
       ...rest,
+      startDate: startDate === undefined ? undefined : startDate ? new Date(startDate) : null,
       expectedCloseDate:
         expectedCloseDate === undefined ? undefined : expectedCloseDate ? new Date(expectedCloseDate) : null,
     });
@@ -62,6 +64,20 @@ export class OpportunitiesController {
   @Roles(SystemRole.ADMIN)
   async move(@Param('id') id: string, @Body() dto: MoveOpportunityDto) {
     return toOpportunityDto(await this.moveOpportunity.execute(id, dto.stageId, dto.lostReason ?? null));
+  }
+
+  // Congelar/reativar é ortogonal à etapa do funil (decisão 7 do
+  // crm-redesign-2026-07): não mexe em stage/probability/closedAt.
+  @Patch(':id/freeze')
+  @Roles(SystemRole.ADMIN)
+  async freeze(@Param('id') id: string) {
+    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: new Date() }));
+  }
+
+  @Patch(':id/unfreeze')
+  @Roles(SystemRole.ADMIN)
+  async unfreeze(@Param('id') id: string) {
+    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: null }));
   }
 
   @Delete(':id')

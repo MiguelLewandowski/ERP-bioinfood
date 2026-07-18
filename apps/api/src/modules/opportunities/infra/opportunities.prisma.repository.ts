@@ -16,8 +16,11 @@ const SELECT = {
   probability: true,
   pipelineId: true,
   stageId: true,
+  startDate: true,
+  description: true,
   expectedCloseDate: true,
   closedAt: true,
+  frozenAt: true,
   engagementStageId: true,
   organization: { select: { id: true, legalName: true, tradeName: true } },
   mainContact: { select: { id: true, name: true } },
@@ -28,17 +31,25 @@ const SELECT = {
 
 type Row = {
   amount: { toString(): string } | null;
+  startDate: Date | null;
   expectedCloseDate: Date | null;
   closedAt: Date | null;
+  frozenAt: Date | null;
 } & Record<string, unknown>;
 
+type DateKeys = 'amount' | 'startDate' | 'expectedCloseDate' | 'closedAt' | 'frozenAt';
+
 function toItem(row: Row): OpportunityListItem {
-  const { amount, expectedCloseDate, closedAt, ...rest } = row;
+  const {
+    amount, startDate, expectedCloseDate, closedAt, frozenAt, ...rest
+  } = row;
   return {
-    ...(rest as unknown as Omit<OpportunityListItem, 'amount' | 'expectedCloseDate' | 'closedAt'>),
+    ...(rest as unknown as Omit<OpportunityListItem, DateKeys>),
     amount: amount?.toString() ?? null,
+    startDate: startDate?.toISOString() ?? null,
     expectedCloseDate: expectedCloseDate?.toISOString() ?? null,
     closedAt: closedAt?.toISOString() ?? null,
+    frozenAt: frozenAt?.toISOString() ?? null,
   };
 }
 

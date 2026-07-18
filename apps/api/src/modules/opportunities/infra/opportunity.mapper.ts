@@ -8,8 +8,11 @@ export interface OpportunityDto {
   probability: number | null;
   pipelineId: string;
   stageId: string;
+  startDate: string | null;
+  description: string | null;
   expectedCloseDate: string | null;
   closedAt: string | null;
+  frozenAt: string | null;
   engagementStageId: string | null;
   organization: { id: string; legalName: string; tradeName: string | null };
   mainContact: { id: string; name: string } | null;

@@ -8,8 +8,13 @@ export interface OpportunityListItem {
   probability: number | null;
   pipelineId: string;
   stageId: string;
+  startDate: string | null;
+  description: string | null;
   expectedCloseDate: string | null;
   closedAt: string | null;
+  // Marcador ortogonal à etapa: negócio pausado, fora do funil ativo, sem
+  // perder o histórico de etapa/valor — decisão 7 do crm-redesign-2026-07.
+  frozenAt: string | null;
   organization: { id: string; legalName: string; tradeName: string | null };
   mainContact: { id: string; name: string } | null;
   responsible: { id: string; name: string } | null;
@@ -29,6 +34,8 @@ export interface CreateOpportunityData {
   mainContactId?: string;
   responsibleId?: string;
   engagementStageId?: string;
+  startDate?: Date;
+  description?: string;
   expectedCloseDate?: Date;
 }
 
@@ -40,7 +47,10 @@ export interface UpdateOpportunityData {
   mainContactId?: string | null;
   responsibleId?: string | null;
   engagementStageId?: string | null;
+  startDate?: Date | null;
+  description?: string | null;
   expectedCloseDate?: Date | null;
+  frozenAt?: Date | null;
 }
 
 // Target stage resolved from the destination stage's pipeline + type, so the

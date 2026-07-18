@@ -46,5 +46,14 @@ export class CreateOpportunityDto {
 
   @IsOptional()
   @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @IsOptional()
+  @IsDateString()
   expectedCloseDate?: string;
 }
