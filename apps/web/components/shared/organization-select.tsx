@@ -55,21 +55,21 @@ export function OrganizationSelect({ token, value, onChange, disabled }: Organiz
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreate())}
           placeholder="Nome do novo cliente"
-          className="w-full text-sm text-[#1D1D1B] placeholder:text-[#878787] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors"
+          className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
         />
         <button
           type="button"
           onClick={handleCreate}
           disabled={saving || !newName.trim()}
           className="shrink-0 px-2.5 py-2.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           {saving ? '...' : 'Salvar'}
         </button>
         <button
           type="button"
           onClick={() => { setCreating(false); setNewName(''); }}
-          className="shrink-0 text-[#878787] hover:text-[#1D1D1B]"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
         >
           <X size={16} />
         </button>
@@ -83,7 +83,7 @@ export function OrganizationSelect({ token, value, onChange, disabled }: Organiz
         value={value ?? ''}
         disabled={disabled || loading}
         onChange={(e) => onChange(e.target.value || undefined)}
-        className="w-full text-sm text-[#1D1D1B] bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-[#52B552] focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
       >
         <option value="">{loading ? 'Carregando…' : 'Sem cliente'}</option>
         {organizations.map((org) => (
@@ -95,7 +95,7 @@ export function OrganizationSelect({ token, value, onChange, disabled }: Organiz
           type="button"
           onClick={() => setCreating(true)}
           title="Novo cliente"
-          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 text-[#575756] hover:bg-gray-50"
+          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 text-muted-foreground hover:bg-gray-50"
         >
           <Plus size={15} />
         </button>

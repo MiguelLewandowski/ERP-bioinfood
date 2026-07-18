@@ -69,7 +69,7 @@ export default function LoginForm() {
         type="submit"
         disabled={isSubmitting}
         className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
-        style={{ backgroundColor: '#147F23' }}
+        style={{ backgroundColor: 'hsl(var(--primary))' }}
       >
         {isSubmitting ? 'Entrando...' : 'Entrar'}
       </button>

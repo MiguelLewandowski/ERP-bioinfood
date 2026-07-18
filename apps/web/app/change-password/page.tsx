@@ -25,8 +25,8 @@ export default async function ChangePasswordPage() {
               className="h-28 w-auto"
             />
           </div>
-          <h1 className="text-lg font-semibold text-[#1D1D1B]">Trocar senha</h1>
-          <p className="text-sm text-[#706F6F] mt-1 text-center">
+          <h1 className="text-lg font-semibold text-foreground">Trocar senha</h1>
+          <p className="text-sm text-muted-foreground mt-1 text-center">
             {forced
               ? 'Por segurança, você precisa definir uma nova senha antes de continuar.'
               : 'Defina uma nova senha para sua conta.'}

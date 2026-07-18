@@ -4,6 +4,7 @@
 import { useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, HelpCircle, Loader2 } from 'lucide-react';
+import { DialogOverlay } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 export type ConfirmDialogVariant = 'default' | 'destructive';
@@ -59,7 +60,7 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+        <DialogOverlay />
         <Dialog.Content
           onEscapeKeyDown={(e) => busy && e.preventDefault()}
           onInteractOutside={(e) => busy && e.preventDefault()}
