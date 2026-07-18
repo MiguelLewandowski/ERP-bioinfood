@@ -57,6 +57,7 @@ export class BrasilApiEnrichmentGateway implements ICnpjEnrichmentGateway {
       tradeName: data.nome_fantasia || undefined,
       registrationStatus: STATUS_MAP[situacao] ?? RegistrationStatus.UNKNOWN,
       cnae: data.cnae_fiscal ? String(data.cnae_fiscal) : undefined,
+      description: data.cnae_fiscal_descricao || undefined,
       address: {
         street: data.logradouro || undefined,
         number: data.numero || undefined,

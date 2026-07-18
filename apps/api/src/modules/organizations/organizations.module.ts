@@ -12,6 +12,7 @@ import { UpdateOrganizationUseCase } from './application/update-organization.use
 import { EnrichOrganizationUseCase } from './application/enrich-organization.use-case';
 import { ManageRolesUseCase } from './application/manage-roles.use-case';
 import { ManageAddressesUseCase } from './application/manage-addresses.use-case';
+import { ManageProductServicesUseCase } from './application/manage-product-services.use-case';
 import { UpsertCustomerProfileUseCase } from './application/upsert-customer-profile.use-case';
 import { GetStaleOrganizationsUseCase } from './application/get-stale-organizations.use-case';
 
@@ -28,6 +29,7 @@ import { GetStaleOrganizationsUseCase } from './application/get-stale-organizati
     EnrichOrganizationUseCase,
     ManageRolesUseCase,
     ManageAddressesUseCase,
+    ManageProductServicesUseCase,
     UpsertCustomerProfileUseCase,
     GetStaleOrganizationsUseCase,
   ],

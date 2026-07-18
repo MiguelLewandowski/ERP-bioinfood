@@ -12,6 +12,7 @@ export interface OrganizationResponseDto {
   phone: string | null;
   whatsapp: string | null;
   sector: { id: string; name: string } | null;
+  category: { id: string; name: string } | null;
   roleTypes: string[];
 }
 
@@ -40,6 +41,7 @@ export interface OrgCustomerProfileDto {
   paymentTerms: string | null;
   creditLimit: string | null;
   salesRepId: string | null;
+  salesRep: { id: string; name: string } | null;
 }
 
 export interface OrganizationDetailDto extends OrganizationResponseDto {
@@ -53,6 +55,8 @@ export interface OrganizationDetailDto extends OrganizationResponseDto {
   notes: string | null;
   sectorId: string | null;
   sourceId: string | null;
+  categoryId: string | null;
+  productServices: Array<{ id: string; name: string }>;
   email: string | null;
   phone: string | null;
   mobile: string | null;
@@ -80,6 +84,7 @@ export function toOrganizationDto(o: OrganizationListItem): OrganizationResponse
     phone: o.phone,
     whatsapp: o.whatsapp,
     sector: o.sector,
+    category: o.category,
     roleTypes: o.roleTypes,
   };
 }
@@ -109,6 +114,8 @@ export function toOrganizationDetailDto(o: OrganizationDetail): OrganizationDeta
     notes: o.notes,
     sectorId: o.sectorId,
     sourceId: o.sourceId,
+    categoryId: o.categoryId,
+    productServices: o.productServices,
     email: o.email,
     phone: o.phone,
     mobile: o.mobile,

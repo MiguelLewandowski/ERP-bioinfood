@@ -25,7 +25,16 @@ const LIST_SELECT = {
   phone: true,
   whatsapp: true,
   sector: { select: { id: true, name: true } },
+  category: { select: { id: true, name: true } },
   roles: { select: { type: true } },
+} as const;
+
+const CUSTOMER_PROFILE_SELECT = {
+  stage: true,
+  paymentTerms: true,
+  creditLimit: true,
+  salesRepId: true,
+  salesRep: { select: { id: true, name: true } },
 } as const;
 
 const ROLE_SELECT = { id: true, type: true, status: true } as const;
@@ -73,6 +82,7 @@ export class OrganizationsPrismaRepository implements IOrganizationRepository {
         notes: true,
         sectorId: true,
         sourceId: true,
+        categoryId: true,
         email: true,
         phone: true,
         mobile: true,
@@ -86,15 +96,19 @@ export class OrganizationsPrismaRepository implements IOrganizationRepository {
         instagram: true,
         roles: { select: ROLE_SELECT, orderBy: { type: 'asc' } },
         addresses: { select: ADDRESS_SELECT, orderBy: { createdAt: 'asc' } },
-        customerProfile: {
-          select: { stage: true, paymentTerms: true, creditLimit: true, salesRepId: true },
+        customerProfile: { select: CUSTOMER_PROFILE_SELECT },
+        productServices: {
+          select: { productService: { select: { id: true, name: true } } },
+          orderBy: { productService: { order: 'asc' } },
         },
       },
     });
     if (!org) return null;
+    const { productServices, ...rest } = org;
     return {
-      ...org,
+      ...rest,
       roleTypes: org.roles.map((r) => r.type),
+      productServices: productServices.map((link) => link.productService),
       customerProfile: org.customerProfile
         ? { ...org.customerProfile, creditLimit: org.customerProfile.creditLimit?.toString() ?? null }
         : null,
@@ -159,9 +173,26 @@ export class OrganizationsPrismaRepository implements IOrganizationRepository {
       where: { orgId },
       update: data,
       create: { orgId, ...data },
-      select: { stage: true, paymentTerms: true, creditLimit: true, salesRepId: true },
+      select: CUSTOMER_PROFILE_SELECT,
     });
     return { ...profile, creditLimit: profile.creditLimit?.toString() ?? null };
+  }
+
+  async addProductService(orgId: string, productServiceId: string): Promise<{ id: string; name: string }> {
+    // Idempotent, como addRole: link já existente é um no-op (unique orgId+productServiceId).
+    await this.prisma.organizationProductService.upsert({
+      where: { orgId_productServiceId: { orgId, productServiceId } },
+      update: {},
+      create: { orgId, productServiceId },
+    });
+    return this.prisma.productService.findUniqueOrThrow({
+      where: { id: productServiceId },
+      select: { id: true, name: true },
+    });
+  }
+
+  async removeProductService(orgId: string, productServiceId: string): Promise<void> {
+    await this.prisma.organizationProductService.deleteMany({ where: { orgId, productServiceId } });
   }
 
   async findStale(days: number): Promise<StaleOrganization[]> {

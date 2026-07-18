@@ -10,6 +10,10 @@ export interface EnrichmentResult {
   tradeName?: string;
   registrationStatus?: RegistrationStatus;
   cnae?: string;
+  // Descrição da atividade principal (CNAE) — sugestão para o campo "descrição"
+  // da empresa (decisão 6 do crm-redesign-2026-07). Só os campos diretos da
+  // BrasilAPI são puxados; setor/origem/categoria continuam manuais.
+  description?: string;
   address?: {
     street?: string;
     number?: string;

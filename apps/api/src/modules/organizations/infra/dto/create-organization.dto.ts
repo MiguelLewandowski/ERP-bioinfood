@@ -1,4 +1,6 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf,
+} from 'class-validator';
 import { DocumentType, PartyType } from '@prisma/client';
 
 export class CreateOrganizationDto {
@@ -11,8 +13,11 @@ export class CreateOrganizationDto {
   @MaxLength(200)
   tradeName?: string;
 
-  @IsOptional()
+  // CNPJ obrigatório, exceto quando a empresa é marcada como estrangeira
+  // (documentType = FOREIGN) — decisão 5 do crm-redesign-2026-07.
+  @ValidateIf((o) => o.documentType !== DocumentType.FOREIGN)
   @IsString()
+  @IsNotEmpty({ message: 'CNPJ é obrigatório (ou marque a empresa como estrangeira)' })
   @MaxLength(20)
   document?: string;
 
@@ -31,4 +36,13 @@ export class CreateOrganizationDto {
   @IsOptional()
   @IsString()
   sourceId?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  notes?: string;
 }

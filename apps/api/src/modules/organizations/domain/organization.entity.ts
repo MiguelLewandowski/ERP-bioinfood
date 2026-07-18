@@ -13,6 +13,7 @@ export interface OrganizationListItem {
   phone: string | null;
   whatsapp: string | null;
   sector: { id: string; name: string } | null;
+  category: { id: string; name: string } | null;
   roleTypes: PartyRoleType[];
 }
 
@@ -41,6 +42,7 @@ export interface OrgCustomerProfile {
   paymentTerms: string | null;
   creditLimit: string | null; // Decimal serialized as string
   salesRepId: string | null;
+  salesRep: { id: string; name: string } | null; // responsável — decisão 1 do crm-redesign-2026-07
 }
 
 export interface OrganizationDetail extends OrganizationListItem {
@@ -54,6 +56,8 @@ export interface OrganizationDetail extends OrganizationListItem {
   notes: string | null;
   sectorId: string | null;
   sourceId: string | null;
+  categoryId: string | null;
+  productServices: Array<{ id: string; name: string }>;
   email: string | null;
   phone: string | null;
   mobile: string | null;
@@ -78,6 +82,8 @@ export interface CreateOrganizationData {
   partyType?: PartyType;
   sectorId?: string;
   sourceId?: string;
+  categoryId?: string;
+  notes?: string;
 }
 
 export interface UpdateOrganizationData {
@@ -94,6 +100,7 @@ export interface UpdateOrganizationData {
   notes?: string;
   sectorId?: string | null;
   sourceId?: string | null;
+  categoryId?: string | null;
   email?: string | null;
   phone?: string | null;
   mobile?: string | null;

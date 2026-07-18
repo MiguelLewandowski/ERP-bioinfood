@@ -11,6 +11,7 @@ import { UpdateOrganizationUseCase } from '../application/update-organization.us
 import { EnrichOrganizationUseCase } from '../application/enrich-organization.use-case';
 import { ManageRolesUseCase } from '../application/manage-roles.use-case';
 import { ManageAddressesUseCase } from '../application/manage-addresses.use-case';
+import { ManageProductServicesUseCase } from '../application/manage-product-services.use-case';
 import { UpsertCustomerProfileUseCase } from '../application/upsert-customer-profile.use-case';
 import { GetStaleOrganizationsUseCase } from '../application/get-stale-organizations.use-case';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -18,6 +19,7 @@ import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { PartyRoleDto } from './dto/party-role.dto';
 import { AddressDto } from './dto/address.dto';
 import { CustomerProfileDto } from './dto/customer-profile.dto';
+import { ProductServiceLinkDto } from './dto/product-service-link.dto';
 import {
   toOrganizationDetailDto, toOrganizationDto, toOrgAddressDto, toOrgCustomerProfileDto, toOrgRoleDto,
 } from './organization.mapper';
@@ -39,6 +41,7 @@ export class OrganizationsController {
     private enrichOrganization: EnrichOrganizationUseCase,
     private manageRoles: ManageRolesUseCase,
     private manageAddresses: ManageAddressesUseCase,
+    private manageProductServices: ManageProductServicesUseCase,
     private upsertCustomerProfile: UpsertCustomerProfileUseCase,
     private getStaleOrganizations: GetStaleOrganizationsUseCase,
   ) {}
@@ -120,5 +123,18 @@ export class OrganizationsController {
   @Roles(...WRITE)
   async customerProfile(@Param('id') id: string, @Body() dto: CustomerProfileDto) {
     return toOrgCustomerProfileDto(await this.upsertCustomerProfile.execute(id, dto));
+  }
+
+  @Post(':id/product-services')
+  @Roles(...WRITE)
+  addProductService(@Param('id') id: string, @Body() dto: ProductServiceLinkDto) {
+    return this.manageProductServices.add(id, dto.productServiceId);
+  }
+
+  @Delete(':id/product-services/:productServiceId')
+  @Roles(...WRITE)
+  @HttpCode(204)
+  async removeProductService(@Param('id') id: string, @Param('productServiceId') productServiceId: string) {
+    await this.manageProductServices.remove(id, productServiceId);
   }
 }

@@ -31,5 +31,8 @@ export interface IOrganizationRepository {
 
   upsertCustomerProfile(orgId: string, data: CustomerProfileData): Promise<OrgCustomerProfile>;
 
+  addProductService(orgId: string, productServiceId: string): Promise<{ id: string; name: string }>;
+  removeProductService(orgId: string, productServiceId: string): Promise<void>;
+
   findStale(days: number): Promise<StaleOrganization[]>;
 }
