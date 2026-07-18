@@ -17,13 +17,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
-const schema = z.object({
-  legalName: z.string().min(1, 'Razão social é obrigatória').max(200, 'Máximo de 200 caracteres'),
-  tradeName: z.string().max(200, 'Máximo de 200 caracteres').optional(),
-  document: z.string().max(20, 'Máximo de 20 caracteres').optional(),
-  documentType: z.enum(['CNPJ', 'CPF', 'FOREIGN', 'OTHER']),
-});
+// CNPJ obrigatório, exceto quando a empresa é marcada como estrangeira
+// (documentType = FOREIGN) — decisão 5 do crm-redesign-2026-07.
+const schema = z
+  .object({
+    legalName: z.string().min(1, 'Razão social é obrigatória').max(200, 'Máximo de 200 caracteres'),
+    tradeName: z.string().max(200, 'Máximo de 200 caracteres').optional(),
+    document: z.string().max(20, 'Máximo de 20 caracteres').optional(),
+    documentType: z.enum(['CNPJ', 'CPF', 'FOREIGN', 'OTHER']),
+    notes: z.string().max(4000, 'Máximo de 4000 caracteres').optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.documentType !== 'FOREIGN' && !data.document?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['document'],
+        message: 'CNPJ é obrigatório (ou marque a empresa como estrangeira)',
+      });
+    }
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -58,6 +72,7 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
       if (result.enriched) {
         if (result.legalName) setValue('legalName', result.legalName, { shouldDirty: true });
         if (result.tradeName) setValue('tradeName', result.tradeName, { shouldDirty: true });
+        if (result.description) setValue('notes', result.description, { shouldDirty: true });
         setEnrichNote('Dados preenchidos pela Receita — revise antes de salvar.');
       } else {
         setEnrichNote('Não foi possível consultar o CNPJ. Preencha manualmente.');
@@ -106,7 +121,7 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
             </div>
             <div>
               <Label htmlFor="cliente-doc">
-                {documentType === 'FOREIGN' ? 'Documento (opcional)' : 'Documento'}
+                {documentType === 'FOREIGN' ? 'Documento (opcional)' : 'Documento *'}
               </Label>
               <div className="relative">
                 <Input
@@ -118,6 +133,7 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
                   <Loader2 size={15} className="absolute right-2.5 top-2.5 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {errors.document && <p className="mt-1 text-xs text-destructive">{errors.document.message}</p>}
             </div>
           </div>
 
@@ -139,9 +155,14 @@ export default function ClienteDialog({ open, onOpenChange, onCreated }: Cliente
             <Input id="cliente-trade-name" {...register('tradeName')} placeholder="Como o cliente é conhecido" />
           </div>
 
+          <div>
+            <Label htmlFor="cliente-notes">Descrição</Label>
+            <Textarea id="cliente-notes" {...register('notes')} rows={2} placeholder="Sobre a empresa…" />
+          </div>
+
           <p className="-mt-2 text-[11px] text-muted-foreground">
-            Cadastro rápido — telefone, e-mail, WhatsApp, redes sociais, contatos e endereço são
-            preenchidos na ficha do cliente logo em seguida.
+            Cadastro rápido — setor, origem, categoria, responsável, telefone, WhatsApp, redes
+            sociais, contatos e endereço são preenchidos na ficha do cliente logo em seguida.
           </p>
 
           <DialogFooter>

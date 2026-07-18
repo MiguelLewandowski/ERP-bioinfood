@@ -245,6 +245,12 @@ export const organizationsApi = {
 
   saveCustomerProfile: (id: string, data: Record<string, unknown>, token: string) =>
     api.patch<OrgCustomerProfileDto>(`/organizations/${id}/customer-profile`, data, token),
+
+  addProductService: (id: string, productServiceId: string, token: string) =>
+    api.post<{ id: string; name: string }>(`/organizations/${id}/product-services`, { productServiceId }, token),
+
+  removeProductService: (id: string, productServiceId: string, token: string) =>
+    api.delete<void>(`/organizations/${id}/product-services/${productServiceId}`, token),
 };
 
 // ── Taxonomies (setores, origens, escada — config só ADMIN) ────────────────────

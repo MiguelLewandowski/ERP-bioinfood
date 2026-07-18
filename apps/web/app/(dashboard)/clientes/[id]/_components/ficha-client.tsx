@@ -8,7 +8,7 @@ import {
   ArrowLeft, Building2, Users, MessageSquare, Target, Archive, ArchiveRestore,
 } from 'lucide-react';
 import type {
-  OrganizationDetailDto, TaxonomyDto, ContactListItemDto, InteractionDto, OpportunityDto,
+  OrganizationDetailDto, TaxonomyDto, ContactListItemDto, InteractionDto, OpportunityDto, UserDto,
 } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -25,6 +25,9 @@ interface FichaClientProps {
   organization: OrganizationDetailDto;
   sectors: TaxonomyDto[];
   sources: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
+  users: UserDto[];
   contacts: ContactListItemDto[];
   interactions: InteractionDto[];
   opportunities: OpportunityDto[];

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Save, Plus, X } from 'lucide-react';
 import type {
-  OrganizationDetailDto, TaxonomyDto, OrgAddressDto, PartyRoleType,
+  OrganizationDetailDto, TaxonomyDto, OrgAddressDto, PartyRoleType, UserDto,
 } from '@bioinfood/shared';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -36,6 +36,9 @@ interface DadosTabProps {
   organization: OrganizationDetailDto;
   sectors: TaxonomyDto[];
   sources: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
+  users: UserDto[];
   canEdit: boolean;
   canManageRoles: boolean;
 }
@@ -48,6 +51,7 @@ interface FormValues {
   status: string;
   sectorId: string;
   sourceId: string;
+  categoryId: string;
   cnae: string;
   website: string;
   notes: string;
@@ -65,12 +69,14 @@ interface FormValues {
 }
 
 export function DadosTab(props: DadosTabProps) {
-  const { organizationId, organization, sectors, sources, canEdit, canManageRoles } = props;
+  const {
+    organizationId, organization, sectors, sources, categories, productServices, users, canEdit, canManageRoles,
+  } = props;
   const { token } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
-  const { register, handleSubmit, formState: { isDirty } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, formState: { isDirty, errors } } = useForm<FormValues>({
     defaultValues: {
       legalName: organization.legalName,
       tradeName: organization.tradeName ?? '',
@@ -79,6 +85,7 @@ export function DadosTab(props: DadosTabProps) {
       status: organization.status,
       sectorId: organization.sectorId ?? '',
       sourceId: organization.sourceId ?? '',
+      categoryId: organization.categoryId ?? '',
       cnae: organization.cnae ?? '',
       website: organization.website ?? '',
       notes: organization.notes ?? '',
@@ -103,6 +110,7 @@ export function DadosTab(props: DadosTabProps) {
         ...v,
         sectorId: v.sectorId || null,
         sourceId: v.sourceId || null,
+        categoryId: v.categoryId || null,
       }, token);
       toast.success('Dados salvos');
       router.refresh();
@@ -135,12 +143,19 @@ export function DadosTab(props: DadosTabProps) {
                 <option value="OTHER">Outro</option>
               </select>
             </Field>
-            <Field label="Documento">
-              <input {...register('document')} disabled={!canEdit} className={inputCls} />
+            <Field label={watch('documentType') === 'FOREIGN' ? 'Documento (opcional)' : 'Documento *'}>
+              <input
+                {...register('document', {
+                  required: watch('documentType') !== 'FOREIGN' ? 'CNPJ é obrigatório (ou marque como estrangeira)' : false,
+                })}
+                disabled={!canEdit}
+                className={inputCls}
+              />
+              {errors.document && <p className="mt-1 text-xs text-destructive">{errors.document.message}</p>}
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Setor">
               <select {...register('sectorId')} disabled={!canEdit} className={inputCls}>
                 <option value="">—</option>
@@ -151,6 +166,12 @@ export function DadosTab(props: DadosTabProps) {
               <select {...register('sourceId')} disabled={!canEdit} className={inputCls}>
                 <option value="">—</option>
                 {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Categoria">
+              <select {...register('categoryId')} disabled={!canEdit} className={inputCls}>
+                <option value="">—</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
           </div>
@@ -170,7 +191,7 @@ export function DadosTab(props: DadosTabProps) {
           <Field label="Website">
             <input {...register('website')} disabled={!canEdit} placeholder="https://…" className={inputCls} />
           </Field>
-          <Field label="Observações">
+          <Field label="Descrição">
             <textarea {...register('notes')} disabled={!canEdit} rows={3} className={inputCls} />
           </Field>
 
@@ -255,6 +276,14 @@ export function DadosTab(props: DadosTabProps) {
       <CustomerProfileSection
         organizationId={organizationId}
         profile={organization.customerProfile}
+        users={users}
+        canEdit={canEdit}
+      />
+
+      <ProductServicesSection
+        organizationId={organizationId}
+        options={productServices}
+        selected={organization.productServices}
         canEdit={canEdit}
       />
 
@@ -349,8 +378,13 @@ function RolesSection({
 }
 
 function CustomerProfileSection({
-  organizationId, profile, canEdit,
-}: { organizationId: string; profile: OrganizationDetailDto['customerProfile']; canEdit: boolean }) {
+  organizationId, profile, users, canEdit,
+}: {
+  organizationId: string;
+  profile: OrganizationDetailDto['customerProfile'];
+  users: UserDto[];
+  canEdit: boolean;
+}) {
   const { token } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -359,16 +393,18 @@ function CustomerProfileSection({
       stage: profile?.stage ?? 'PROSPECT',
       paymentTerms: profile?.paymentTerms ?? '',
       creditLimit: profile?.creditLimit ?? '',
+      salesRepId: profile?.salesRepId ?? '',
     },
   });
 
-  async function onSubmit(v: { stage: string; paymentTerms: string; creditLimit: string }) {
+  async function onSubmit(v: { stage: string; paymentTerms: string; creditLimit: string; salesRepId: string }) {
     setSaving(true);
     try {
       await organizationsApi.saveCustomerProfile(organizationId, {
         stage: v.stage,
         paymentTerms: v.paymentTerms || null,
         creditLimit: v.creditLimit === '' ? null : Number(v.creditLimit),
+        salesRepId: v.salesRepId || null,
       }, token);
       toast.success('Perfil comercial salvo');
       router.refresh();
@@ -382,12 +418,20 @@ function CustomerProfileSection({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
       <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Perfil comercial</h2>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Estágio">
           <select {...register('stage')} disabled={!canEdit} className={inputCls}>
             {STAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Field>
+        <Field label="Responsável">
+          <select {...register('salesRepId')} disabled={!canEdit} className={inputCls}>
+            <option value="">—</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Condição de pagamento">
           <input {...register('paymentTerms')} disabled={!canEdit} placeholder="Ex: 30 dias" className={inputCls} />
         </Field>
@@ -408,6 +452,83 @@ function CustomerProfileSection({
         </div>
       )}
     </form>
+  );
+}
+
+function ProductServicesSection({
+  organizationId, options, selected, canEdit,
+}: {
+  organizationId: string;
+  options: TaxonomyDto[];
+  selected: OrganizationDetailDto['productServices'];
+  canEdit: boolean;
+}) {
+  const { token } = useAuth();
+  const router = useRouter();
+  const selectedIds = new Set(selected.map((s) => s.id));
+  const available = options.filter((o) => !selectedIds.has(o.id));
+  const [adding, setAdding] = useState('');
+
+  async function add(productServiceId: string) {
+    try {
+      await organizationsApi.addProductService(organizationId, productServiceId, token);
+      router.refresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
+  async function remove(productServiceId: string) {
+    try {
+      await organizationsApi.removeProductService(organizationId, productServiceId, token);
+      router.refresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-xl border border-gray-200 p-5">
+      <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2 mb-3">Produtos e serviços</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        {selected.length === 0 && <span className="text-xs text-muted-foreground">Nenhum produto/serviço vinculado.</span>}
+        {selected.map((ps) => (
+          <span
+            key={ps.id}
+            className="inline-flex items-center gap-1.5 rounded-full bg-success/20 px-3 py-1 text-xs font-medium text-primary-dark"
+          >
+            {ps.name}
+            {canEdit && (
+              <button onClick={() => remove(ps.id)} className="text-primary-dark hover:text-red-600" aria-label="Remover produto/serviço">
+                <X size={12} />
+              </button>
+            )}
+          </span>
+        ))}
+        {canEdit && available.length > 0 && (
+          <span className="inline-flex items-center gap-1">
+            <select
+              value={adding}
+              onChange={(e) => setAdding(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:border-ring focus:outline-none"
+            >
+              <option value="">+ produto/serviço…</option>
+              {available.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            {adding && (
+              <button
+                onClick={() => { add(adding); setAdding(''); }}
+                className="rounded-lg p-1 text-white"
+                style={{ backgroundColor: 'hsl(var(--primary))' }}
+                aria-label="Adicionar produto/serviço"
+              >
+                <Plus size={13} />
+              </button>
+            )}
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
 
