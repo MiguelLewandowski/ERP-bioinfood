@@ -59,7 +59,7 @@ export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: Cr
           <span className="truncate">{org}</span>
         ) : (
           <Link
-            href={`/clientes/${opportunity.organization.id}`}
+            href={`/crm/empresas/${opportunity.organization.id}`}
             onClick={(e) => e.stopPropagation()}
             className="truncate hover:text-primary hover:underline"
           >

@@ -54,13 +54,13 @@ export function QuickAdd() {
             </DropdownMenuItem>
           )}
           {canCrm && (
-            <DropdownMenuItem onSelect={() => router.push('/clientes')}>
-              <Building2 size={15} className="text-muted-foreground" /> Parceiro de Negócio
+            <DropdownMenuItem onSelect={() => router.push('/crm?tab=empresas')}>
+              <Building2 size={15} className="text-muted-foreground" /> Empresa
             </DropdownMenuItem>
           )}
           {canCrm && (
-            <DropdownMenuItem onSelect={() => router.push('/crm')}>
-              <Target size={15} className="text-muted-foreground" /> Oportunidade
+            <DropdownMenuItem onSelect={() => router.push('/crm?tab=negocios')}>
+              <Target size={15} className="text-muted-foreground" /> Negócio
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

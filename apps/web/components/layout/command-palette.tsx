@@ -16,7 +16,6 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projetos', icon: FolderKanban },
   { href: '/activities', label: 'Atividades', icon: CalendarDays },
-  { href: '/clientes', label: 'Parceiros de Negócio', icon: Building2, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
   { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
   { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
   { href: '/settings', label: 'Configurações', icon: Settings },
@@ -24,9 +23,9 @@ const NAV_ITEMS = [
 
 const TYPE_CONFIG = {
   project: { group: 'Projetos', icon: FolderKanban },
-  organization: { group: 'Parceiros de Negócio', icon: Building2 },
-  opportunity: { group: 'Oportunidades', icon: Briefcase },
-  contact: { group: 'Contatos', icon: UserRound },
+  organization: { group: 'Empresas', icon: Building2 },
+  opportunity: { group: 'Negócios', icon: Briefcase },
+  contact: { group: 'Pessoas', icon: UserRound },
 } as const;
 
 function resultHref(r: SearchResultDto): string {
@@ -34,11 +33,11 @@ function resultHref(r: SearchResultDto): string {
     case 'project':
       return `/projects/${r.id}`;
     case 'organization':
-      return `/clientes/${r.id}`;
+      return `/crm/empresas/${r.id}`;
     case 'opportunity':
-      return '/crm';
+      return '/crm?tab=negocios';
     case 'contact':
-      return r.refId ? `/clientes/${r.refId}` : '/clientes';
+      return r.refId ? `/crm/empresas/${r.refId}` : '/crm?tab=pessoas';
   }
 }
 

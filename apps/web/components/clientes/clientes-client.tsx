@@ -80,7 +80,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
     // Cadastro rápido só pede nome/documento — manda direto para a ficha completa
     // (aba Dados) para preencher telefone, e-mail, redes sociais etc.
     toast.success('Cliente criado — complete o cadastro na ficha');
-    router.push(`/clientes/${organization.id}`);
+    router.push(`/crm/empresas/${organization.id}`);
   }
 
   async function toggleArchive(org: OrganizationDto) {
@@ -162,7 +162,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
             </label>
           )}
           {session.role === 'ADMIN' && (
-            <Link href="/clientes/config" className={cn(buttonVariants({ variant: 'outline' }))}>
+            <Link href="/crm/config?tab=taxonomias" className={cn(buttonVariants({ variant: 'outline' }))}>
               <Settings size={15} /> Configurar
             </Link>
           )}
@@ -193,7 +193,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
               {filtered.map((org) => (
                 <TableRow key={org.id}>
                   <TableCell>
-                    <Link href={`/clientes/${org.id}`} className="group flex items-center gap-3">
+                    <Link href={`/crm/empresas/${org.id}`} className="group flex items-center gap-3">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/25 text-[11px] font-bold text-primary-dark">
                         {initials(org.tradeName || org.legalName)}
                       </span>
@@ -239,7 +239,7 @@ export default function ClientesClient({ organizations }: ClientesClientProps) {
                   <TableCell>
                     <div className="flex items-center justify-end gap-3">
                       <Link
-                        href={`/clientes/${org.id}`}
+                        href={`/crm/empresas/${org.id}`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary"
                         title="Editar cliente"
                       >

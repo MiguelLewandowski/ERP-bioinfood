@@ -78,10 +78,10 @@ export function FichaClient(props: FichaClientProps) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       <Link
-        href="/clientes"
+        href="/crm?tab=empresas"
         className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground mb-4"
       >
-        <ArrowLeft size={14} /> Voltar para Clientes
+        <ArrowLeft size={14} /> Voltar para Empresas
       </Link>
 
       <div className="mb-6 flex items-start justify-between gap-3">

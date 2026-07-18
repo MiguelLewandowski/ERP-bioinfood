@@ -132,7 +132,7 @@ export function OpportunityDialog({
 
         {mode === 'edit' && opportunity && (
           <Link
-            href={`/clientes/${opportunity.organization.id}`}
+            href={`/crm/empresas/${opportunity.organization.id}`}
             className="-mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
             Ver ficha completa do cliente <ExternalLink size={12} />

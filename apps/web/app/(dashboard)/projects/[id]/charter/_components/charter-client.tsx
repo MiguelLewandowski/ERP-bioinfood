@@ -544,7 +544,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 ) : contacts.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     Nenhum contato cadastrado para{' '}
-                    <Link href={`/clientes/${project.client.id}`} className="font-medium text-primary hover:underline">
+                    <Link href={`/crm/empresas/${project.client.id}`} className="font-medium text-primary hover:underline">
                       {project.client.tradeName ?? project.client.legalName}
                     </Link>{' '}
                     ainda.

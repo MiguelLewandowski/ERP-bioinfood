@@ -20,7 +20,7 @@ export function OportunidadesTab({ opportunities }: { opportunities: Opportunity
     return (
       <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center">
         <p className="text-sm text-muted-foreground">Nenhuma oportunidade registrada para este cliente.</p>
-        <Link href="/crm" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+        <Link href="/crm?tab=negocios" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
           Abrir o funil <ExternalLink size={12} />
         </Link>
       </div>
@@ -52,7 +52,7 @@ export function OportunidadesTab({ opportunities }: { opportunities: Opportunity
         </li>
       ))}
       <li>
-        <Link href="/crm" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+        <Link href="/crm?tab=negocios" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
           Ver funil completo <ExternalLink size={12} />
         </Link>
       </li>

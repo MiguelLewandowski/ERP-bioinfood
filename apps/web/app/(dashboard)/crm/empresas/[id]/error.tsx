@@ -20,10 +20,10 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
           Tentar novamente
         </button>
         <Link
-          href="/clientes"
+          href="/crm?tab=empresas"
           className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-gray-200 hover:bg-gray-50"
         >
-          Voltar para Clientes
+          Voltar para Empresas
         </Link>
       </div>
     </div>

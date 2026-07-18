@@ -159,7 +159,7 @@ export function CrmClient(props: CrmClientProps) {
 
         <div className="flex items-center gap-2">
           {props.canEdit && (
-            <Link href="/crm/config" className={cn(buttonVariants({ variant: 'outline' }))}>
+            <Link href="/crm/config?tab=funis" className={cn(buttonVariants({ variant: 'outline' }))}>
               <Settings size={15} /> Funis
             </Link>
           )}

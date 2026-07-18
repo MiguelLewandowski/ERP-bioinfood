@@ -1,13 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Kanban, ListChecks } from 'lucide-react';
-import type { PipelineDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
+import { Building2, Users as UsersIcon, Kanban, ListChecks } from 'lucide-react';
+import type {
+  PipelineDto, OpportunityDto, PipelineSummaryDto, OrganizationDto, ContactListItemDto, TaxonomyDto,
+} from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
+import ClientesClient from '@/components/clientes/clientes-client';
 import { CrmClient } from './crm-client';
 import { PendenciasPanel } from './pendencias-panel';
+import { PessoasTab } from './pessoas-tab';
 
 interface CrmTabsProps {
+  initialTab: TabId;
+  organizations: OrganizationDto[];
+  contacts: ContactListItemDto[];
+  sources: TaxonomyDto[];
   pipelines: PipelineDto[];
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
@@ -16,14 +24,16 @@ interface CrmTabsProps {
 }
 
 const TABS = [
-  { id: 'funil', label: 'Funil', icon: Kanban },
-  { id: 'pendencias', label: 'Pendências', icon: ListChecks },
+  { id: 'empresas', label: 'Empresas', icon: Building2 },
+  { id: 'pessoas', label: 'Pessoas', icon: UsersIcon },
+  { id: 'negocios', label: 'Negócios', icon: Kanban },
+  { id: 'tarefas', label: 'Tarefas', icon: ListChecks },
 ] as const;
 
-type TabId = (typeof TABS)[number]['id'];
+export type TabId = (typeof TABS)[number]['id'];
 
 export function CrmTabs(props: CrmTabsProps) {
-  const [tab, setTab] = useState<TabId>('funil');
+  const [tab, setTab] = useState<TabId>(props.initialTab);
 
   return (
     <>
@@ -44,8 +54,20 @@ export function CrmTabs(props: CrmTabsProps) {
         ))}
       </div>
 
-      {tab === 'funil' && <CrmClient {...props} />}
-      {tab === 'pendencias' && <PendenciasPanel canEdit={props.canEdit} />}
+      {tab === 'empresas' && <ClientesClient organizations={props.organizations} />}
+      {tab === 'pessoas' && (
+        <PessoasTab initialContacts={props.contacts} sources={props.sources} canEdit={props.canEdit} />
+      )}
+      {tab === 'negocios' && (
+        <CrmClient
+          pipelines={props.pipelines}
+          currentPipeline={props.currentPipeline}
+          initialOpportunities={props.initialOpportunities}
+          summary={props.summary}
+          canEdit={props.canEdit}
+        />
+      )}
+      {tab === 'tarefas' && <PendenciasPanel canEdit={props.canEdit} />}
     </>
   );
 }

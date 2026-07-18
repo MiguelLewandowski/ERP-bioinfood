@@ -84,7 +84,7 @@ export function PendenciasPanel({ canEdit }: { canEdit: boolean }) {
           {stale.map((org) => (
             <li key={org.id}>
               <Link
-                href={`/clientes/${org.id}`}
+                href={`/crm/empresas/${org.id}`}
                 className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 transition-colors hover:bg-muted/50"
               >
                 <span className="text-sm text-foreground">{org.tradeName ?? org.legalName}</span>
