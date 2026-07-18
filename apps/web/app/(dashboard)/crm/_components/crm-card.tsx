@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Building2, User } from 'lucide-react';
+import { Building2, User, Snowflake } from 'lucide-react';
 import type { OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 
@@ -47,7 +47,12 @@ export function CrmCard({ opportunity, onEdit, isOverlay, draggable = true }: Cr
         isOverlay ? 'shadow-lg' : 'hover:border-ring',
       )}
     >
-      <p className="text-sm font-medium leading-snug text-foreground">{opportunity.title}</p>
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-sm font-medium leading-snug text-foreground">{opportunity.title}</p>
+        {opportunity.frozenAt && (
+          <Snowflake size={13} className="mt-0.5 shrink-0 text-blue-500" aria-label="Congelado" />
+        )}
+      </div>
       <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
         <Building2 size={12} />
         {isOverlay ? (

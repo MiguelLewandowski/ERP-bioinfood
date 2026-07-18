@@ -354,6 +354,12 @@ export const opportunitiesApi = {
   move: (id: string, stageId: string, token: string, lostReason?: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/move`, { stageId, lostReason }, token),
 
+  freeze: (id: string, token: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}/freeze`, {}, token),
+
+  unfreeze: (id: string, token: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}/unfreeze`, {}, token),
+
   remove: (id: string, token: string) =>
     api.delete<void>(`/opportunities/${id}`, token),
 };
@@ -377,9 +383,13 @@ export const interactionsApi = {
 // ── Atividades / follow-ups do CRM (escrita só ADMIN) ──────────────────────────
 
 export const crmActivitiesApi = {
-  list: (token: string, params?: { orgId?: string; responsibleId?: string; due?: DueFilter }) => {
+  list: (
+    token: string,
+    params?: { orgId?: string; opportunityId?: string; responsibleId?: string; due?: DueFilter },
+  ) => {
     const qs = new URLSearchParams();
     if (params?.orgId) qs.set('orgId', params.orgId);
+    if (params?.opportunityId) qs.set('opportunityId', params.opportunityId);
     if (params?.responsibleId) qs.set('responsibleId', params.responsibleId);
     if (params?.due) qs.set('due', params.due);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';

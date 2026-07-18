@@ -7,7 +7,7 @@ import {
   PointerSensor, useSensor, useSensors, closestCorners,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Settings } from 'lucide-react';
+import { Plus, Settings, Snowflake, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PipelineDto, OpportunityDto, PipelineSummaryDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -118,6 +118,17 @@ export function CrmClient(props: CrmClientProps) {
     if (pipeline) refreshSummary(pipeline.id);
   }
 
+  async function reactivate(id: string) {
+    try {
+      const saved = await opportunitiesApi.unfreeze(id, token);
+      onSaved(saved);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
+  const frozenOpps = opps.filter((o) => o.frozenAt);
+
   if (!pipeline) {
     return (
       <div className="rounded-xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
@@ -173,7 +184,8 @@ export function CrmClient(props: CrmClientProps) {
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
             {stages.map((stage) => {
-              const colOpps = opps.filter((o) => o.stageId === stage.id);
+              // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
+              const colOpps = opps.filter((o) => o.stageId === stage.id && !o.frozenAt);
               return (
                 <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>
@@ -191,6 +203,39 @@ export function CrmClient(props: CrmClientProps) {
           <DragOverlay>{active && <CrmCard opportunity={active} isOverlay draggable={false} />}</DragOverlay>
         </DndContext>
       </div>
+
+      {frozenOpps.length > 0 && (
+        <Card className="mt-4 p-4">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-foreground">
+            <Snowflake size={15} className="text-blue-500" /> Congelados ({frozenOpps.length})
+          </h3>
+          <ul className="space-y-2">
+            {frozenOpps.map((o) => (
+              <li
+                key={o.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => props.canEdit && setEditing(o)}
+                  className="min-w-0 flex-1 truncate text-left text-sm text-foreground hover:text-primary"
+                >
+                  {o.title} <span className="text-xs text-muted-foreground">· {o.organization.tradeName ?? o.organization.legalName}</span>
+                </button>
+                {props.canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => reactivate(o.id)}
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <Sun size={13} /> Reativar
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {creating && firstOpen && (
         <OpportunityDialog

@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Trash2, ExternalLink } from 'lucide-react';
+import {
+  Trash2, ExternalLink, Snowflake, Sun,
+} from 'lucide-react';
 import type { OpportunityDto } from '@bioinfood/shared';
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -16,6 +18,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { OpportunityTasksSection } from './opportunity-tasks-section';
 
 interface OpportunityDialogProps {
   mode: 'create' | 'edit';
@@ -31,7 +35,9 @@ interface FormValues {
   title: string;
   clientId: string;
   amount: string;
+  startDate: string;
   expectedCloseDate: string;
+  description: string;
 }
 
 export function OpportunityDialog({
@@ -39,12 +45,15 @@ export function OpportunityDialog({
 }: OpportunityDialogProps) {
   const { token } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [current, setCurrent] = useState(opportunity);
   const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       title: opportunity?.title ?? '',
       clientId: opportunity?.organization.id ?? '',
       amount: opportunity?.amount ?? '',
+      startDate: opportunity?.startDate?.slice(0, 10) ?? '',
       expectedCloseDate: opportunity?.expectedCloseDate?.slice(0, 10) ?? '',
+      description: opportunity?.description ?? '',
     },
   });
 
@@ -58,7 +67,9 @@ export function OpportunityDialog({
       const payload = {
         title: v.title,
         amount: v.amount === '' ? undefined : Number(v.amount),
+        startDate: v.startDate || undefined,
         expectedCloseDate: v.expectedCloseDate || undefined,
+        description: v.description || undefined,
       };
       const saved = mode === 'create'
         ? await opportunitiesApi.create(
@@ -88,11 +99,35 @@ export function OpportunityDialog({
     }
   }
 
+  async function toggleFreeze() {
+    if (!current) return;
+    setSaving(true);
+    try {
+      const saved = current.frozenAt
+        ? await opportunitiesApi.unfreeze(current.id, token)
+        : await opportunitiesApi.freeze(current.id, token);
+      setCurrent(saved);
+      onSaved(saved);
+      toast.success(saved.frozenAt ? 'Negócio congelado' : 'Negócio reativado');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'Nova Oportunidade' : 'Editar Oportunidade'}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {mode === 'create' ? 'Nova Oportunidade' : 'Editar Oportunidade'}
+            {current?.frozenAt && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                <Snowflake size={11} /> Congelado
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         {mode === 'edit' && opportunity && (
@@ -134,22 +169,36 @@ export function OpportunityDialog({
               <Input id="opp-amount" {...register('amount')} type="number" min={0} step="0.01" placeholder="0,00" />
             </div>
             <div>
-              <Label htmlFor="opp-date">Previsão de fechamento</Label>
-              <Input id="opp-date" {...register('expectedCloseDate')} type="date" />
+              <Label htmlFor="opp-start-date">Data de início</Label>
+              <Input id="opp-start-date" {...register('startDate')} type="date" />
             </div>
           </div>
+          <div>
+            <Label htmlFor="opp-date">Previsão de fechamento</Label>
+            <Input id="opp-date" {...register('expectedCloseDate')} type="date" />
+          </div>
+          <div>
+            <Label htmlFor="opp-description">Descrição</Label>
+            <Textarea id="opp-description" {...register('description')} rows={3} placeholder="Sobre o negócio…" />
+          </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between gap-2 pt-2">
             {mode === 'edit' ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDelete}
-                disabled={saving}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 size={15} /> Excluir
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 size={15} /> Excluir
+                </Button>
+                <Button type="button" variant="outline" onClick={toggleFreeze} disabled={saving}>
+                  {current?.frozenAt ? <Sun size={15} /> : <Snowflake size={15} />}
+                  {current?.frozenAt ? 'Reativar' : 'Congelar'}
+                </Button>
+              </div>
             ) : <span />}
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
@@ -159,6 +208,10 @@ export function OpportunityDialog({
             </div>
           </div>
         </form>
+
+        {mode === 'edit' && current && (
+          <OpportunityTasksSection opportunityId={current.id} orgId={current.organization.id} />
+        )}
       </DialogContent>
     </Dialog>
   );
