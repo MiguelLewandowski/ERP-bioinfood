@@ -1,141 +1,97 @@
 # Análise de Frontend — ERP Bioinfood
 
-> **Data:** 2026-07-07 (3ª passagem, foco em `charter-client.tsx` / TAP)
-> **Alvo:** `apps/web/app/(dashboard)/projects/[id]/charter/_components/charter-client.tsx`
+> **Data:** 2026-07-17 (4ª passagem) · **Alvo:** `apps/web/app` + `apps/web/components` (98 arquivos)
 > **Revisor:** Tech Lead Frontend (skill `/analisar-frontend`)
-> **Estado:** CRM (organizations/contacts/pipelines/opportunities/interactions/crm-activities) implementado desde a 2ª passagem. `loading.tsx`/`error.tsx` agora existem em `clientes/*` e `crm/*` (A2 parcialmente resolvido — projeto/charter ainda sem).
-
-## 3ª passagem — achados na tela do TAP
-
-**C2 — Duplicação do formulário de projeto entre Charter e Settings**
-`charter-client.tsx:377-483` embute um formulário completo de `Project` (nome/status/cliente/datas/objetivo/descrição) dentro da seção "Identificação" do TAP — os mesmos campos já existem, validados com Zod, em `settings/_components/project-settings-client.tsx:24-30`. O form embutido no Charter (`projectForm`, `charter-client.tsx:239`) não tem `zodResolver` — mesmo dado, duas superfícies, duas regras de validação (uma delas inexistente). O botão "Salvar" do TAP dispara até duas mutações (`PUT /charter` + `PATCH /projects/:id`) sem indicar ao usuário qual foi alterada.
-**Status:** corrigido nesta sessão — bloco de edição removido do Charter, substituído por card resumo + link para Settings.
-
-**C3 — Mensagem de Stakeholders desatualizada (falso limite)**
-`charter-client.tsx:485-490` dizia que o CRM "ainda não está disponível" — mas o CRM foi implementado na sessão anterior. **Status:** corrigido — agora busca contatos reais do cliente do projeto via `contactsApi`.
-
-**A4 — Sem indicador de progresso nas 8 seções do TAP**
-Sidebar de navegação (`charter-client.tsx:304-319`) não mostra quais seções têm conteúdo. **Status:** corrigido — dot verde nas seções preenchidas.
-
-**A5 — "Prioridade" é texto livre com placeholder de enum**
-`charter-client.tsx:103` — placeholder "Alta / Média / Baixa" num `<input>` de texto livre. **Status:** corrigido — virou `<select>`.
-
-**A6 — Aprovação de TAP sem confirmação nem data visível**
-`charter-client.tsx:353-363` — sem `useConfirm()`; badge "Aprovado" não mostra `approvedAt`. **Status:** corrigido.
-
-**A7 — `charter-client.tsx` fora do `api-hooks.ts`** (mesma raiz do C1 original, mas não fazia parte do escopo da 2ª passagem)
-`charter-client.tsx:268,287` usavam `api.put`/`api.post` com path cru. **Status:** corrigido — `charterApi` adicionado a `api-hooks.ts`.
-
-**Pendente (não resolvido nesta passagem, baixo esforço/baixo risco de deixar para depois):**
-- Sem aviso de alterações não salvas ao sair da página.
-- Campos "um por linha" (`specificObjectives`, `deliverables`) continuam texto opaco, sem virar lista estruturada.
-- Rota `projects/[id]/charter` ainda sem `loading.tsx`/`error.tsx` (mesmo padrão do A2 original, ainda não estendido a todas as rotas de projeto).
-
----
-
-# Passagens anteriores (histórico)
+> **Estado:** onda CRM consolidada (clientes/crm/config), Gantt SVAR, calendário de atividades, gestão de usuários. Camada de dados adotada nos clients; server pages ainda fora dela.
 
 ---
 
 ## 1. Resumo
 
-A camada de **sessão/auth amadureceu muito** desde a 1ª passagem: renovação de token (middleware + interceptor 401 em `lib/api.ts`), `AuthProvider`/`useAuth` e tipos vindos de `@bioinfood/shared` — os 3 itens críticos anteriores estão **resolvidos**. O risco agora migrou para **duplicação da camada de dados** (existe um `lib/api-hooks.ts` tipado que **ninguém usa** enquanto cada página reimplementa seu próprio `fetch`) e para **drift de design** (334 hex hardcoded; os tokens `brand.*` do Tailwind estão mortos). Funciona bem hoje; a manutenção é que vai doer ao multiplicar módulos.
+Duas correções da 3ª passagem pegaram de verdade: **`api-hooks.ts` deixou de ser código morto** (19 arquivos importam) e **`router.refresh()` virou hábito** (14 arquivos) — C1 e A3 caíram pela metade ou mais. Em compensação, **dois achados regrediram de forma acentuada**: hex hardcoded saltou de 334/24 arquivos para **955/66**, e os modais hand-rolled foram de 3 para **17**.
+
+O ponto central desta passagem é o **porquê** dessa regressão. Não é desleixo: `docs/design/design-tokens.md:27-54` documenta `bg-[#147F23]` como "Classes Tailwind Mapeadas", ou seja, **a própria fonte de verdade de design manda escrever hex** — enquanto `tailwind.config.ts:46-54` define `brand.*` que ninguém usa (**0 ocorrências**). E não existe `components/ui/` — a base shadcn/ui prometida no `CLAUDE.md` nunca foi criada, então cada onda reinventa o overlay. **Enquanto o doc e a base de componentes não mudarem, toda onda nova vai continuar somando hex e modal.**
 
 ---
 
 ## 2. Pontos fortes (preservar)
 
-- **Renovação de token completa**: `middleware.ts` (refresh proativo a 60s do `exp`) + `lib/api.ts` (retry em 401 + redirect). Resolve C1/A3 da 1ª passagem.
-- **`AuthProvider` + `useAuth()`** elimina o prop drilling de token na maioria dos clients (A2 resolvido).
-- **Tipos do contrato unificados**: `kanban/_components/types.ts` apenas reexporta `TaskDto`; `projects-client` usa `ProjectDto`. O `any` da 1ª passagem sumiu (A1 resolvido).
-- Server Components fazem o fetch inicial; Client Components só interagem.
-- Optimistic update **com rollback** no Kanban (`kanban-client.tsx:55-62`) — padrão correto.
-- `checklistProgress` agora vem de `@bioinfood/shared` (lógica compartilhada com o back) — M3 parcialmente resolvido.
+- ✅ **`api-hooks.ts` adotado nos clients** (19 importadores: todo o CRM, charter, stakeholders, gantt, settings, activities). O investimento da 3ª passagem rendeu — C1 deixou de ser "código morto".
+- ✅ **`router.refresh()` após mutação em 14 arquivos** — A3 deixou de ser sistêmico; o drift entre telas virou exceção.
+- ✅ **Tipos do contrato unificados em `@bioinfood/shared`** — `api-hooks.ts:2-31` importa 25+ DTOs; nenhum `any` de domínio.
+- ✅ **`loading.tsx`/`error.tsx` existem** em `clientes/[id]`, `clientes/config`, `crm`, `crm/config`, `projects/[id]/charter` (10 arquivos) — o padrão está estabelecido, falta estender.
+- ✅ Server Components fazem o fetch inicial; Client Components só interagem. `use client` justificado.
+- ✅ Optimistic update com rollback no Kanban — segue sendo o padrão de referência.
 
 ---
 
 ## 3. Achados por severidade
 
-### 🔴 Crítico
-
-**C1 — Camada de dados duplicada: `lib/api-hooks.ts` é código morto**
-`apps/web/lib/api-hooks.ts` define `tasksApi`, `risksApi`, `projectsApi`, etc. **totalmente tipados** — mas `grep` confirma **zero importações** fora do próprio arquivo. Em paralelo:
-- Cada server page reimplementa seu próprio fetch: `projects/page.tsx:5` (`getProjects`), `kanban/page.tsx:4` (`getTasks`), `gantt/page.tsx:5` (`fetchJson`)…
-- Cada client chama `api.post`/`api.patch` com **path string cru**: `kanban-client.tsx:59`, `backlog-client.tsx:51`, `risks-client.tsx:55,67`, `charter-client.tsx:143,154`, `task-create-dialog.tsx:40`.
-
-**Impacto (acoplamento/escala):** três fontes de verdade para "como chamo a API". A rota `/projects/:id/tasks` está escrita à mão em ~6 lugares; renomear um endpoint ou trocar um header obriga a caçar strings. O investimento já feito no `api-hooks.ts` está sendo desperdiçado.
-**Correção:** adotar `api-hooks.ts` como **única** porta de dados. Server pages chamam `tasksApi.list(id, token)`; clients chamam `tasksApi.create/update/reorder`. Apagar os `getTasks`/`fetchJson` locais. Mover a duplicada `refreshTokens` do middleware para reuso se fizer sentido.
-
----
-
 ### 🟠 Alto
 
-**A1 — 334 hex hardcoded em 24 arquivos; tokens `brand.*` do Tailwind mortos**
-`tailwind.config.ts:46-54` define `brand.green (#147F23)`, `brand.orange`, etc. — e **nenhum componente os usa**. Em vez disso: `bg-[#147F23]` e, pior, `style={{ backgroundColor: '#147F23' }}` inline (`risks-client.tsx:92,114`, `charter-client.tsx:179,195,225`, `backlog-client.tsx:94,106`, `task-create-dialog.tsx:54`, `gantt-client.tsx` em vários pontos).
-**Impacto (design/escala):** mudar a paleta = editar 334 ocorrências. `style={{}}` inline também impede `hover:`/`focus:` e variações de estado.
-**Correção:** usar as classes `bg-brand-green`, `text-brand-green`, `hover:bg-brand-green-dark` (já mapeadas). Onde a cor é dinâmica (ex.: `scoreColor` em riscos), mapear para um nº pequeno de classes via lookup `Record<…, string>` em vez de hex inline. Banir `style={{ backgroundColor }}` no review.
+**A1 — Hex hardcoded quase triplicou (334→955 em 66 arquivos); `brand.*` tem 0 usos — e o doc de design é a causa raiz** *(regrediu)*
+`tailwind.config.ts:46-54` define `brand.green/#147F23`, `brand-green-dark`, `brand.orange` etc. Busca por `(bg|text|border)-brand-*` em `app/` + `components/`: **zero ocorrências**. Enquanto isso há **955 hex** em 66 arquivos e **100 `style={{...}}` inline**.
+**A causa não é o código, é o doc:** `docs/design/design-tokens.md:27-54` traz uma seção "Classes Tailwind Mapeadas" que lista literalmente `bg-[#147F23]`, `text-[#575756]`, `border-[#52B552]`… O `CLAUDE.md` manda ler esse arquivo **antes de criar qualquer componente de UI**. Ou seja: o processo está funcionando como desenhado — e ensinando a hardcodar hex a cada onda. Por isso triplicou.
+**Impacto (design/escala):** a paleta é efetivamente imutável (955 pontos de edição); `style={{}}` inline ainda impede `hover:`/`focus:`/`disabled`.
+**Correção (nesta ordem, ou não adianta):** (1) reescrever a seção "Classes Tailwind Mapeadas" do `design-tokens.md` para listar `bg-brand-green`, `text-brand-gray-mid` etc.; (2) completar `brand.*` no `tailwind.config.ts` com os tons que faltam (`green-500/300`, escala amber, grays); (3) migrar por módulo, começando pelos mais quentes; (4) proibir hex e `style={{backgroundColor}}` no review. **O passo 1 é o que impede a regressão de voltar.**
 
-**A2 — Sem `loading.tsx` nem `error.tsx` em nenhuma rota (0 arquivos)**
-`glob` por `{loading,error}.tsx` retorna vazio. Some-se a isso que **todo server fetch engole erro** retornando `[]`/`null` (`kanban/page.tsx:9`, `projects/page.tsx:10`, `gantt/page.tsx:11`).
-**Impacto (UX):** API fora do ar → tela renderiza "Nenhuma tarefa" (falso vazio), nunca um estado de erro; durante o fetch, nada de skeleton. O `project-skeleton.tsx` existe mas continua sem uso (B1 da 1ª passagem persiste).
-**Correção:** `loading.tsx` (com `project-skeleton`) e `error.tsx` (com "Tentar novamente") por segmento de rota. Parar de engolir erro no fetch — deixar `throw` borbulhar para o `error.tsx`.
+**A2 — `loading.tsx`/`error.tsx` só em 5 dos ~14 segmentos; server fetch ainda engole erro (13 swallow × 1 throw)** *(parcial — inalterado desde a 3ª passagem)*
+Cobertos: `clientes/[id]`, `clientes/config`, `crm`, `crm/config`, `charter`. **Descobertos:** `projects`, `projects/[id]/{kanban,gantt,backlog,risks,wbs,roadmap,settings,stakeholders}`, `users`, `activities`.
+O padrão `if (!res.ok) return fallback` aparece **13 vezes** (`kanban/page.tsx:11` é o arquétipo) contra **1** `throw`. API fora do ar → a tela renderiza "Nenhuma tarefa" em vez de erro.
+**Impacto (UX):** falso-vazio silencioso nas telas de projeto — justamente as de uso diário. O usuário não distingue "não há tarefas" de "a API caiu".
+**Correção:** deixar o `throw` borbulhar para o `error.tsx` e criar os dois arquivos por segmento faltante. Resolve-se junto com A3 (o helper compartilhado já lança).
 
-**A3 — Estado de servidor copiado para `useState` sem invalidação nos clients de módulo**
-`kanban-client.tsx:36`, `backlog-client.tsx:36`, `risks-client.tsx:41`, `wbs-client.tsx`, `gantt` (memo sobre props) — todos fazem `useState(initialTasks)` e mutam **só a cópia local**. Nenhum chama `router.refresh()` após mutação (só `projects-client` e `settings` o fazem).
-**Impacto (estado/consistência):** editar uma tarefa no Kanban não reflete no Gantt/Backlog sem reload manual; duas abas dessincronizam. O cálculo de "progresso" do Gantt fica obsoleto assim que o checklist muda em outra tela.
-**Correção:** após cada mutação bem-sucedida, `router.refresh()` para re-executar o Server Component (mantendo o optimistic local apenas para latência). Alternativa maior (não obrigatória agora, YAGNI): React Query, mas só quando o nº de telas justificar.
+**A3 — C1 pela metade: os 19 clients usam `api-hooks`, mas as 21 server pages seguem com `fetch` cru** *(parcialmente resolvido — o restante é nítido)*
+`kanban/page.tsx:6-13` define `fetchJson` local e chama `/projects/${id}/tasks` na linha 26 — **enquanto `api-hooks.ts:36` já expõe `tasksApi.list(projectId, token)` com exatamente essa rota, tipada**. O mesmo helper `fetchJson`/`fetch` cru está copiado em `projects/page.tsx:6`, `backlog/page.tsx:7`, `risks/page.tsx:7`, `wbs/page.tsx:5`, `roadmap/page.tsx:5`, `settings/page.tsx:5`, `stakeholders/page.tsx:5`, `charter/page.tsx:6,17`, `gantt/page.tsx:7`, `layout.tsx:7`, `users/page.tsx:8`, `clientes/*`, `crm/*`. `NEXT_PUBLIC_API_URL` aparece direto em **21 arquivos**.
+`wbs-client.tsx:74,103` é o caso pior: **client component** com `fetch` cru e `NEXT_PUBLIC_API_URL`, fora do padrão que os outros 19 clients já seguem.
+**Impacto (acoplamento/escala):** a rota está escrita à mão em ~15 lugares; trocar um endpoint ou header ainda obriga a caçar strings. Metade do ganho de `api-hooks` está na mesa.
+**Correção:** server pages passam a chamar `tasksApi.list(id, token)` etc. e apagam os `fetchJson` locais. Onde faltar método no `api-hooks`, adicionar. Migrar `wbs-client.tsx` junto.
 
 ---
 
 ### 🟡 Médio
 
-**M1 — Optimistic update do Backlog não tem rollback**
-`backlog-client.tsx:44-51` — `onDragEnd` faz `setTasks(reordered)` e `await api.patch(...reorder)` **sem `try/catch`**. Se o PATCH falhar, a ordem na tela fica mentindo em relação ao servidor (o Kanban faz certo no `:60-62`).
-**Correção:** guardar a ordem anterior e restaurar no `catch`, igual ao Kanban.
+**M1 — 17 modais hand-rolled e `components/ui/` não existe** *(regrediu de 3 → 17)*
+`fixed inset-0` em 17 arquivos: `activity-detail.tsx`, `day-detail.tsx`, `crm-client.tsx`, `opportunity-dialog.tsx`, `charter-client.tsx`, `risks-client.tsx`, `roadmap-client.tsx`, `stakeholders-client.tsx`, `wbs-client.tsx`, `task-form-dialog.tsx`, `cliente-dialog.tsx`, `project-dialog.tsx`, `projects-client.tsx`, `confirm-dialog.tsx`, `reset-password-dialog.tsx`, `user-dialog.tsx`, `user-project-access-dialog.tsx`.
+**A causa raiz é estrutural:** `@radix-ui/react-dialog` está no `package.json:17`, o `CLAUDE.md` declara shadcn/ui na stack — mas **não existe diretório `components/ui/`**. Sem uma base para reusar, cada onda hand-rolla o overlay de novo. Nenhum tem focus trap, `Esc`, `role="dialog"`/`aria-modal`.
+**Impacto (a11y/consistência):** 17 divergências do mesmo overlay; teclado escapa do modal; leitor de tela não anuncia. Cresce 1:1 com o nº de telas.
+**Correção:** criar `components/ui/dialog.tsx` sobre o Radix (já instalado) e migrar os 17. Mesmo raciocínio do A1 — **sem a base, a regressão volta**.
 
-**M2 — `gantt` destoa do padrão: token por prop + `fetchJson` próprio**
-`gantt/page.tsx:35` passa `token` como prop e `gantt-client.tsx:146` o recebe — enquanto todos os outros clients usam `useAuth()`. O Gantt nem usa o token (só repassa). Reintroduz localmente o prop drilling que A2 eliminou.
-**Correção:** remover a prop `token` do `GanttClient`; se precisar mutar, usar `useAuth()`. Trocar o `fetchJson` por `tasksApi`/`milestonesApi` (C1).
+**M2 — Schemas Zod duplicados por formulário** *(persiste, era B1)*
+Cada form redefine seu schema local; regras podem divergir do `ValidationPipe` do NestJS.
+**Correção:** exportar de `packages/shared` e importar dos dois lados. `packages/shared/src` só tem `index.ts` hoje — cabe um `schemas.ts`.
 
-**M3 — Modais hand-rolled sem acessibilidade, com Radix disponível**
-`project-dialog.tsx:52`, `task-create-dialog.tsx:62`, `risks-client.tsx:155` — `<div className="fixed inset-0">` sem focus trap, sem fechar no `Esc`, sem `role="dialog"`/`aria-modal`/`aria-labelledby`. Confirmação de exclusão em riscos é inline (ok), mas o Dialog em si não prende foco.
-**Impacto (a11y/consistência):** navegação por teclado escapa do modal; leitores de tela não anunciam. E há 3 implementações divergentes do mesmo overlay.
-**Correção:** um único `<Dialog>` baseado no Radix (`@radix-ui/react-dialog`, já no projeto) em `components/ui/` e reuso nos 3 lugares.
-
-**M4 — Heurística de progresso do Gantt ainda no front**
-`gantt-client.tsx:176-178` — quando não há checklist, infere progresso de `status` (DONE=100, IN_PROGRESS=50). É regra de negócio no client; se o back mudar a definição de "progresso", diverge silenciosamente do resto.
-**Correção:** expor `progressPercentage` no `TaskDto` e consumir; manter no front só a renderização.
+**M3 — Pendências herdadas do TAP** *(persistem da 3ª passagem)*
+Sem aviso de alterações não salvas ao sair; `specificObjectives`/`deliverables` seguem texto opaco em vez de lista estruturada.
 
 ---
 
 ### 🔵 Baixo
 
-**B1 — Schemas Zod duplicados por formulário, não compartilhados com o back**
-Cada form redefine seu `schema` local (`project-dialog.tsx:13`, `risks-client.tsx:18`, `task-create-dialog.tsx:12`, `charter-client.tsx:15`). Regras (ex.: `max(200)`) podem divergir do `ValidationPipe` do NestJS.
-**Correção:** exportar os schemas de `packages/shared` e importar nos dois lados. Baixa urgência enquanto as regras forem simples.
-
-**B2 — `project-skeleton.tsx` continua órfão** (ver A2). Usar em `loading.tsx`.
-
-**B3 — Sem paginação** em `projects`, `users`, `backlog` — irrelevante hoje, relevante a partir de ~200 registros.
+**B1 — `project-skeleton.tsx` órfão** — usar nos `loading.tsx` de A2.
+**B2 — Sem paginação** em `projects`, `users`, `backlog`, `clientes` — irrelevante hoje, relevante a partir de ~200 registros. `users/page.tsx:8` já cravou `?limit=100` à mão.
 
 ---
 
 ## 4. Prontidão para escala (muitos módulos)
 
-| Risco | Hoje | Ao multiplicar módulos |
-|---|---|---|
-| `api-hooks` ignorado + fetch ad-hoc | ~6 server fetch + ~10 calls cruas | dezenas de paths à mão, refactor de endpoint impossível |
-| Hex hardcoded | 334 / 24 arquivos | paleta efetivamente imutável |
-| Sem `loading`/`error.tsx` | 0 rotas cobertas | toda rota nova nasce com falso-vazio em erro |
-| `useState(initial)` sem refresh | 5 clients | drift entre telas vira regra, não exceção |
-| Modal hand-rolled | 3 cópias | N cópias divergentes, a11y inexistente |
+| Risco | 3ª passagem | Hoje | Ao multiplicar módulos |
+|---|---|---|---|
+| Hex hardcoded | 334 / 24 arq. | **955 / 66 arq.** 🔺 | paleta imutável; o doc **ensina** a piorar |
+| Modal hand-rolled | 3 | **17** 🔺 | sem `components/ui/`, cada tela nova = +1 cópia sem a11y |
+| `api-hooks` ignorado | ~16 calls cruas | **21 server pages** ⚠️ | metade do ganho na mesa; rotas à mão |
+| `loading`/`error.tsx` | 0 rotas | **5 de ~14** ✅ | padrão existe; falta estender |
+| `useState` sem refresh | 5 clients | **14 arq. c/ refresh** ✅ | resolvido na prática |
+| Tipos do contrato | shared ✅ | shared ✅ | escala bem — manter |
 
 ---
 
 ## 5. Top 3 ações priorizadas
 
-1. **Unificar a camada de dados em `lib/api-hooks.ts`** (C1) — adotar o que já existe e apagar os `getTasks`/`fetchJson`/calls cruas. Maior alívio de manutenção por menor esforço.
-2. **Matar o hex hardcoded usando os tokens `brand.*`** (A1) — substituir `bg-[#hex]` e `style={{backgroundColor}}` pelas classes já mapeadas; banir hex no review.
-3. **`loading.tsx` + `error.tsx` por rota e parar de engolir erros no fetch** (A2) — fecha o falso-vazio e dá UX de carregamento consistente para todo módulo novo.
+1. **Consertar a causa raiz do drift de design** (A1) — reescrever "Classes Tailwind Mapeadas" no `design-tokens.md` para tokens `brand.*`, completar o `tailwind.config.ts` e só então migrar. Enquanto o doc disser `bg-[#147F23]`, a 5ª passagem vai contar 1500 hex.
+2. **Criar `components/ui/dialog.tsx` sobre o Radix e migrar os 17 overlays** (M1) — mesma lógica: a base ausente é o que gera a cópia. Ganho de a11y imediato.
+3. **Terminar o C1: server pages → `api-hooks`** (A3) + deixar o erro borbulhar, fechando A2 junto. `tasksApi.list` já existe e `kanban/page.tsx` a ignora — é adoção, não design.
 
-> **Resolvido desde a 1ª passagem:** C1 (refresh de token), A3 (401 global), A2 (prop drilling via AuthProvider), A1 (`any` → DTOs do shared), M2-projects (router.refresh em `projects-client`), M3-parcial (`checklistProgress` compartilhado).
+> **Resolvido/melhorado desde a 3ª passagem:** C1 nos clients (19 importadores); A3-estado (14 × `router.refresh`); `loading`/`error.tsx` de 0 → 10 arquivos; achados do TAP (C2, C3, A4, A5, A6, A7) confirmados corrigidos.
+> **Regrediram:** A1 (hex 334→955), M1 (modais 3→17) — ambos por **ausência de base/doc correto**, não por descuido pontual.
+> **Leitura de tendência:** o que foi corrigido *com uma base para reusar* (api-hooks, shared types) **grudou** e se espalhou sozinho. O que foi corrigido *só por revisão manual* (hex, modais) **regrediu na onda seguinte**. A lição para a próxima sessão: corrigir a base e o doc primeiro; migração depois.
