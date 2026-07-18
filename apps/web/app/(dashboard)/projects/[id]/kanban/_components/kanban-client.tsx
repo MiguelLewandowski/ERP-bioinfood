@@ -24,8 +24,8 @@ import type { ProjectMember } from '@/lib/project-members';
 import type { Task } from './types';
 
 const COLUMNS = [
-  { id: 'TODO',        label: 'A fazer',      color: '#575756' },
-  { id: 'IN_PROGRESS', label: 'Em andamento', color: '#147F23' },
+  { id: 'TODO',        label: 'A fazer',      color: 'hsl(var(--muted-foreground))' },
+  { id: 'IN_PROGRESS', label: 'Em andamento', color: 'hsl(var(--primary))' },
   { id: 'DONE',        label: 'Concluído',    color: '#46AD48' },
 ] as const;
 
@@ -81,13 +81,13 @@ export function KanbanClient({ projectId, initialTasks, members }: KanbanClientP
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#1D1D1B]">Kanban</h2>
-          <p className="text-sm text-[#706F6F] mt-0.5">{tasks.filter((t) => !t.deletedAt).length} tarefas</p>
+          <h2 className="text-xl font-bold text-foreground">Kanban</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{tasks.filter((t) => !t.deletedAt).length} tarefas</p>
         </div>
         <button
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           <Plus size={16} /> Nova Tarefa
         </button>

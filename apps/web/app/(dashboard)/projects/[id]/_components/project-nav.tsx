@@ -43,10 +43,10 @@ export function ProjectNav({ projectId }: ProjectNavProps) {
                 className={cn(
                   'flex items-center gap-2 px-3 py-3.5 text-sm font-medium whitespace-nowrap',
                   'border-b-2 transition-colors duration-150 focus-visible:outline-none',
-                  'focus-visible:ring-2 focus-visible:ring-[#52B552] focus-visible:ring-offset-1',
+                  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
                   isActive
-                    ? 'border-[#147F23] text-[#147F23]'
-                    : 'border-transparent text-[#575756] hover:text-[#1D1D1B] hover:border-gray-300',
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300',
                 )}
               >
                 <Icon size={15} aria-hidden="true" />

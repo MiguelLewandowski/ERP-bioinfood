@@ -1,16 +1,7 @@
 import { cookies } from 'next/headers';
-import type { ProjectDto } from '@bioinfood/shared';
+import { projectsApi, tasksApi } from '@/lib/api-hooks';
 import { BacklogClient } from './_components/backlog-client';
 import { extractMembers } from '@/lib/project-members';
-
-async function fetchJson<T>(path: string, token: string, fallback: T): Promise<T> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-  if (!res.ok) return fallback;
-  return res.json();
-}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -22,8 +13,8 @@ export default async function BacklogPage({ params }: Props) {
   const token = cookieStore.get('access_token')?.value ?? '';
 
   const [project, tasks] = await Promise.all([
-    fetchJson<ProjectDto | null>(`/projects/${id}`, token, null),
-    fetchJson(`/projects/${id}/tasks`, token, []),
+    projectsApi.get(id, token),
+    tasksApi.list(id, token),
   ]);
 
   return <BacklogClient projectId={id} initialTasks={tasks} members={extractMembers(project)} />;

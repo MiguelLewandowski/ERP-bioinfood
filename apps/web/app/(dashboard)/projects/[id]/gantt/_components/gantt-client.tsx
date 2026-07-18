@@ -100,8 +100,8 @@ export function GanttClient(props: GanttClientProps) {
       {editable && (
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
           {canBaseline ? (
-            <span className="flex items-center gap-1.5 text-xs text-[#706F6F]">
-              <Flag size={13} className={props.baselineSetAt ? 'text-[#147F23]' : 'text-[#878787]'} />
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
               {baselineLabel}
             </span>
           ) : <span />}
@@ -109,7 +109,7 @@ export function GanttClient(props: GanttClientProps) {
             <button
               onClick={() => setCreating(true)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: '#147F23' }}
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
             >
               <Plus size={13} /> Nova Tarefa
             </button>
@@ -117,7 +117,7 @@ export function GanttClient(props: GanttClientProps) {
               <button
                 onClick={handleSetBaseline}
                 disabled={baselineBusy}
-                className="flex items-center gap-1.5 rounded-lg border border-[#147F23] px-3 py-1.5 text-xs font-semibold text-[#147F23] hover:bg-[#147F23] hover:text-white transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
               >
                 {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
                 {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
@@ -127,19 +127,19 @@ export function GanttClient(props: GanttClientProps) {
         </div>
       )}
       {!editable && (
-        <div className="flex items-center gap-1.5 bg-gray-100 text-[#575756] px-4 py-2 text-xs font-medium">
+        <div className="flex items-center gap-1.5 bg-gray-100 text-muted-foreground px-4 py-2 text-xs font-medium">
           <Lock size={13} /> Modo somente leitura — seu perfil ({session.role}) não pode editar o cronograma.
         </div>
       )}
       {saveError && (
-        <div className="flex items-center justify-between gap-3 bg-[#FBE3E5] text-[#D64550] px-4 py-2 text-xs font-medium">
+        <div className="flex items-center justify-between gap-3 bg-destructive/10 text-destructive px-4 py-2 text-xs font-medium">
           <span className="flex items-center gap-1.5">
             <AlertTriangle size={14} />
             Não foi possível salvar a alteração — ela foi revertida.
           </span>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-md border border-[#D64550]/40 px-2.5 py-1 hover:bg-white/40"
+            className="rounded-md border border-destructive/40 px-2.5 py-1 hover:bg-white/40"
           >
             Recarregar
           </button>
@@ -213,9 +213,9 @@ function GanttBoard({
     return (
       <div className="p-6">
         <div className="bg-white rounded-xl border border-gray-200 py-24 flex flex-col items-center gap-3">
-          <BarChart2 size={40} style={{ color: '#878787' }} />
-          <p className="text-sm font-medium text-[#575756]">Nenhuma tarefa com início e prazo definidos.</p>
-          <p className="text-xs text-[#706F6F]">Adicione tarefas no Backlog/Kanban (ou crie aqui pela barra de ferramentas).</p>
+          <BarChart2 size={40} style={{ color: 'hsl(var(--muted-foreground))' }} />
+          <p className="text-sm font-medium text-muted-foreground">Nenhuma tarefa com início e prazo definidos.</p>
+          <p className="text-xs text-muted-foreground">Adicione tarefas no Backlog/Kanban (ou crie aqui pela barra de ferramentas).</p>
         </div>
       </div>
     );

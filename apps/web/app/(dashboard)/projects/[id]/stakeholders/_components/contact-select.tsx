@@ -29,7 +29,7 @@ export function ContactSelect({ token, value, onChange, disabled }: ContactSelec
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled || loading}
-      className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white disabled:opacity-60"
+      className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white disabled:opacity-60"
     >
       <option value="">{loading ? 'Carregando…' : 'Selecione um contato…'}</option>
       {contacts.map((c) => (

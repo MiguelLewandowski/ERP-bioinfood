@@ -21,7 +21,7 @@ interface ProjectsTableProps {
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
 
 const selectCls =
-  'text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:border-[#52B552] focus:outline-none text-[#575756]';
+  'text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:border-ring focus:outline-none text-muted-foreground';
 
 export default function ProjectsTable({ projects }: ProjectsTableProps) {
   const [search, setSearch] = useState('');
@@ -69,12 +69,12 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#878787]" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar projeto…"
-            className="w-48 pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+            className="w-48 pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
           />
         </div>
         <select value={status} onChange={(e) => setStatus(e.target.value as ProjectStatus | '')} className={selectCls}>
@@ -98,7 +98,7 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
         {hasFilters && (
           <button
             onClick={clearFilters}
-            className="inline-flex items-center gap-1 text-xs font-medium text-[#878787] hover:text-[#575756]"
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-muted-foreground"
           >
             <X size={13} /> Limpar filtros
           </button>
@@ -106,14 +106,14 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-[#878787]">
+        <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-muted-foreground">
           Nenhum projeto encontrado para os filtros aplicados.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-[11px] font-semibold uppercase tracking-wide text-[#878787]">
+              <tr className="border-b border-gray-200 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3">Projeto</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Cliente</th>
@@ -130,7 +130,7 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
                   <td className="px-4 py-3">
                     <Link
                       href={`/projects/${project.id}`}
-                      className="font-medium text-[#1D1D1B] hover:text-[#147F23]"
+                      className="font-medium text-foreground hover:text-primary"
                     >
                       {project.name}
                     </Link>
@@ -144,12 +144,12 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
                       {PROJECT_STATUS_LABELS[project.status] ?? project.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-[#575756] whitespace-nowrap">{project.client?.tradeName ?? project.client?.legalName ?? '—'}</td>
-                  <td className="px-4 py-3 text-[#575756] whitespace-nowrap">{fmt(project.startDate)}</td>
-                  <td className="px-4 py-3 text-[#575756] whitespace-nowrap">{fmt(project.endDate)}</td>
-                  <td className="px-4 py-3 font-medium text-[#147F23] whitespace-nowrap">{fmt(project.forecastEndDate)}</td>
-                  <td className="px-4 py-3 text-[#575756] whitespace-nowrap">{project.createdBy?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-center text-[#575756]">{project.accesses?.length ?? 0}</td>
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.client?.tradeName ?? project.client?.legalName ?? '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmt(project.startDate)}</td>
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmt(project.endDate)}</td>
+                  <td className="px-4 py-3 font-medium text-primary whitespace-nowrap">{fmt(project.forecastEndDate)}</td>
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.createdBy?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-center text-muted-foreground">{project.accesses?.length ?? 0}</td>
                 </tr>
               ))}
             </tbody>
@@ -157,7 +157,7 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
         </div>
       )}
 
-      <p className="mt-2 text-xs text-[#878787]">
+      <p className="mt-2 text-xs text-muted-foreground">
         {filtered.length} de {projects.length} projeto{projects.length === 1 ? '' : 's'}
       </p>
     </div>

@@ -119,35 +119,35 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-[#1D1D1B]">Configurações do Projeto</h2>
-        <p className="text-sm text-[#706F6F] mt-0.5">Edite as informações gerais do projeto</p>
+        <h2 className="text-xl font-bold text-foreground">Configurações do Projeto</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Edite as informações gerais do projeto</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Identificação */}
         <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h3 className="text-sm font-bold text-[#1D1D1B] border-b border-gray-100 pb-2">Identificação</h3>
+          <h3 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Identificação</h3>
 
           <div>
-            <label className="block text-xs font-semibold text-[#575756] mb-1">Nome do Projeto *</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Nome do Projeto *</label>
             <input
               {...register('name')}
-              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#575756] mb-1">Descrição</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
             <textarea
               {...register('description')}
               rows={3}
-              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none resize-none"
+              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#575756] mb-1">Cliente</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Cliente</label>
             <Controller
               name="clientId"
               control={control}
@@ -158,24 +158,24 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#575756] mb-1">Objetivo resumido</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Objetivo resumido</label>
             <input
               {...register('objective')}
               placeholder="Resumo do objetivo do projeto em uma linha"
-              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
             />
           </div>
         </section>
 
         {/* Status e datas */}
         <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h3 className="text-sm font-bold text-[#1D1D1B] border-b border-gray-100 pb-2">Status e Cronograma</h3>
+          <h3 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Status e Cronograma</h3>
 
           <div>
-            <label className="block text-xs font-semibold text-[#575756] mb-1">Status</label>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">Status</label>
             <select
               {...register('status')}
-              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white"
+              className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
             >
               {STATUS_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -185,19 +185,19 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#575756] mb-1">Data de Início</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Data de Início</label>
               <input
                 {...register('startDate')}
                 type="date"
-                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#575756] mb-1">Data de Término</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Data de Término</label>
               <input
                 {...register('endDate')}
                 type="date"
-                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+                className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
               />
               {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate.message}</p>}
             </div>
@@ -215,7 +215,7 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
             type="submit"
             disabled={saving || !isDirty}
             className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: '#147F23' }}
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
           >
             <Save size={15} />
             {saving ? 'Salvando…' : saved ? 'Salvo ✓' : 'Salvar Alterações'}
@@ -229,8 +229,8 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           <h3 className="text-sm font-bold text-red-700 border-b border-red-100 pb-2">Zona de perigo</h3>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-[#1D1D1B]">Excluir projeto definitivamente</p>
-              <p className="text-xs text-[#706F6F] mt-0.5">
+              <p className="text-sm font-semibold text-foreground">Excluir projeto definitivamente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Apaga o projeto e todos os seus dados. Esta ação não pode ser desfeita.
               </p>
             </div>
@@ -239,7 +239,7 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
               onClick={onDelete}
               disabled={deleting}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: '#D64550' }}
+              style={{ backgroundColor: 'hsl(var(--destructive))' }}
             >
               <Trash2 size={15} />
               {deleting ? 'Excluindo…' : 'Excluir projeto'}

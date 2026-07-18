@@ -1,17 +1,9 @@
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { projectsApi } from '@/lib/api-hooks';
+import { ApiError } from '@/lib/errors';
 import { ProjectHeader } from './_components/project-header';
 import { ProjectNav } from './_components/project-nav';
-
-async function getProject(id: string, token: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error('Failed to fetch project');
-  return res.json();
-}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,14 +15,16 @@ export default async function ProjectLayout({ children, params }: LayoutProps) {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const project = await getProject(id, token);
-  if (!project) notFound();
+  const project = await projectsApi.get(id, token).catch((err) => {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err; // outros erros borbulham para o error boundary
+  });
 
   return (
     <div className="flex flex-col h-full">
-      <ProjectHeader name={project.name} status={project.status} projectId={id} />
+      <ProjectHeader name={project.name} status={project.status} projectId={id} client={project.client} />
       <ProjectNav projectId={id} />
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-muted/40">
         {children}
       </div>
     </div>

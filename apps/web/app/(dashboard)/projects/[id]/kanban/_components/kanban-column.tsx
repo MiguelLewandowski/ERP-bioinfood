@@ -19,13 +19,13 @@ export function KanbanColumn({ id, label, color, count, children }: KanbanColumn
       ref={setNodeRef}
       className={cn(
         'rounded-xl border-2 p-3 min-h-[400px] transition-colors',
-        isOver ? 'border-[#52B552] bg-[#86C175]/10' : 'border-gray-200 bg-gray-50',
+        isOver ? 'border-ring bg-success/10' : 'border-gray-200 bg-gray-50',
       )}
     >
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-sm font-semibold text-[#1D1D1B]">{label}</span>
+          <span className="text-sm font-semibold text-foreground">{label}</span>
         </div>
         <span className="text-xs font-medium text-white px-2 py-0.5 rounded-full" style={{ backgroundColor: color }}>
           {count}

@@ -91,13 +91,13 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#1D1D1B]">Backlog</h2>
-          <p className="text-sm text-[#706F6F] mt-0.5">{tasks.length} itens · {stats.points} story points</p>
+          <h2 className="text-xl font-bold text-foreground">Backlog</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{tasks.length} itens · {stats.points} story points</p>
         </div>
         <button
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           <Plus size={16} /> Nova Tarefa
         </button>
@@ -105,13 +105,13 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
 
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'A fazer',      value: stats.todo,       color: '#575756' },
-          { label: 'Em andamento', value: stats.inProgress, color: '#147F23' },
-          { label: 'Concluído',    value: stats.done,        color: '#156D1D' },
-          { label: 'Story Points', value: stats.points,      color: '#C16C06' },
+          { label: 'A fazer',      value: stats.todo,       color: 'hsl(var(--muted-foreground))' },
+          { label: 'Em andamento', value: stats.inProgress, color: 'hsl(var(--primary))' },
+          { label: 'Concluído',    value: stats.done,        color: 'hsl(var(--primary-dark))' },
+          { label: 'Story Points', value: stats.points,      color: 'hsl(var(--accent))' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-[#706F6F] mb-1">{label}</p>
+            <p className="text-xs text-muted-foreground mb-1">{label}</p>
             <p className="text-2xl font-bold" style={{ color }}>{value}</p>
           </div>
         ))}
@@ -124,8 +124,8 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
             onClick={() => setStatusFilter(value)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={statusFilter === value
-              ? { backgroundColor: '#147F23', color: '#FFFFFF' }
-              : { backgroundColor: '#F3F4F6', color: '#575756' }}
+              ? { backgroundColor: 'hsl(var(--primary))', color: 'white' }
+              : { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }}
           >
             {label}
           </button>
@@ -133,7 +133,7 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[auto_1fr_120px_100px_90px_90px_36px] gap-4 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-[#706F6F]">
+        <div className="grid grid-cols-[auto_1fr_120px_100px_90px_90px_36px] gap-4 px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-muted-foreground">
           <span />
           <span>Tarefa</span>
           <span>Status</span>
@@ -145,7 +145,7 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
 
         {visible.length === 0 && (
           <div className="py-16 text-center">
-            <p className="text-[#706F6F] text-sm">Nenhuma tarefa encontrada.</p>
+            <p className="text-muted-foreground text-sm">Nenhuma tarefa encontrada.</p>
           </div>
         )}
 

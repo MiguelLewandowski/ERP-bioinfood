@@ -27,7 +27,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
   const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 
   return (
-    <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-[#86C175] transition-all">
+    <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-ring transition-all">
       <div className="flex items-start justify-between mb-3">
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[project.status] ?? 'bg-gray-100 text-gray-600'}`}>
           {STATUS_LABELS[project.status] ?? project.status}
@@ -58,7 +58,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         {project.forecastEndDate && (
           <div className="flex justify-between">
             <span>Término (estimado)</span>
-            <span className="font-medium text-[#147F23]">{fmt(project.forecastEndDate)}</span>
+            <span className="font-medium text-primary">{fmt(project.forecastEndDate)}</span>
           </div>
         )}
       </div>
@@ -69,7 +69,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
             <div
               key={a.user.id}
               className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-              style={{ backgroundColor: '#147F23' }}
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
               title={a.user.name}
             >
               {a.user.name.charAt(0).toUpperCase()}

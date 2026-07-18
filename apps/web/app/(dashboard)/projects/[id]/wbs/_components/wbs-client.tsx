@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WbsNodeDto } from '@bioinfood/shared';
+import { wbsApi } from '@/lib/api-hooks';
+import { getErrorMessage } from '@/lib/errors';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, dialogDrawerRightClass } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 type WbsNode = WbsNodeDto;
 
@@ -71,17 +76,16 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
       const nextNum  = siblings.length + 1;
       const code     = addForm.parentId ? `${addForm.parentCode}.${nextNum}` : `${nextNum}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/wbs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: newTitle.trim(), code, parentId: addForm.parentId ?? undefined, order: siblings.length }),
-      });
-      if (res.ok) {
-        const node = await res.json();
-        setNodes((prev) => [...prev, node]);
-        setNewTitle('');
-        setAddForm(null);
-      }
+      const node = await wbsApi.create(
+        projectId,
+        { title: newTitle.trim(), code, parentId: addForm.parentId ?? undefined, order: siblings.length },
+        token,
+      );
+      setNodes((prev) => [...prev, node]);
+      setNewTitle('');
+      setAddForm(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -100,20 +104,20 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
     if (!editing) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/wbs/${editing.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      const updated = await wbsApi.update(
+        projectId,
+        editing.id,
+        {
           owner: editing.owner || null,
           readyCriteria: editing.readyCriteria || null,
           outputs: editing.outputs || null,
-        }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setNodes((prev) => prev.map((n) => n.id === updated.id ? updated : n));
-        setEditing(null);
-      }
+        },
+        token,
+      );
+      setNodes((prev) => prev.map((n) => n.id === updated.id ? updated : n));
+      setEditing(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setSavingEdit(false);
     }
@@ -123,13 +127,13 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#1D1D1B]">EAP / WBS</h2>
-          <p className="text-sm text-[#706F6F] mt-0.5">Estrutura Analítica do Projeto — {nodes.length} entregáveis</p>
+          <h2 className="text-xl font-bold text-foreground">EAP / WBS</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Estrutura Analítica do Projeto — {nodes.length} entregáveis</p>
         </div>
         <button
           onClick={() => setAddForm({ parentId: null, parentCode: '' })}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           <Plus size={16} /> Novo Entregável
         </button>
@@ -137,9 +141,9 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
 
       {nodes.length === 0 && !addForm && (
         <div className="bg-white rounded-xl border border-gray-200 py-20 flex flex-col items-center gap-3">
-          <GitBranch size={36} style={{ color: '#878787' }} />
-          <p className="text-sm font-medium text-[#575756]">Nenhum entregável ainda.</p>
-          <button onClick={() => setAddForm({ parentId: null, parentCode: '' })} className="text-sm text-[#147F23] font-semibold hover:underline">
+          <GitBranch size={36} style={{ color: 'hsl(var(--muted-foreground))' }} />
+          <p className="text-sm font-medium text-muted-foreground">Nenhum entregável ainda.</p>
+          <button onClick={() => setAddForm({ parentId: null, parentCode: '' })} className="text-sm text-primary font-semibold hover:underline">
             Criar primeiro entregável →
           </button>
         </div>
@@ -173,45 +177,43 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
 
       {/* Add form for children — appears as floating bar */}
       {addForm?.parentId !== null && addForm && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white border border-[#52B552] rounded-xl shadow-xl px-5 py-4 flex items-center gap-3 w-full max-w-md">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white border border-ring rounded-xl shadow-xl px-5 py-4 flex items-center gap-3 w-full max-w-md">
           <input
             autoFocus
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAddForm(null); }}
             placeholder={`Sub-entregável de ${addForm.parentCode}…`}
-            className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+            className="flex-1 text-sm px-3 py-1.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
           />
-          <button onClick={handleAdd} disabled={saving} className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+          <button onClick={handleAdd} disabled={saving} className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'hsl(var(--primary))' }}>
             {saving ? '…' : 'Adicionar'}
           </button>
-          <button onClick={() => setAddForm(null)} className="text-xs text-[#706F6F]">✕</button>
+          <button onClick={() => setAddForm(null)} className="text-xs text-muted-foreground">✕</button>
         </div>
       )}
 
-      {/* Edit panel — slide-in from right */}
+      {/* Edit panel — drawer lateral sobre o DialogContent */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex">
-          <button className="flex-1 bg-black/30" onClick={() => setEditing(null)} />
-          <div className="w-96 bg-white shadow-2xl flex flex-col">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#1D1D1B]">Detalhes do Pacote de Trabalho</h3>
-              <button onClick={() => setEditing(null)} className="text-[#706F6F] hover:text-[#1D1D1B] text-lg leading-none">✕</button>
-            </div>
+        <Dialog open onOpenChange={(v) => !v && setEditing(null)}>
+          <DialogContent className={cn(dialogDrawerRightClass, 'w-96 max-w-full sm:max-w-sm')}>
+            <DialogHeader className="border-b border-border px-5 py-4">
+              <DialogTitle className="text-sm">Detalhes do Pacote de Trabalho</DialogTitle>
+            </DialogHeader>
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-[#575756] mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
                   <User size={12} /> Dono
                 </label>
                 <input
                   value={editing.owner}
                   onChange={(e) => setEditing({ ...editing, owner: e.target.value })}
                   placeholder="Nome do responsável…"
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-[#575756] mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
                   <CheckSquare size={12} /> Critério de Pronto
                 </label>
                 <textarea
@@ -219,11 +221,11 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
                   onChange={(e) => setEditing({ ...editing, readyCriteria: e.target.value })}
                   rows={4}
                   placeholder="Como sabemos que este entregável está concluído?…"
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none resize-none"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"
                 />
               </div>
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-[#575756] mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
                   <Package size={12} /> Saídas
                 </label>
                 <textarea
@@ -231,18 +233,18 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
                   onChange={(e) => setEditing({ ...editing, outputs: e.target.value })}
                   rows={4}
                   placeholder="Documentos, artefatos ou resultados gerados…"
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none resize-none"
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"
                 />
               </div>
             </div>
-            <div className="px-5 py-4 border-t border-gray-200 flex justify-end gap-2">
-              <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm text-[#575756] hover:text-[#1D1D1B]">Cancelar</button>
-              <button onClick={saveEdit} disabled={savingEdit} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
+              <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+              <Button onClick={saveEdit} disabled={savingEdit}>
                 {savingEdit ? 'Salvando…' : 'Salvar'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -281,11 +283,11 @@ function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTre
         </button>
 
         <span className="text-xs font-bold shrink-0 w-12" style={{ color }}>{node.code}</span>
-        <span className="flex-1 text-sm text-[#1D1D1B] font-medium">{node.title}</span>
+        <span className="flex-1 text-sm text-foreground font-medium">{node.title}</span>
 
         {/* Metadata chips */}
         {node.owner && (
-          <span className="hidden group-hover:flex items-center gap-1 text-[10px] text-[#575756] bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
+          <span className="hidden group-hover:flex items-center gap-1 text-[10px] text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
             <User size={9} /> {node.owner}
           </span>
         )}
@@ -293,18 +295,18 @@ function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTre
         {isLeaf && (
           <button
             onClick={() => onEdit(node)}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-[#706F6F] hover:text-[#147F23] transition-all ml-1"
+            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-all ml-1"
             title="Editar dono, pronto e saídas"
           >
             {hasDetails
-              ? <span className="text-[#147F23]">✓ detalhes</span>
+              ? <span className="text-primary">✓ detalhes</span>
               : <span>+ detalhes</span>}
           </button>
         )}
 
         <button
           onClick={() => onAdd(node.id, node.code)}
-          className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[10px] text-[#147F23] font-semibold hover:underline transition-opacity"
+          className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[10px] text-primary font-semibold hover:underline transition-opacity"
         >
           <Plus size={11} /> sub
         </button>
@@ -330,19 +332,19 @@ function AddInlineRow({ placeholder, value, onChange, onAdd, onCancel, saving, i
   onAdd: () => void; onCancel: () => void; saving: boolean; indent: number;
 }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-[#86C175]/10" style={{ paddingLeft: `${16 + indent * 24}px` }}>
+    <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-success/10" style={{ paddingLeft: `${16 + indent * 24}px` }}>
       <input
         autoFocus
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') onAdd(); if (e.key === 'Escape') onCancel(); }}
         placeholder={placeholder}
-        className="flex-1 text-sm px-3 py-1.5 border border-[#52B552] rounded-lg focus:outline-none"
+        className="flex-1 text-sm px-3 py-1.5 border border-ring rounded-lg focus:outline-none"
       />
-      <button onClick={onAdd} disabled={saving} className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+      <button onClick={onAdd} disabled={saving} className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'hsl(var(--primary))' }}>
         {saving ? '…' : 'Adicionar'}
       </button>
-      <button onClick={onCancel} className="text-xs text-[#706F6F] hover:text-[#1D1D1B]">Cancelar</button>
+      <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
     </div>
   );
 }

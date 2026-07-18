@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, X, AlertTriangle, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -90,17 +92,17 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-[#1D1D1B]">Matriz de Riscos</h2>
-          <p className="text-sm text-[#706F6F] mt-0.5">
+          <h2 className="text-xl font-bold text-foreground">Matriz de Riscos</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {risks.length} riscos identificados
-            {critical > 0 && <span className="ml-2 text-[#D64550] font-semibold">· {critical} críticos</span>}
-            {high > 0 && <span className="ml-2 text-[#DD8005] font-semibold">· {high} altos</span>}
+            {critical > 0 && <span className="ml-2 text-destructive font-semibold">· {critical} críticos</span>}
+            {high > 0 && <span className="ml-2 text-accent font-semibold">· {high} altos</span>}
           </p>
         </div>
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: '#147F23' }}
+          style={{ backgroundColor: 'hsl(var(--primary))' }}
         >
           <Plus size={16} /> Novo Risco
         </button>
@@ -108,15 +110,15 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-[#1D1D1B] mb-4">Heatmap de Riscos</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Heatmap de Riscos</h3>
           <RiskHeatmap risks={risks} />
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-[#1D1D1B] mb-4">Riscos por Criticidade</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Riscos por Criticidade</h3>
           <div className="space-y-2">
             {risks.length === 0 && (
-              <p className="text-sm text-[#706F6F] py-8 text-center">Nenhum risco cadastrado ainda.</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">Nenhum risco cadastrado ainda.</p>
             )}
             {[...risks].sort((a, b) => b.score - a.score).map((risk) => {
               const { bg, text } = scoreColor(risk.score);
@@ -126,8 +128,8 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
                     {risk.score}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#1D1D1B] truncate">{risk.title}</p>
-                    <p className="text-xs text-[#706F6F]">{LEVEL_LABELS[risk.probability]} × {LEVEL_LABELS[risk.impact]}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{risk.title}</p>
+                    <p className="text-xs text-muted-foreground">{LEVEL_LABELS[risk.probability]} × {LEVEL_LABELS[risk.impact]}</p>
                   </div>
                   {confirmingDelete === risk.id ? (
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -141,7 +143,7 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
                       </button>
                       <button
                         onClick={() => setConfirmingDelete(null)}
-                        className="text-[10px] text-[#706F6F] hover:text-[#1D1D1B]"
+                        className="text-[10px] text-muted-foreground hover:text-foreground"
                       >
                         Não
                       </button>
@@ -163,25 +165,22 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-bold text-[#1D1D1B] flex items-center gap-2">
-                <AlertTriangle size={16} style={{ color: '#DD8005' }} /> Novo Risco
-              </h3>
-              <button onClick={() => setOpen(false)} className="text-[#706F6F] hover:text-[#1D1D1B]">
-                <X size={18} />
-              </button>
-            </div>
+        <Dialog open onOpenChange={(v) => !v && setOpen(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <AlertTriangle size={16} className="text-accent" /> Novo Risco
+              </DialogTitle>
+            </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#575756] mb-1">Título *</label>
-                <input {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none" />
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
+                <input {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#575756] mb-1">Responsável</label>
-                <select {...register('ownerId')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Responsável</label>
+                <select {...register('ownerId')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                   <option value="">— Sem responsável —</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
@@ -190,31 +189,31 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#575756] mb-1">Probabilidade</label>
-                  <select {...register('probability')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white">
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Probabilidade</label>
+                  <select {...register('probability')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     {PROB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#575756] mb-1">Impacto</label>
-                  <select {...register('impact')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none bg-white">
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Impacto</label>
+                  <select {...register('impact')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     {PROB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#575756] mb-1">Resposta / Plano de ação</label>
-                <textarea {...register('response')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-[#52B552] focus:outline-none resize-none" placeholder="Como mitigar ou aceitar este risco…" />
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Resposta / Plano de ação</label>
+                <textarea {...register('response')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none" placeholder="Como mitigar ou aceitar este risco…" />
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 text-sm text-[#575756] hover:text-[#1D1D1B]">Cancelar</button>
-                <button type="submit" disabled={loading} className="px-5 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50" style={{ backgroundColor: '#147F23' }}>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={loading}>
                   {loading ? 'Salvando…' : 'Salvar'}
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

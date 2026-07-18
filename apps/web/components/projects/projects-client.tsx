@@ -4,11 +4,15 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LayoutGrid, Table as TableIcon, FileDown, FileSpreadsheet, X, Download,
+  LayoutGrid, Table as TableIcon, FileDown, FileSpreadsheet, Download,
 } from 'lucide-react';
 import type { ProjectDto, ProjectStatus, SystemRole } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { cn } from '@/lib/utils';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   buildProjectsCsv, buildProjectsReportHtml, downloadCsv, printHtml,
   PROJECT_COLUMNS, PROJECT_STATUS_LABELS, DEFAULT_COLUMN_KEYS,
@@ -65,7 +69,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
             onClick={() => setView('grid')}
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-              view === 'grid' ? 'bg-[#147F23] text-white' : 'text-[#575756] hover:bg-gray-50',
+              view === 'grid' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-gray-50',
             )}
           >
             <LayoutGrid size={14} /> Cards
@@ -74,7 +78,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
             onClick={() => setView('table')}
             className={cn(
               'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-              view === 'table' ? 'bg-[#147F23] text-white' : 'text-[#575756] hover:bg-gray-50',
+              view === 'table' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-gray-50',
             )}
           >
             <TableIcon size={14} /> Tabela
@@ -85,7 +89,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           {projects.length > 0 && (
             <button
               onClick={() => setExportOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-[#575756] hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-gray-50 transition-colors"
             >
               <Download size={14} /> Exportar relatório
             </button>
@@ -93,7 +97,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           {canCreate(session.role) && (
             <button
               onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
+              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-primary hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
             >
               + Novo Projeto
             </button>
@@ -104,14 +108,14 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       {/* Filtro por status */}
       {projects.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-[#878787]">Status:</span>
+          <span className="text-xs font-semibold text-muted-foreground">Status:</span>
           <button
             onClick={() => setStatusFilter([])}
             className={cn(
               'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
               statusFilter.length === 0
-                ? 'border-[#147F23] bg-[#147F23] text-white'
-                : 'border-gray-200 text-[#575756] hover:bg-gray-50',
+                ? 'border-primary bg-primary text-white'
+                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
             )}
           >
             Todos
@@ -123,15 +127,15 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 statusFilter.includes(status)
-                  ? 'border-[#147F23] bg-[#147F23] text-white'
-                  : 'border-gray-200 text-[#575756] hover:bg-gray-50',
+                  ? 'border-primary bg-primary text-white'
+                  : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
               )}
             >
               {PROJECT_STATUS_LABELS[status]}
             </button>
           ))}
           {statusFilter.length > 0 && (
-            <span className="text-xs text-[#878787]">
+            <span className="text-xs text-muted-foreground">
               {filtered.length} de {projects.length}
             </span>
           )}
@@ -143,19 +147,19 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
             <span className="text-3xl">📁</span>
           </div>
-          <h3 className="text-lg font-semibold text-[#575756]">Nenhum projeto encontrado</h3>
-          <p className="text-sm text-[#706F6F] mt-1 mb-4">Crie o primeiro projeto para começar</p>
+          <h3 className="text-lg font-semibold text-muted-foreground">Nenhum projeto encontrado</h3>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">Crie o primeiro projeto para começar</p>
           {canCreate(session.role) && (
             <button
               onClick={() => setOpen(true)}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-[#147F23] hover:bg-[#156D1D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#52B552]"
+              className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-primary hover:bg-primary-dark transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
             >
               + Novo Projeto
             </button>
           )}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-[#878787]">
+        <div className="rounded-xl border border-dashed border-gray-300 py-16 text-center text-sm text-muted-foreground">
           Nenhum projeto com o status selecionado.
         </div>
       ) : view === 'table' ? (
@@ -206,39 +210,32 @@ function ExportModal({ projects, filteredByStatus, onClose }: ExportModalProps) 
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <Download size={16} className="text-[#147F23]" />
-            <h3 className="text-sm font-bold text-[#1D1D1B]">Exportar relatório de projetos</h3>
-          </div>
-          <button onClick={onClose} className="text-[#878787] hover:text-[#1D1D1B]">
-            <X size={16} />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md gap-0 p-0">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center gap-2 text-sm">
+            <Download size={16} className="text-primary" /> Exportar relatório de projetos
+          </DialogTitle>
+        </DialogHeader>
 
         <div className="px-5 py-4">
-          <p className="mb-3 text-xs text-[#706F6F]">
+          <p className="mb-3 text-xs text-muted-foreground">
             {projects.length} {projects.length === 1 ? 'projeto será exportado' : 'projetos serão exportados'}
             {filteredByStatus ? ' (filtro de status aplicado).' : '.'}
           </p>
 
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-semibold text-[#575756]">Colunas a incluir</p>
+            <p className="text-xs font-semibold text-muted-foreground">Colunas a incluir</p>
             <div className="flex gap-3 text-[11px]">
               <button
                 onClick={() => setKeys(PROJECT_COLUMNS.map((c) => c.key))}
-                className="font-medium text-[#147F23] hover:underline"
+                className="font-medium text-primary hover:underline"
               >
                 Todas
               </button>
               <button
                 onClick={() => setKeys(DEFAULT_COLUMN_KEYS)}
-                className="font-medium text-[#878787] hover:underline"
+                className="font-medium text-muted-foreground hover:underline"
               >
                 Padrão
               </button>
@@ -255,38 +252,24 @@ function ExportModal({ projects, filteredByStatus, onClose }: ExportModalProps) 
                   type="checkbox"
                   checked={keys.includes(col.key)}
                   onChange={() => toggle(col.key)}
-                  className="h-4 w-4 rounded border-gray-300 accent-[#147F23]"
+                  className="h-4 w-4 rounded border-gray-300 accent-[hsl(var(--primary))]"
                 />
-                <span className="text-xs font-medium text-[#1D1D1B]">{col.label}</span>
+                <span className="text-xs font-medium text-foreground">{col.label}</span>
               </label>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#575756] hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleCsv}
-            disabled={keys.length === 0}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[#575756] hover:bg-gray-50 disabled:opacity-40"
-          >
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" size="sm" onClick={handleCsv} disabled={keys.length === 0}>
             <FileSpreadsheet size={13} /> CSV
-          </button>
-          <button
-            onClick={handlePdf}
-            disabled={keys.length === 0}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-40"
-            style={{ backgroundColor: '#147F23' }}
-          >
+          </Button>
+          <Button size="sm" onClick={handlePdf} disabled={keys.length === 0}>
             <FileDown size={13} /> PDF
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
