@@ -27,6 +27,10 @@ export class TaxonomiesPrismaRepository implements ITaxonomyRepository {
         return this.prisma.organizationSource as unknown as SectorDelegate;
       case 'engagementStage':
         return this.prisma.engagementStage as unknown as SectorDelegate;
+      case 'category':
+        return this.prisma.category as unknown as SectorDelegate;
+      case 'productService':
+        return this.prisma.productService as unknown as SectorDelegate;
     }
   }
 

@@ -1,6 +1,6 @@
-// Three master-data taxonomies share the same shape (name + isActive + order),
+// Master-data taxonomies share the same shape (name + isActive + order),
 // so they are handled generically, discriminated by TaxonomyKind.
-export type TaxonomyKind = 'sector' | 'source' | 'engagementStage';
+export type TaxonomyKind = 'sector' | 'source' | 'engagementStage' | 'category' | 'productService';
 
 export interface TaxonomyItem {
   id: string;

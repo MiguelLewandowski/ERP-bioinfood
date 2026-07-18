@@ -19,6 +19,8 @@ const KIND_BY_PATH: Record<string, TaxonomyKind> = {
   sectors: 'sector',
   sources: 'source',
   'engagement-stages': 'engagementStage',
+  categories: 'category',
+  'product-services': 'productService',
 };
 
 function resolveKind(pathKind: string): TaxonomyKind {

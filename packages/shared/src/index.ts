@@ -184,7 +184,7 @@ export interface PipelineSummaryDto {
 
 // ── Taxonomies (setores, origens, escada de engajamento) ────────────────────
 
-export type TaxonomyKind = 'sectors' | 'sources' | 'engagement-stages';
+export type TaxonomyKind = 'sectors' | 'sources' | 'engagement-stages' | 'categories' | 'product-services';
 
 export interface TaxonomyDto {
   id: string;
