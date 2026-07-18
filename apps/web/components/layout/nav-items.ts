@@ -1,0 +1,27 @@
+import {
+  LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, Building2, Target,
+  type LucideIcon,
+} from 'lucide-react';
+
+// Fonte única dos itens de navegação — consumida pela sidebar, pelo drawer
+// mobile e pelo command palette. Novo módulo entra AQUI, uma vez.
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  roles?: string[];
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/projects', label: 'Projetos', icon: FolderKanban },
+  { href: '/activities', label: 'Atividades', icon: CalendarDays },
+  { href: '/clientes', label: 'Parceiros de Negócio', icon: Building2, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
+  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
+  { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
+  { href: '/settings', label: 'Configurações', icon: Settings },
+];
+
+export function navItemsForRole(role: string): NavItem[] {
+  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+}

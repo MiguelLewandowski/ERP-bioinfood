@@ -4,25 +4,13 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, LogOut,
-  PanelLeftClose, PanelLeftOpen, Building2, Target,
-} from 'lucide-react';
+import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { navItemsForRole } from './nav-items';
 
 interface SidebarProps {
   session: { sub: string; email: string; role: string };
 }
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/projects', label: 'Projetos', icon: FolderKanban },
-  { href: '/activities', label: 'Atividades', icon: CalendarDays },
-  { href: '/clientes', label: 'Clientes', icon: Building2, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
-  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
-  { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
-  { href: '/settings', label: 'Configurações', icon: Settings },
-];
 
 const STORAGE_KEY = 'sidebar-collapsed';
 
@@ -55,10 +43,9 @@ export default function Sidebar({ session }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex flex-col h-full shrink-0 transition-[width] duration-200',
+        'hidden lg:flex flex-col h-full shrink-0 bg-sidebar transition-[width] duration-200',
         collapsed ? 'w-16' : 'w-60',
       )}
-      style={{ backgroundColor: '#1D1D1B' }}
     >
       <div
         className={cn(
@@ -109,24 +96,28 @@ export default function Sidebar({ session }: SidebarProps) {
       )}
 
       <nav className={cn('flex-1 py-4 flex flex-col gap-1', collapsed ? 'px-2' : 'px-3')}>
-        {navItems
-          .filter((item) => !item.roles || item.roles.includes(session.role))
+        {navItemsForRole(session.role)
           .map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                title={collapsed ? label : undefined}
                 className={cn(
-                  'flex items-center rounded-lg text-sm font-medium transition-colors',
+                  'group/nav relative flex items-center rounded-lg text-sm font-medium transition-colors',
                   collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
-                  active ? 'text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5',
+                  active ? 'bg-primary text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5',
                 )}
-                style={active ? { backgroundColor: '#147F23' } : {}}
               >
                 <Icon size={18} />
                 {!collapsed && label}
+                {collapsed && (
+                  <span
+                    className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-md border border-white/10 bg-sidebar px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-100 group-hover/nav:opacity-100"
+                  >
+                    {label}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -139,11 +130,19 @@ export default function Sidebar({ session }: SidebarProps) {
         )}
       >
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-          style={{ backgroundColor: '#147F23' }}
-          title={collapsed ? `${session.email} (${session.role})` : undefined}
+          className={cn(
+            'group/avatar relative w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white shrink-0',
+            collapsed && 'cursor-default',
+          )}
         >
           {initials}
+          {collapsed && (
+            <span
+              className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-md border border-white/10 bg-sidebar px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity duration-100 group-hover/avatar:opacity-100"
+            >
+              {session.email} ({session.role})
+            </span>
+          )}
         </div>
         {!collapsed && (
           <div className="flex-1 min-w-0">

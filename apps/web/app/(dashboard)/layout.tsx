@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/sidebar';
+import { Topbar } from '@/components/layout/topbar';
+import { BreadcrumbProvider } from '@/components/layout/breadcrumb-context';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ConfirmProvider } from '@/components/providers/confirm-provider';
 
@@ -15,12 +17,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AuthProvider session={session} token={token}>
       <ConfirmProvider>
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar session={session} />
-          <main className="flex-1 overflow-y-auto bg-gray-50">
-            {children}
-          </main>
-        </div>
+        <BreadcrumbProvider>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar session={session} />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Topbar />
+              <main className="flex-1 overflow-y-auto bg-muted/40">
+                {children}
+              </main>
+            </div>
+          </div>
+        </BreadcrumbProvider>
       </ConfirmProvider>
     </AuthProvider>
   );
