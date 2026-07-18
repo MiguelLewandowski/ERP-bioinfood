@@ -13,13 +13,19 @@ interface TaxonomiasClientProps {
   sectors: TaxonomyDto[];
   sources: TaxonomyDto[];
   engagementStages: TaxonomyDto[];
+  categories: TaxonomyDto[];
+  productServices: TaxonomyDto[];
 }
 
-export function TaxonomiasClient({ sectors, sources, engagementStages }: TaxonomiasClientProps) {
+export function TaxonomiasClient({
+  sectors, sources, engagementStages, categories, productServices,
+}: TaxonomiasClientProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <TaxonomyList kind="sectors" title="Setores" items={sectors} />
       <TaxonomyList kind="sources" title="Origens" items={sources} />
+      <TaxonomyList kind="categories" title="Categorias" items={categories} />
+      <TaxonomyList kind="product-services" title="Produtos e serviços" items={productServices} />
       <TaxonomyList kind="engagement-stages" title="Escada de engajamento" items={engagementStages} />
     </div>
   );

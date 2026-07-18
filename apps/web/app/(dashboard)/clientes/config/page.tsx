@@ -13,10 +13,12 @@ export default async function TaxonomiasConfigPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const [sectors, sources, engagementStages] = await Promise.all([
+  const [sectors, sources, engagementStages, categories, productServices] = await Promise.all([
     taxonomiesApi.list('sectors', token, true),
     taxonomiesApi.list('sources', token, true),
     taxonomiesApi.list('engagement-stages', token, true),
+    taxonomiesApi.list('categories', token, true),
+    taxonomiesApi.list('product-services', token, true),
   ]);
 
   return (
@@ -29,6 +31,8 @@ export default async function TaxonomiasConfigPage() {
         sectors={sectors}
         sources={sources}
         engagementStages={engagementStages}
+        categories={categories}
+        productServices={productServices}
       />
     </div>
   );
