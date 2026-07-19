@@ -55,6 +55,10 @@ export class TaxonomiesPrismaRepository implements ITaxonomyRepository {
     return this.delegate(kind).update({ where: { id }, data, select: SELECT });
   }
 
+  async remove(kind: TaxonomyKind, id: string): Promise<void> {
+    await this.delegate(kind).delete({ where: { id } });
+  }
+
   async reorder(kind: TaxonomyKind, items: ReorderItem[]): Promise<void> {
     const delegate = this.delegate(kind);
     await this.prisma.$transaction(

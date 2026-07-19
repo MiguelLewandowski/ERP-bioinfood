@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, ChevronUp, ChevronDown, Check, X, Pencil } from 'lucide-react';
+import { Plus, ChevronUp, ChevronDown, Check, X, Pencil, Trash2 } from 'lucide-react';
 import type { TaxonomyDto, TaxonomyKind } from '@bioinfood/shared';
 import { taxonomiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useConfirm } from '@/components/providers/confirm-provider';
 
 interface TaxonomiasClientProps {
   sectors: TaxonomyDto[];
@@ -34,6 +35,7 @@ export function TaxonomiasClient({
 function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: string; items: TaxonomyDto[] }) {
   const { token } = useAuth();
   const router = useRouter();
+  const confirm = useConfirm();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -69,6 +71,17 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
 
   function toggleActive(item: TaxonomyDto) {
     run(() => taxonomiesApi.update(kind, item.id, { isActive: !item.isActive }, token));
+  }
+
+  async function remove(item: TaxonomyDto) {
+    const ok = await confirm({
+      title: `Excluir "${item.name}"?`,
+      description: 'Registros que usam esse item ficam sem esse valor. Essa ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    run(() => taxonomiesApi.remove(kind, item.id, token));
   }
 
   function move(index: number, dir: -1 | 1) {
@@ -126,6 +139,14 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
                   className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.isActive ? 'bg-success/20 text-primary-dark' : 'bg-gray-100 text-muted-foreground'}`}
                 >
                   {item.isActive ? 'Ativo' : 'Inativo'}
+                </button>
+                <button
+                  onClick={() => remove(item)}
+                  disabled={busy}
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label="Excluir"
+                >
+                  <Trash2 size={13} />
                 </button>
               </>
             )}

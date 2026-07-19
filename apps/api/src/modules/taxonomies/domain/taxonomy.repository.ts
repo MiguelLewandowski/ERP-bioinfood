@@ -13,5 +13,6 @@ export interface ITaxonomyRepository {
   findById(kind: TaxonomyKind, id: string): Promise<TaxonomyItem | null>;
   create(kind: TaxonomyKind, data: CreateTaxonomyData): Promise<TaxonomyItem>;
   update(kind: TaxonomyKind, id: string, data: UpdateTaxonomyData): Promise<TaxonomyItem>;
+  remove(kind: TaxonomyKind, id: string): Promise<void>;
   reorder(kind: TaxonomyKind, items: ReorderItem[]): Promise<void>;
 }

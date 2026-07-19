@@ -6,6 +6,7 @@ import { TaxonomiesController } from './taxonomies.controller';
 import { ListTaxonomyUseCase } from '../application/list-taxonomy.use-case';
 import { CreateTaxonomyUseCase } from '../application/create-taxonomy.use-case';
 import { UpdateTaxonomyUseCase } from '../application/update-taxonomy.use-case';
+import { DeleteTaxonomyUseCase } from '../application/delete-taxonomy.use-case';
 import { ReorderTaxonomyUseCase } from '../application/reorder-taxonomy.use-case';
 
 @Module({
@@ -16,6 +17,7 @@ import { ReorderTaxonomyUseCase } from '../application/reorder-taxonomy.use-case
     ListTaxonomyUseCase,
     CreateTaxonomyUseCase,
     UpdateTaxonomyUseCase,
+    DeleteTaxonomyUseCase,
     ReorderTaxonomyUseCase,
   ],
 })

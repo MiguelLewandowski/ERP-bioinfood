@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Param, Body, Query, UseGuards, NotFoundException,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, NotFoundException,
 } from '@nestjs/common';
 import { SystemRole } from '@prisma/client';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -7,6 +7,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { ListTaxonomyUseCase } from '../application/list-taxonomy.use-case';
 import { CreateTaxonomyUseCase } from '../application/create-taxonomy.use-case';
 import { UpdateTaxonomyUseCase } from '../application/update-taxonomy.use-case';
+import { DeleteTaxonomyUseCase } from '../application/delete-taxonomy.use-case';
 import { ReorderTaxonomyUseCase } from '../application/reorder-taxonomy.use-case';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
@@ -39,6 +40,7 @@ export class TaxonomiesController {
     private listTaxonomy: ListTaxonomyUseCase,
     private createTaxonomy: CreateTaxonomyUseCase,
     private updateTaxonomy: UpdateTaxonomyUseCase,
+    private deleteTaxonomy: DeleteTaxonomyUseCase,
     private reorderTaxonomy: ReorderTaxonomyUseCase,
   ) {}
 
@@ -72,5 +74,12 @@ export class TaxonomiesController {
   ) {
     const item = await this.updateTaxonomy.execute(resolveKind(pathKind), id, dto);
     return toTaxonomyDto(item);
+  }
+
+  @Delete(':kind/:id')
+  @Roles(SystemRole.ADMIN)
+  async remove(@Param('kind') pathKind: string, @Param('id') id: string) {
+    await this.deleteTaxonomy.execute(resolveKind(pathKind), id);
+    return { ok: true };
   }
 }
