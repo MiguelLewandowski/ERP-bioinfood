@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/infra/auth.module';
 import { UsersModule } from './modules/users/infra/users.module';
@@ -24,11 +25,29 @@ import { SearchModule } from './modules/search/search.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ProjectAccessGuard } from './common/guards/project-access.guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuditModule } from './common/audit/audit.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Falha fechada: sem estas envs válidas, a aplicação recusa o startup em
+      // vez de subir degradada (ex.: aceitando tokens forjados com um segredo
+      // padrão). Ver docs/analise-seguranca.md S1/S2.
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        DATABASE_URL: Joi.string().uri({ scheme: ['postgres', 'postgresql'] }).required(),
+        JWT_SECRET: Joi.string().min(16).required(),
+        JWT_REFRESH_SECRET: Joi.string().min(16).required(),
+        PORT: Joi.number().default(3001),
+        CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
+      }),
+      validationOptions: { abortEarly: false },
+    }),
+    // Rate limiting global — barra flood/scraping por IP. Rotas de auth têm
+    // limite mais agressivo via @Throttle (ver auth.controller.ts).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     AuditModule,
     AuthModule,
@@ -51,9 +70,12 @@ import { AuditModule } from './common/audit/audit.module';
     SearchModule,
   ],
   providers: [
+    // ThrottlerGuard primeiro: rejeita excesso antes de gastar trabalho de auth/DB.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ProjectAccessGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule {}

@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { ITokenService, TokenPairWithMeta } from '../domain/token.service';
 import { JwtPayload } from '../domain/auth.types';
@@ -8,7 +9,10 @@ const REFRESH_EXPIRY_DAYS = 7;
 
 @Injectable()
 export class JwtTokenService implements ITokenService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private config: ConfigService,
+  ) {}
 
   generatePair(payload: JwtPayload): TokenPairWithMeta {
     const jti = randomUUID();
@@ -31,7 +35,7 @@ export class JwtTokenService implements ITokenService {
   verifyRefresh(token: string): JwtPayload {
     try {
       return this.jwtService.verify<JwtPayload>(token, {
-        secret: process.env.JWT_REFRESH_SECRET,
+        secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
       throw new UnauthorizedException('Token inválido');

@@ -70,13 +70,13 @@ export class TasksController {
 
   @Patch('reorder')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  reorder(@Body() dto: ReorderTasksDto) {
-    return this.reorderTasks.execute(dto.items);
+  reorder(@Param('projectId') projectId: string, @Body() dto: ReorderTasksDto) {
+    return this.reorderTasks.execute(projectId, dto.items);
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.getTask.execute(id);
+  get(@Param('projectId') projectId: string, @Param('id') id: string) {
+    return this.getTask.execute(projectId, id);
   }
 
   @Patch(':id')
@@ -114,27 +114,35 @@ export class TasksController {
 
   @Delete(':id/dependencies/:depId')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  removeDep(@Param('depId') depId: string) {
-    return this.removeDependency.execute(depId);
+  removeDep(@Param('projectId') projectId: string, @Param('depId') depId: string) {
+    return this.removeDependency.execute(projectId, depId);
   }
 
   // ── Checklist ────────────────────────────────────────────────────────────────
 
   @Post(':id/checklist')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  addChecklist(@Param('id') taskId: string, @Body() dto: CreateChecklistItemDto) {
-    return this.addChecklistItem.execute(taskId, dto.text);
+  addChecklist(
+    @Param('projectId') projectId: string,
+    @Param('id') taskId: string,
+    @Body() dto: CreateChecklistItemDto,
+  ) {
+    return this.addChecklistItem.execute(projectId, taskId, dto.text);
   }
 
   @Patch(':id/checklist/:itemId')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  updateChecklist(@Param('itemId') itemId: string, @Body() dto: UpdateChecklistItemDto) {
-    return this.updateChecklistItem.execute(itemId, dto);
+  updateChecklist(
+    @Param('projectId') projectId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateChecklistItemDto,
+  ) {
+    return this.updateChecklistItem.execute(projectId, itemId, dto);
   }
 
   @Delete(':id/checklist/:itemId')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  deleteChecklist(@Param('itemId') itemId: string) {
-    return this.deleteChecklistItem.execute(itemId);
+  deleteChecklist(@Param('projectId') projectId: string, @Param('itemId') itemId: string) {
+    return this.deleteChecklistItem.execute(projectId, itemId);
   }
 }

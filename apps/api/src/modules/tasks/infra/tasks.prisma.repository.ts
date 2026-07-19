@@ -61,10 +61,12 @@ export class TasksPrismaRepository implements ITaskRepository {
     });
   }
 
-  async reorder(items: Array<{ id: string; order: number }>): Promise<void> {
+  async reorder(projectId: string, items: Array<{ id: string; order: number }>): Promise<void> {
+    // updateMany com projectId no where: uma task de outro projeto simplesmente
+    // não casa e é ignorada — nunca reordena item fora do projeto da URL.
     await this.prisma.$transaction(
       items.map(({ id, order }) =>
-        this.prisma.task.update({ where: { id }, data: { order } }),
+        this.prisma.task.updateMany({ where: { id, projectId }, data: { order } }),
       ),
     );
   }
@@ -107,26 +109,44 @@ export class TasksPrismaRepository implements ITaskRepository {
     }
   }
 
-  async removeDependency(id: string): Promise<void> {
-    // Idempotente: se já não existe (ex.: link efêmero da UI que nunca chegou
-    // a persistir), o objetivo do chamador — o vínculo não existir — já foi
-    // alcançado, então não é um erro.
-    await this.prisma.taskDependency.deleteMany({ where: { id } });
+  async removeDependency(projectId: string, id: string): Promise<void> {
+    // Idempotente E escopado: só apaga se a dependência pertencer a uma task
+    // predecessora do projeto da URL. Link de outro projeto (ou já inexistente)
+    // não casa e vira no-op — sem erro, sem IDOR.
+    await this.prisma.taskDependency.deleteMany({
+      where: { id, predecessor: { projectId } },
+    });
   }
 
   addChecklistItem(taskId: string, text: string, order: number): Promise<TaskChecklistItemEntity> {
     return this.prisma.taskChecklistItem.create({ data: { taskId, text, order } });
   }
 
-  updateChecklistItem(itemId: string, data: { text?: string; checked?: boolean }): Promise<TaskChecklistItemEntity> {
-    return this.prisma.taskChecklistItem.update({ where: { id: itemId }, data });
+  async updateChecklistItem(
+    projectId: string,
+    itemId: string,
+    data: { text?: string; checked?: boolean },
+  ): Promise<TaskChecklistItemEntity> {
+    // updateMany escopado pelo projeto da task dona; se não casar, count=0 e a
+    // busca subsequente devolve null → o use-case lança NotFound.
+    await this.prisma.taskChecklistItem.updateMany({
+      where: { id: itemId, task: { projectId } },
+      data,
+    });
+    return this.prisma.taskChecklistItem.findFirstOrThrow({
+      where: { id: itemId, task: { projectId } },
+    });
   }
 
-  async deleteChecklistItem(itemId: string): Promise<void> {
-    await this.prisma.taskChecklistItem.delete({ where: { id: itemId } });
+  async deleteChecklistItem(projectId: string, itemId: string): Promise<void> {
+    await this.prisma.taskChecklistItem.deleteMany({
+      where: { id: itemId, task: { projectId } },
+    });
   }
 
-  findChecklistItem(itemId: string): Promise<TaskChecklistItemEntity | null> {
-    return this.prisma.taskChecklistItem.findUnique({ where: { id: itemId } });
+  findChecklistItem(projectId: string, itemId: string): Promise<TaskChecklistItemEntity | null> {
+    return this.prisma.taskChecklistItem.findFirst({
+      where: { id: itemId, task: { projectId } },
+    });
   }
 }

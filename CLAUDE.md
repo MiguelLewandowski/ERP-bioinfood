@@ -7,7 +7,7 @@ Substitui Notion, Excel e assinaturas desconexas.
 ## Stack
 - Monorepo: Turborepo + pnpm workspaces
 - Backend:  NestJS + Prisma + PostgreSQL
-- Frontend: Next.js 14 (App Router) + Tailwind CSS + shadcn/ui
+- Frontend: Next.js 16 (App Router, Turbopack, React 19) + Tailwind CSS + shadcn/ui
 - Auth:     JWT — access token 15min + refresh token 7d — email/senha
 - Deploy:   Railway
 - PM:       pnpm
@@ -79,6 +79,9 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | `/testes <alvo>` | Escrever testes (Vitest / Testing Library / Playwright) |
 | `/erros-amigaveis <alvo>` | Validação Zod + tratamento de erro amigável em formulários |
 | `/seguranca <alvo>` | Revisão de segurança e RBAC |
+| `/seguranca-infra <alvo>` | Resiliência a abuso/DDoS: rate limits, payload, custo de query, headers |
+| `/seguranca-secrets <alvo>` | Segredos e .env: validação de startup, vazamento no git/bundle, cookies |
+| `/seguranca-total` | Auditoria completa: secrets + RBAC + infra + supply chain, consolidada em docs/analise-seguranca.md |
 | `/deploy <o que>` | Checklist pré-deploy para Railway |
 | `/commit <contexto>` | Criar commits semânticos, pequenos e separados por intenção |
 
@@ -93,6 +96,11 @@ Antes de criar qualquer componente de UI, ler `docs/design/design-tokens.md`.
 - Nunca apagar migrations — sempre adicionar novas
 - Server Components por padrão no Next.js
 - Sem console.log ou TODO no código commitado
+
+## Segurança — decisões conscientes
+- **Falha fechada de config**: `ConfigModule` valida `JWT_SECRET`, `JWT_REFRESH_SECRET`, `DATABASE_URL` (Joi) no startup. App sem env crítica **não sobe** — nunca adicionar fallback literal de segredo (`?? 'secret'`).
+- **Token no client (tradeoff aceito)**: o access token é injetado no `AuthProvider` para o client chamar a API direto com `Bearer`; isso o torna legível pelo JS da página (o `httpOnly` do cookie não protege desse caminho). Aceito por ser app interno — não colocar dado sensível de cliente externo confiando só nisso. Detalhe em `docs/analise-seguranca.md` (S3).
+- **Rate limit**: `@nestjs/throttler` global (120/min/IP); auth (`login`/`refresh`/`change-password`) com limite agressivo (5-10/min). Requer `trust proxy` no `main.ts` para ver o IP real atrás do Railway.
 
 ## Variáveis de ambiente
 apps/api/.env

@@ -11,5 +11,13 @@
   "devDependencies": {
     "turbo": "^2.0.0"
   },
+  "pnpm": {
+    "overrides": {
+      "multer@<2.2.0": ">=2.2.0",
+      "tar@<7.5.11": ">=7.5.11",
+      "file-type@<21.3.2": ">=21.3.2",
+      "postcss@<8.5.10": ">=8.5.10"
+    }
+  },
   "packageManager": "pnpm@9.0.0"
 }

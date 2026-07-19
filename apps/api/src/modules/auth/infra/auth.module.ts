@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../../../prisma/prisma.module';
 import { AUTH_REPOSITORY } from '../domain/auth.repository';
@@ -17,9 +18,15 @@ import { ChangePasswordUseCase } from '../application/change-password.use-case';
   imports: [
     PrismaModule,
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'secret',
-      signOptions: { expiresIn: '15m' },
+    // registerAsync: lê o segredo via ConfigService, garantidamente APÓS o
+    // validationSchema do ConfigModule (falha fechada). Sem fallback literal.
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '15m' },
+      }),
     }),
   ],
   controllers: [AuthController],

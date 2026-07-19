@@ -82,7 +82,9 @@ export class CrmActivitiesPrismaRepository implements ICrmActivityRepository {
       },
       select: SELECT,
       orderBy: { dueDate: 'asc' },
-      take: filter.take ?? 200,
+      // Teto de 500: o cliente escolhe o take, mas nunca dita o custo da query
+      // (sem isto, ?take=999999 varre a tabela). Ver analise-seguranca.md I2.
+      take: Math.min(filter.take ?? 200, 500),
     });
     return rows.map((r) => toItem(r as Row));
   }

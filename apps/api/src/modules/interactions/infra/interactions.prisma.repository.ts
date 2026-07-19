@@ -56,7 +56,8 @@ export class InteractionsPrismaRepository implements IInteractionRepository {
       },
       select: SELECT,
       orderBy: { interactionAt: 'desc' },
-      take: filter.take ?? 50,
+      // Teto de 200: cliente escolhe o take, mas não dita o custo. Ver I2.
+      take: Math.min(filter.take ?? 50, 200),
       skip: filter.skip ?? 0,
     });
     return rows.map((r) => toItem(r as Row));

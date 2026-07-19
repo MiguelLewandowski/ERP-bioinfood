@@ -5,9 +5,9 @@ import { ITaskRepository, TASK_REPOSITORY } from '../../domain/tasks.repository.
 export class DeleteChecklistItemUseCase {
   constructor(@Inject(TASK_REPOSITORY) private repo: ITaskRepository) {}
 
-  async execute(itemId: string) {
-    const item = await this.repo.findChecklistItem(itemId);
+  async execute(projectId: string, itemId: string) {
+    const item = await this.repo.findChecklistItem(projectId, itemId);
     if (!item) throw new NotFoundException('Checklist item not found');
-    await this.repo.deleteChecklistItem(itemId);
+    await this.repo.deleteChecklistItem(projectId, itemId);
   }
 }

@@ -5,7 +5,7 @@ import { ITaskRepository, TASK_REPOSITORY } from '../../domain/tasks.repository.
 export class ReorderTasksUseCase {
   constructor(@Inject(TASK_REPOSITORY) private repo: ITaskRepository) {}
 
-  execute(items: Array<{ id: string; order: number }>) {
-    return this.repo.reorder(items);
+  execute(projectId: string, items: Array<{ id: string; order: number }>) {
+    return this.repo.reorder(projectId, items);
   }
 }
