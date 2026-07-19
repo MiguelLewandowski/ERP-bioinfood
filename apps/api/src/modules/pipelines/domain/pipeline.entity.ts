@@ -13,6 +13,7 @@ export interface PipelineStageItem {
 export interface Pipeline {
   id: string;
   name: string;
+  abbreviation: string;
   isDefault: boolean;
   isActive: boolean;
   order: number;
@@ -38,12 +39,14 @@ export interface UpdateStageData {
 
 export interface CreatePipelineData {
   name: string;
+  abbreviation: string;
   isDefault?: boolean;
   stages?: CreateStageData[];
 }
 
 export interface UpdatePipelineData {
   name?: string;
+  abbreviation?: string;
   isDefault?: boolean;
   isActive?: boolean;
 }

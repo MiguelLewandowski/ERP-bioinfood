@@ -586,14 +586,15 @@ model EngagementStage {
 // ── Funil configurável (§2.5): um Pipeline por linha de negócio ────────────
 
 model Pipeline {
-  id        String    @id @default(cuid())
-  name      String
-  isDefault Boolean   @default(false)
-  isActive  Boolean   @default(true)
-  order     Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id           String    @id @default(cuid())
+  name         String
+  abbreviation String    @default("") // 3 letras maiúsculas p/ o rail de troca de funil no kanban
+  isDefault    Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  order        Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   stages        PipelineStage[]
   opportunities Opportunity[]

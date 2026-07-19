@@ -18,7 +18,7 @@ const STAGE_SELECT = {
 } as const;
 
 const PIPELINE_SELECT = {
-  id: true, name: true, isDefault: true, isActive: true, order: true,
+  id: true, name: true, abbreviation: true, isDefault: true, isActive: true, order: true,
   stages: { select: STAGE_SELECT, orderBy: { order: 'asc' } },
 } as const;
 
@@ -43,6 +43,7 @@ export class PipelinesPrismaRepository implements IPipelineRepository {
     return this.prisma.pipeline.create({
       data: {
         name: data.name,
+        abbreviation: data.abbreviation,
         isDefault: data.isDefault ?? false,
         stages: data.stages
           ? { create: data.stages.map((s, i) => ({ ...s, order: s.order ?? i })) }

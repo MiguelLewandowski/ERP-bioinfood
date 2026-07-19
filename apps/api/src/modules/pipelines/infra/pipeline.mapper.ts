@@ -13,6 +13,7 @@ export interface StageDto {
 export interface PipelineDto {
   id: string;
   name: string;
+  abbreviation: string;
   isDefault: boolean;
   isActive: boolean;
   order: number;
@@ -30,6 +31,7 @@ export function toPipelineDto(p: Pipeline): PipelineDto {
   return {
     id: p.id,
     name: p.name,
+    abbreviation: p.abbreviation,
     isDefault: p.isDefault,
     isActive: p.isActive,
     order: p.order,

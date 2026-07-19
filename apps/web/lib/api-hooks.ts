@@ -265,6 +265,9 @@ export const taxonomiesApi = {
   update: (kind: TaxonomyKind, id: string, data: Record<string, unknown>, token: string) =>
     api.patch<TaxonomyDto>(`/taxonomies/${kind}/${id}`, data, token),
 
+  remove: (kind: TaxonomyKind, id: string, token: string) =>
+    api.delete<void>(`/taxonomies/${kind}/${id}`, token),
+
   reorder: (kind: TaxonomyKind, items: Array<{ id: string; order: number }>, token: string) =>
     api.patch<void>(`/taxonomies/${kind}/reorder`, { items }, token),
 };

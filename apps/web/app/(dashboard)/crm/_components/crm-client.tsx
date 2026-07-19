@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import {
-  Plus, Settings, Snowflake, Sun, Search, User, X,
+  Plus, Settings, Snowflake, Sun, Search, Star, User, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type {
@@ -19,7 +19,6 @@ import { crmActivitiesApi, opportunitiesApi, pipelinesApi } from '@/lib/api-hook
 import { getErrorMessage } from '@/lib/errors';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -215,23 +214,16 @@ export function CrmClient(props: CrmClientProps) {
   }
 
   return (
-    <>
+    <div className="flex items-start gap-4">
+      {props.pipelines.length > 1 && (
+        <PipelineRail pipelines={props.pipelines} activeId={pipeline.id} onSwitch={switchPipeline} />
+      )}
+      <div className="min-w-0 flex-1">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          {props.pipelines.length > 1 ? (
-            <Select
-              value={pipeline.id}
-              onChange={(e) => switchPipeline(e.target.value)}
-              className="w-auto"
-              aria-label="Funil"
-            >
-              {props.pipelines.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}{p.isDefault ? ' (padrão)' : ''}</option>
-              ))}
-            </Select>
-          ) : (
-            <span className="text-sm font-semibold text-foreground">{pipeline.name}</span>
-          )}
+          <span className="text-sm font-semibold text-foreground">
+            {pipeline.name}{pipeline.isDefault ? ' (padrão)' : ''}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -405,7 +397,41 @@ export function CrmClient(props: CrmClientProps) {
           }}
         />
       )}
-    </>
+      </div>
+    </div>
+  );
+}
+
+function PipelineRail({
+  pipelines, activeId, onSwitch,
+}: { pipelines: PipelineDto[]; activeId: string; onSwitch: (id: string) => void }) {
+  return (
+    <div className="flex shrink-0 flex-col gap-2 pt-0.5" role="tablist" aria-label="Funis">
+      {pipelines.map((p) => {
+        const active = p.id === activeId;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            title={p.name}
+            onClick={() => !active && onSwitch(p.id)}
+            className={cn(
+              'relative flex h-11 w-11 items-center justify-center rounded-lg border text-xs font-bold uppercase transition-colors',
+              active
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-input text-muted-foreground hover:border-primary/50 hover:text-foreground',
+            )}
+          >
+            {p.abbreviation || p.name.slice(0, 3).toUpperCase()}
+            {p.isDefault && (
+              <Star size={9} className="absolute -right-1 -top-1 fill-accent text-accent" />
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

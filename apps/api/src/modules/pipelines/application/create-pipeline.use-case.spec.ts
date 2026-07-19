@@ -24,7 +24,7 @@ describe('CreatePipelineUseCase', () => {
 
   it('should reject a pipeline whose provided stages have no OPEN stage', async () => {
     await expect(
-      useCase.execute({ name: 'X', stages: [{ name: 'Ganho', type: StageType.WON }] }),
+      useCase.execute({ name: 'X', abbreviation: 'XXX', stages: [{ name: 'Ganho', type: StageType.WON }] }),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -32,7 +32,7 @@ describe('CreatePipelineUseCase', () => {
     repo = makeRepo({ countPipelines: vi.fn().mockResolvedValue(0) });
     useCase = new CreatePipelineUseCase(repo);
 
-    await useCase.execute({ name: 'First' });
+    await useCase.execute({ name: 'First', abbreviation: 'FIR' });
 
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ isDefault: true }));
   });
@@ -43,7 +43,7 @@ describe('CreatePipelineUseCase', () => {
     });
     useCase = new CreatePipelineUseCase(repo);
 
-    await useCase.execute({ name: 'New default', isDefault: true });
+    await useCase.execute({ name: 'New default', abbreviation: 'NEW', isDefault: true });
 
     expect(repo.clearDefaultExcept).toHaveBeenCalledWith('p2');
   });
