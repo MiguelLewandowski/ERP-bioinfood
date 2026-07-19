@@ -296,7 +296,7 @@ export function CrmClient(props: CrmClientProps) {
       )}
 
       <div className="overflow-x-auto pb-2">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <DndContext id="crm-kanban-dnd" sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
             {stages.map((stage) => {
               // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.

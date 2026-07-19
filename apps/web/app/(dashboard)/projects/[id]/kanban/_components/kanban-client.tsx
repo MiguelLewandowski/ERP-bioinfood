@@ -93,7 +93,7 @@ export function KanbanClient({ projectId, initialTasks, members }: KanbanClientP
         </button>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DndContext id="project-kanban-dnd" sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="grid grid-cols-3 gap-4 items-start">
           {COLUMNS.map((col) => {
             const colTasks = tasksByStatus(col.id);

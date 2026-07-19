@@ -44,7 +44,7 @@ function clearAuthAndRedirect(req: NextRequest): NextResponse {
   return res;
 }
 
-export async function middleware(req: NextRequest): Promise<NextResponse> {
+export default async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
 
   // Deixa rotas públicas e de API passarem sem verificação
@@ -102,5 +102,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Exclui assets do Next e qualquer arquivo estático de public/ (caminhos com extensão).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

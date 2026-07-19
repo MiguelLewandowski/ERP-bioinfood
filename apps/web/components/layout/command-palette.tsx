@@ -51,7 +51,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const { session, token } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResultDto[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Busca no backend com debounce; a filtragem local do cmdk fica desligada
   // para os resultados remotos não serem re-filtrados pelo texto digitado.

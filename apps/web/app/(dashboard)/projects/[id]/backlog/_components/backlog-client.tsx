@@ -149,7 +149,7 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
           </div>
         )}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <DndContext id="backlog-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={visible.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {visible.map((task) => (
               <BacklogRow key={task.id} task={task} onEdit={setEditingTask} />
