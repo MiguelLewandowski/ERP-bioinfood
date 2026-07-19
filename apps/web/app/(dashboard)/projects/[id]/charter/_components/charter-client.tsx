@@ -20,6 +20,8 @@ import { getErrorMessage } from '@/lib/errors';
 import { charterApi, contactsApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
+import { MaskedInput } from '@/components/ui/masked-input';
+import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
   PLANNING: 'Planejamento',
@@ -52,7 +54,9 @@ const schema = z.object({
   outOfScope:         z.string().max(4000).optional(),
   deliverables:       z.string().max(4000).optional(),
   infrastructure:     z.string().max(4000).optional(),
-  budget:             z.coerce.number().min(0, 'Orçamento não pode ser negativo').optional().or(z.literal('')),
+  // Mascarado em tela ("1.234,56"); convertido para número só no boundary
+  // (persist/print) via parseCurrencyBRL — ver lib/masks.ts.
+  budget:             z.string().optional(),
   teamUserIds:        z.array(z.string()).optional(),
   governance:         z.string().max(4000).optional(),
   dependencies:       z.string().max(4000).optional(),
@@ -204,7 +208,10 @@ function buildPrintHtml(values: FormValues, sectionIds: string[], members: Proje
       const rows: Array<[string, string]> = [
         ['Equipe', teamNames.join(', ')],
         ['Infraestrutura', (values.infrastructure ?? '').trim()],
-        ['Orçamento estimado', values.budget !== '' && values.budget != null ? formatCurrency(Number(values.budget)) : ''],
+        ['Orçamento estimado', (() => {
+          const n = parseCurrencyBRL(values.budget ?? '');
+          return n !== undefined ? formatCurrency(n) : '';
+        })()],
       ];
       fields = rows
         .filter(([, raw]) => raw)
@@ -285,7 +292,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       governance:         initialData?.governance ?? undefined,
       dependencies:       initialData?.dependencies ?? undefined,
       constraints:        initialData?.constraints ?? undefined,
-      budget:             initialData?.budget ?? '',
+      budget:             formatCurrencyForInput(initialData?.budget),
       teamUserIds:        initialData?.team?.map((m) => m.id) ?? [],
     },
   });
@@ -309,7 +316,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       if (section.id === 'recursos') {
         map[section.id] = !!(
           values.infrastructure?.trim()
-          || (values.budget !== '' && values.budget != null)
+          || values.budget?.trim()
           || (values.teamUserIds?.length ?? 0) > 0
         );
         continue;
@@ -346,7 +353,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
     try {
       await charterApi.upsert(projectId, {
         ...values,
-        budget: values.budget === '' ? undefined : values.budget,
+        budget: parseCurrencyBRL(values.budget ?? ''),
       }, token);
       // Rebaseia com o valor ATUAL do form (não o `values` capturado no blur) —
       // se o usuário já começou a editar outro campo enquanto isso salvava,
@@ -590,10 +597,8 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-1.5">Orçamento estimado (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <MaskedInput
+                    format={maskCurrencyBRL}
                     {...register('budget', { onBlur: handleFieldBlur })}
                     placeholder="0,00"
                     className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"

@@ -72,3 +72,11 @@ export function maskCEP(value: string): string {
   const d = onlyDigits(value).slice(0, 8);
   return d.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
 }
+
+/** Formato usual do código CNAE: 0000-0/00. */
+export function maskCNAE(value: string): string {
+  const d = onlyDigits(value).slice(0, 7);
+  return d
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .replace(/(\d{4}-\d)(\d{1,2})$/, '$1/$2');
+}

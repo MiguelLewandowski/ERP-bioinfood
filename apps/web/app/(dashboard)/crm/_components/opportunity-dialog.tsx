@@ -20,6 +20,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { MaskedInput } from '@/components/ui/masked-input';
+import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
 import { OpportunityTasksSection } from './opportunity-tasks-section';
 
 interface OpportunityDialogProps {
@@ -54,7 +56,7 @@ export function OpportunityDialog({
       title: opportunity?.title ?? '',
       clientId: opportunity?.organization.id ?? '',
       responsibleId: opportunity?.responsible?.id ?? '',
-      amount: opportunity?.amount ?? '',
+      amount: formatCurrencyForInput(opportunity?.amount),
       startDate: opportunity?.startDate?.slice(0, 10) ?? '',
       expectedCloseDate: opportunity?.expectedCloseDate?.slice(0, 10) ?? '',
       description: opportunity?.description ?? '',
@@ -71,7 +73,7 @@ export function OpportunityDialog({
       const payload = {
         title: v.title,
         responsibleId: v.responsibleId || undefined,
-        amount: v.amount === '' ? undefined : Number(v.amount),
+        amount: parseCurrencyBRL(v.amount),
         startDate: v.startDate || undefined,
         expectedCloseDate: v.expectedCloseDate || undefined,
         description: v.description || undefined,
@@ -179,7 +181,7 @@ export function OpportunityDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="opp-amount">Valor (R$)</Label>
-              <Input id="opp-amount" {...register('amount')} type="number" min={0} step="0.01" placeholder="0,00" />
+              <MaskedInput id="opp-amount" format={maskCurrencyBRL} {...register('amount')} placeholder="0,00" />
             </div>
             <div>
               <Label htmlFor="opp-start-date">Data de início</Label>

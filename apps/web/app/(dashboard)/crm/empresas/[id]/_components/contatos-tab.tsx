@@ -9,6 +9,8 @@ import type { ContactListItemDto, TaxonomyDto } from '@bioinfood/shared';
 import { contactsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { MaskedInput } from '@/components/ui/masked-input';
+import { maskCPF, maskPhone } from '@/lib/masks';
 
 const inputCls =
   'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none';
@@ -247,15 +249,15 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input {...register('email')} type="email" placeholder="E-mail" className={inputCls} />
-            <input {...register('cpf')} placeholder="CPF" className={inputCls} />
+            <MaskedInput format={maskCPF} {...register('cpf')} placeholder="CPF" className={inputCls} />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <input {...register('phone')} placeholder="Telefone" className={inputCls} />
-            <input {...register('mobile')} placeholder="Celular" className={inputCls} />
-            <input {...register('whatsapp')} placeholder="WhatsApp" className={inputCls} />
+            <MaskedInput format={maskPhone} {...register('phone')} placeholder="Telefone" className={inputCls} />
+            <MaskedInput format={maskPhone} {...register('mobile')} placeholder="Celular" className={inputCls} />
+            <MaskedInput format={maskPhone} {...register('whatsapp')} placeholder="WhatsApp" className={inputCls} />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <input {...register('fax')} placeholder="Fax" className={inputCls} />
+            <MaskedInput format={maskPhone} {...register('fax')} placeholder="Fax" className={inputCls} />
             <input {...register('ramal')} placeholder="Ramal" className={inputCls} />
             <input {...register('birthDate')} type="date" placeholder="Aniversário" className={inputCls} />
           </div>

@@ -11,6 +11,10 @@ import type {
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { MaskedInput } from '@/components/ui/masked-input';
+import {
+  maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput, maskPhone, maskDocument, maskCEP, maskCNAE,
+} from '@/lib/masks';
 
 const ROLE_LABELS: Record<PartyRoleType, string> = {
   CUSTOMER: 'Cliente',
@@ -144,7 +148,8 @@ export function DadosTab(props: DadosTabProps) {
               </select>
             </Field>
             <Field label={watch('documentType') === 'FOREIGN' ? 'Documento (opcional)' : 'Documento *'}>
-              <input
+              <MaskedInput
+                format={maskDocument}
                 {...register('document', {
                   required: watch('documentType') !== 'FOREIGN' ? 'CNPJ é obrigatório (ou marque como estrangeira)' : false,
                 })}
@@ -184,7 +189,7 @@ export function DadosTab(props: DadosTabProps) {
               </select>
             </Field>
             <Field label="CNAE">
-              <input {...register('cnae')} disabled={!canEdit} className={inputCls} />
+              <MaskedInput format={maskCNAE} {...register('cnae')} disabled={!canEdit} className={inputCls} />
             </Field>
           </div>
 
@@ -209,20 +214,20 @@ export function DadosTab(props: DadosTabProps) {
               <input {...register('email')} disabled={!canEdit} className={inputCls} />
             </Field>
             <Field label="Telefone">
-              <input {...register('phone')} disabled={!canEdit} className={inputCls} />
+              <MaskedInput format={maskPhone} {...register('phone')} disabled={!canEdit} className={inputCls} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Celular">
-              <input {...register('mobile')} disabled={!canEdit} className={inputCls} />
+              <MaskedInput format={maskPhone} {...register('mobile')} disabled={!canEdit} className={inputCls} />
             </Field>
             <Field label="WhatsApp">
-              <input {...register('whatsapp')} disabled={!canEdit} className={inputCls} />
+              <MaskedInput format={maskPhone} {...register('whatsapp')} disabled={!canEdit} className={inputCls} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fax">
-              <input {...register('fax')} disabled={!canEdit} className={inputCls} />
+              <MaskedInput format={maskPhone} {...register('fax')} disabled={!canEdit} className={inputCls} />
             </Field>
             <Field label="Ramal">
               <input {...register('ramal')} disabled={!canEdit} className={inputCls} />
@@ -392,7 +397,7 @@ function CustomerProfileSection({
     defaultValues: {
       stage: profile?.stage ?? 'PROSPECT',
       paymentTerms: profile?.paymentTerms ?? '',
-      creditLimit: profile?.creditLimit ?? '',
+      creditLimit: formatCurrencyForInput(profile?.creditLimit),
       salesRepId: profile?.salesRepId ?? '',
     },
   });
@@ -403,7 +408,7 @@ function CustomerProfileSection({
       await organizationsApi.saveCustomerProfile(organizationId, {
         stage: v.stage,
         paymentTerms: v.paymentTerms || null,
-        creditLimit: v.creditLimit === '' ? null : Number(v.creditLimit),
+        creditLimit: parseCurrencyBRL(v.creditLimit) ?? null,
         salesRepId: v.salesRepId || null,
       }, token);
       toast.success('Perfil comercial salvo');
@@ -436,7 +441,7 @@ function CustomerProfileSection({
           <input {...register('paymentTerms')} disabled={!canEdit} placeholder="Ex: 30 dias" className={inputCls} />
         </Field>
         <Field label="Limite de crédito (R$)">
-          <input {...register('creditLimit')} disabled={!canEdit} type="number" min={0} step="0.01" className={inputCls} />
+          <MaskedInput format={maskCurrencyBRL} {...register('creditLimit')} disabled={!canEdit} className={inputCls} />
         </Field>
       </div>
       {canEdit && (
@@ -606,7 +611,7 @@ function AddressesSection({
             <select {...register('type')} className={inputCls}>
               {Object.entries(ADDRESS_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            <input {...register('zipCode')} placeholder="CEP" className={inputCls} />
+            <MaskedInput format={maskCEP} {...register('zipCode')} placeholder="CEP" className={inputCls} />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <input {...register('street')} placeholder="Rua" className={`${inputCls} col-span-2`} />
