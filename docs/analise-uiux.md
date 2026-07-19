@@ -1,25 +1,25 @@
 # Análise de UI/UX — ERP Bioinfood
 
-**Data:** 2026-07-18 (última atualização: 2026-07-18 — todos os achados #1–#11 implementados)
-**Escopo:** CRM completo (`/crm` — abas Empresas, Pessoas, Negócios, Tarefas; `/crm/config`; ficha de empresa `/crm/empresas/[id]`)
-**Método:** renderização real via Playwright (login, navegação, abertura de diálogos, screenshots full-page em 1440×900). Não é leitura de código — é a tela de verdade.
-**Gatilho:** usuário sinalizou que a aba Negócios (funil/kanban) está fraca e pouco interativa "comparada ao Agendor". Essa aba recebeu peso extra nesta rodada.
+**Data:** 2026-07-19
+**Escopo:** fluxos principais fora do CRM — login, Dashboard, Projetos (lista, form "Novo Projeto", ficha: TAP, Kanban, Gantt, Riscos), Atividades (calendário), Usuários, Configurações, topbar "+ Novo" — mais verificação de regressão do CRM.
+**Método:** renderização real (Playwright headless, 1440×900, login como ADMIN, screenshots full-page de cada tela e dos diálogos abertos) + confirmação dos achados de cor/mapeamento no código-fonte. Não é leitura de JSX — as telas foram vistas renderizadas.
 
-> ✅ **Status:** todos os 11 achados foram implementados e verificados em duas rodadas na mesma sessão (top 3 primeiro, depois #4–#11). Ver "Resolvido" em cada achado.
+> Análise anterior (2026-07-18, CRM completo, achados #1–#11 todos implementados): ver seção **Histórico** no fim. **Verificação de regressão nesta rodada: as correções do CRM persistem** (barras de cor por etapa, barra de filtro + "Meus negócios", métricas, badge de urgência no card).
 
 ---
 
 ## Resumo
 
-O CRM é **funcionalmente completo e consistente** (mesmo design system em todas as telas, sem hex cru, formulários bem estruturados) — mas o **kanban de Negócios é a tela mais fraca do módulo**, e o usuário está certo: comparado a um CRM de referência como o Agendor, ele hoje é uma lista de cards em colunas, não uma ferramenta de trabalho. As demais telas (Empresas, Pessoas, ficha, config) estão em bom nível para um MVP interno.
+Fora do CRM, o app é **estruturalmente bom** (shell escura consistente, breadcrumbs, page-headers, empty states, ⌘K) mas a **linguagem de cor semântica está fraturada**: existem duas escalas de prioridade conflitantes para a mesma entidade Task (verde = "Alta" no kanban de projeto, âmbar = "Alta" em Atividades), o status de projeto tem um mapa central (`StatusBadge`) que a própria tela de Projetos ignora usando azul fora da marca, e o Gantt entrega tema default da biblioteca (azul, botão duplicado). São todos problemas de *consistência*, não de estrutura — corrigíveis sem redesign.
 
 ## Pontos fortes a preservar
 
-- **Design system realmente seguido**: zero hex solto nas telas revisadas, tokens semânticos (`success`, `accent`, `destructive`) aplicados de forma consistente.
-- **Empty states com propósito**: "Nenhum cliente cadastrado" e similares sempre vêm com CTA, não é só texto morto.
-- **Badges de contato bem resolvidos**: "Principal" (estrela âmbar) e "Decisor" (pill verde) na aba Contatos comunicam hierarquia rápido, sem poluir.
-- **Breadcrumb automático** (`CRM › Empresas › Ambev Research`) — dá localização espacial de graça, sem trabalho extra do usuário.
-- **Toasts de confirmação** consistentes em toda ação de escrita testada (criar, salvar, congelar).
+- **Shell e navegação**: sidebar escura + topbar com busca ⌘K + menu "+ Novo" global (Tarefa/Projeto/Empresa/Negócio) — atalho de criação excelente, bem resolvido.
+- **Ficha de projeto**: breadcrumb (`Projetos › Xarope de Xilose › TAP`), header com status + cliente, abas claras. O TAP com navegação lateral de seções (5/8 preenchidas, dot verde por seção completa) é ótimo padrão de formulário longo.
+- **Dashboard**: "Seu dia de trabalho em um lugar só" com Minhas tarefas / Próximos 7 dias / Projetos ativos / Tarefas CRM — arquitetura de informação certa para o dia a dia.
+- **Heatmap de Riscos**: matriz probabilidade × impacto com contagem por célula e lista por criticidade — comunica rápido e usa a paleta da marca.
+- **Atividades**: contadores clicáveis por status (Total/A fazer/Em andamento/Concluídas/Atrasadas) + filtros — bom scan inicial.
+- **Empty states e toasts** continuam consistentes nas telas novas verificadas.
 
 ---
 
@@ -27,89 +27,74 @@ O CRM é **funcionalmente completo e consistente** (mesmo design system em todas
 
 ### 🔴 Crítico
 
-**1. Kanban não comunica prioridade nem risco — só posição.** `crm-card.tsx` / aba Negócios.
-Um card mostra título, empresa, valor e probabilidade. **Não mostra**: se há tarefa atrasada vinculada àquele negócio (mesmo já existindo `Activity.opportunityId` no backend), quem é o responsável (avatar/nome só aparece *se* houver responsável — não há placeholder "sem responsável" clicável), nem há indicação de "há quanto tempo está parado nesta etapa". Resultado: o gestor precisa abrir card por card para saber o que precisa de atenção — exatamente o oposto do que um kanban deveria resolver.
-**Impacto:** a ferramenta vira uma lista bonita, não um painel de decisão. É a causa raiz de "parece fraco comparado ao Agendor" — o Agendor usa o card para *sinalizar urgência* (badge vermelho de atividade atrasada), aqui o card só *arquiva* dado.
-**Correção:** no `CrmCard`, buscar (ou receber já agregado do backend) `overdueTasksCount`/`nextTaskDueDate` por oportunidade e renderizar um badge vermelho/âmbar quando houver pendência vencida ou vencendo hoje — mesmo padrão visual já usado na aba Tarefas (`AlertTriangle` vermelho / `Clock` âmbar). Reaproveitar, não inventar novo.
-**✅ Resolvido (2026-07-18):** `crm/page.tsx` busca as tarefas `overdue`+`today` (best-effort) e monta um mapa `opportunityId → tarefa mais urgente`, propagado via `CrmTabs → CrmClient → CrmCard`. O card agora mostra um badge (vermelho `AlertTriangle` se atrasada, âmbar `Clock` se hoje) com o título da tarefa, reaproveitando exatamente as cores já usadas na aba Tarefas. Verificado com screenshot real.
-
-**2. Nenhuma ação sem abrir o modal inteiro.** Aba Negócios.
-Mover de etapa exige clicar e arrastar (funciona, mas é a única interação). Qualquer outra coisa — mudar valor, ver quem é responsável, marcar tarefa como feita, ligar para o contato — exige abrir "Editar Oportunidade", rolar até "Tarefas", e fechar de novo. Não há **nenhuma ação de um clique** no card em si.
-**Impacto:** alto custo de interação para tarefas triviais (ex.: marcar a única tarefa atrasada como feita exige 3 cliques: abrir card → achar a tarefa na lista → clicar no círculo).
-**Correção:** no mínimo, permitir concluir a tarefa mais urgente diretamente no card (ícone de check no canto, visível só quando há pendência) sem abrir o modal — mesma UX que a aba Tarefas já tem para o card de "Atrasadas".
-**✅ Resolvido (2026-07-18):** o badge de urgência do card tem um botão de check (`CheckCircle2`) que chama `crmActivitiesApi.update(taskId, {status:'DONE'})` direto, com `stopPropagation` para não abrir o modal de edição, atualização otimista (badge some na hora) e rollback+toast de erro se a chamada falhar. Verificado: clique conclui a tarefa, toast "Tarefa concluída" aparece, modal **não** abre (confirmado via teste automatizado).
+**1. Duas escalas de cor de prioridade conflitantes — e a do kanban de projeto usa VERDE para prioridade máxima.**
+`apps/web/lib/activities.ts:132` (`PRIORITY_META`: Baixa=cinza, Média=**verde**, Alta=**âmbar**, Crítica=**vermelho**) vs `apps/web/app/(dashboard)/projects/[id]/kanban/_components/kanban-card.tsx:8` e `backlog/_components/backlog-row.tsx:14` (Baixa=cinza, Média=amarelo, Alta=**verde claro `#86C175`**, Crítica=**verde primário `#147F23`**).
+**Princípio violado:** consistência semântica de cor. A tela de Atividades reusa a MESMA entidade Task dos projetos — a mesma tarefa "Alta" aparece âmbar no calendário e verde no kanban. Pior: verde-primário é a cor de CTA/sucesso do app inteiro; "Crítica" em verde lê como "tudo certo". Visto renderizado: badge "Alta" verde no kanban do projeto Xarope de Xilose.
+**Impacto:** o usuário não consegue formar um vocabulário visual — urgência fica invisível ou invertida exatamente onde mais importa (kanban/backlog de execução).
+**Correção:** um único mapa de prioridade (componente/constante compartilhada, no espírito do `status-badge.tsx` que já existe para status), com escala neutro → âmbar → vermelho. Apagar os `PRIORITY_CONFIG` locais do kanban e do backlog. Nunca verde para prioridade.
 
 ### 🟠 Alto
 
-**3. Coluna de etapa não usa a cor da etapa.** `crm-column.tsx`.
-Cada etapa tem uma `color` configurável em `/crm/config` (visível como bolinha de 6px ao lado do nome) — mas a coluna inteira do kanban é neutra (fundo cinza claro igual para todas). A cor cadastrada vira decoração cosmética de 6px, não uma pista visual de "onde estou no funil". Um gestor escaneando o board não distingue "Qualificação" de "Negociação" sem ler o texto.
-**Impacto:** a arquitetura de dados já suporta isso (cor por etapa existe e é editável) — é puro desperdício de um dado que já existe e não é usado.
-**Correção:** aplicar a `stage.color` como barra superior da coluna (4-6px) ou fundo sutil do header da coluna, não só no dot.
-**✅ Resolvido (2026-07-18):** `crm-column.tsx` agora renderiza uma barra de 6px no topo da coluna com `stage.color` (fallback para `muted-foreground` se a etapa não tiver cor definida). O dot ao lado do nome foi removido (redundante com a barra). Verificado: board com barras laranja/verde/vermelha por etapa, batendo com a config de Funis.
+**2. Status de projeto tem mapa central (`StatusBadge`) que a tela de Projetos ignora — com azul fora da marca.**
+`components/ui/status-badge.tsx` define PLANNING=neutro, COMPLETED=success, e seu comentário diz "nunca redefinir cores de status localmente". Mas `components/projects/projects-table.tsx:10` e `project-card.tsx:19` redefinem `STATUS_COLORS` locais com `bg-blue-100 text-blue-700` para Planejamento — **a identidade Bioinfood não tem azul** (design-tokens.md: "Não existe token info — a identidade não tem azul"). Resultado visto renderizado: o Dashboard mostra "Planejamento" cinza-neutro e a lista de Projetos mostra "Planejamento" azul — as duas telas a um clique de distância. Classes utilitárias `blue-100`/`green-100` também contornam a regra nº 1 de tokens (não são hex, então o ESLint não acusa).
+**Correção:** trocar os spans locais por `<StatusBadge status={...}/>` em `projects-table` e `project-card`; deletar os dois `STATUS_COLORS`.
 
-**4. Board não ocupa o espaço disponível.** Aba Negócios, viewport 1440px.
-As 5 colunas do funil padrão ocupam ~1150px de 1440px disponíveis, com larguras fixas em `minmax(220px, 1fr)` e o board "flutua" à esquerda sem preencher a tela. Em telas maiores (comum em posto de gestão), sobra muito espaço morto à direita e embaixo.
-**Correção:** colunas com `min-width` maior e crescimento proporcional ao viewport, ou aumentar a densidade de informação por card para justificar a largura.
-**⚠️ Reavaliado, sem alteração de código (2026-07-18):** ao medir de novo, o grid já usa `1fr` e as colunas **já cresciam** para preencher ~98% da largura disponível — o "espaço morto" real é vertical (poucos negócios cadastrados hoje), não horizontal, e não dá pra "consertar" isso sem inventar conteúdo falso. Tentei aumentar o `min-width` (220→260px, depois 225px) para dar mais respiro aos cards com o novo badge de urgência, mas em 1440px isso empurra a 5ª coluna para fora da viewport e força scroll horizontal que não existia antes — regressão pior que o problema original. Revertido para `minmax(220px, 1fr)`. Achado original estava parcialmente incorreto; nenhuma mudança foi aplicada aqui.
+**3. Gantt entrega o tema default da biblioteca — botão azul duplicado e barras azuis.**
+Aba Gantt (`projects/[id]/gantt`): a toolbar do SVAR renderiza um botão azul "+ Nova tarefa" imediatamente abaixo do botão verde "Nova Tarefa" do header da página — **dois CTAs para a mesma ação, empilhados, em cores diferentes, um deles fora da marca**. As barras do gráfico também renderizam no azul default (o `gantt-status.css` pinta por status, mas tarefas sem status mapeado caem no azul da lib).
+**Impacto:** a tela parece de outro produto; o usuário não sabe qual botão é "o certo".
+**Correção:** ocultar a toolbar interna do SVAR (a página já tem o CTA) e definir cor default das barras via CSS override, como já foi feito para os status.
 
-**5. Nenhum filtro/segmentação no board.** Aba Negócios.
-O único controle é o seletor de funil (dropdown). Não dá para filtrar por responsável, por valor, por "só os meus negócios", nem buscar um negócio específico sem escanear as colunas visualmente. Em qualquer volume real (>20-30 negócios), isso vira inviável.
-**Correção:** barra de filtro compacta acima do board (responsável, busca por nome/empresa) — não precisa ser sofisticada, mas precisa existir antes do volume crescer.
-**✅ Resolvido (2026-07-18):** `crm-client.tsx` ganhou uma barra de filtro (busca por título/empresa + toggle "Meus negócios", comparando `responsible.id` com o usuário logado). Filtragem client-side sobre as oportunidades já carregadas; colunas mostram "Nenhum resultado" (distinto de "Vazio") quando o filtro não bate. Botão "Limpar filtros" aparece só quando algum filtro está ativo. Verificado: busca, "sem resultado" e toggle testados com screenshot.
+**4. Datas do Gantt com hora fantasma "21:00".**
+Colunas Início/Término mostram `12/07/26 21:00` em todas as linhas — artefato de fuso (UTC−3 sobre datas armazenadas à meia-noite UTC). Em todo o resto do app a mesma tarefa mostra só "13 de jul.".
+**Impacto:** ruído em toda linha e risco real de leitura errada de dia (a data exibida é a véspera do dia útil da tarefa); mina a confiança no cronograma.
+**Correção:** formatar como data pura (`dd/mm/yy`) na config de colunas do Gantt, tratando a data como date-only (mesma normalização já usada no kanban/atividades).
 
-**6. Empty state da Timeline foge do padrão do design system.** `timeline-tab.tsx`.
-"Nenhuma interação registrada ainda." é uma caixa tracejada com texto solto, sem ícone — enquanto o catálogo do projeto já tem um componente `empty-state` (ícone + título + descrição + CTA) usado em Empresas e Pessoas. Duas soluções visuais diferentes para o mesmo conceito ("lista vazia") na mesma ficha.
-**Correção:** trocar pela `EmptyState` já catalogada, com ícone `MessageSquare` e o botão "Registrar interação" como `action`.
-**✅ Resolvido (2026-07-18):** trocado pela `EmptyState` catalogada (ícone `MessageCircle`, título, descrição, CTA "Registrar interação"). O botão duplicado que já existia no topo da aba foi escondido quando a lista está vazia (evita dois CTAs iguais na tela). Verificado com screenshot.
+**5. Login aterrissa em /projects, mas a "casa" declarada do app é o Dashboard.**
+Após login o usuário cai em Projetos; o primeiro item do menu — e a tela desenhada como "Seu dia de trabalho em um lugar só" — é o Dashboard.
+**Impacto:** o Dashboard (que resume tarefas atrasadas/do dia) perde a função de radar diário; o usuário só o vê se clicar por curiosidade.
+**Correção:** redirecionar pós-login para `/dashboard` (exceto CLIENTE, se fizer sentido cair direto em projetos).
 
 ### 🟡 Médio
 
-**7. Lista de Tarefas dentro do modal de negócio não tem hierarquia por urgência.** `opportunity-tasks-section.tsx`.
-As 5 tarefas de teste aparecem todas com o mesmo peso visual (badge cinza "Nota", texto preto). A que vence hoje ("Ligacao com prazo hoje") não se distingue visualmente das sem prazo — só dá pra saber lendo a data pequena à direita.
-**Correção:** reaproveitar as cores de urgência da aba Tarefas (vermelho/âmbar) na data, e ordenar por prazo (vencidas primeiro) em vez de mais-recente-criada-primeiro.
-**✅ Resolvido (2026-07-18):** data da tarefa agora usa `text-destructive` (vencida) / `text-accent` (hoje) / `text-muted-foreground` (futura ou sem prazo) — mesmo vocabulário do card e da aba Tarefas. Lista ordenada: concluídas por último, pendentes por prazo crescente (sem prazo vai para o fim). Verificado com screenshot.
+**6. Filtro de status duplicado na lista de Projetos.**
+A tela tem chips de status ("Todos | Planejamento | Em andamento | …") E um dropdown "Todos os status" na linha logo abaixo — dois controles para o mesmo filtro, que podem divergir entre si.
+**Correção:** manter só os chips (mais rápidos, 1 clique) e remover o dropdown redundante; sobra espaço para os filtros de cliente/responsável.
 
-**8. Modal de negócio cresce sem limite com muitas tarefas.** Mesmo componente.
-A seção de Tarefas está dentro do `DialogContent` sem scroll próprio — com muitas tarefas, o modal inteiro (incluindo o formulário acima) rola junto, empurrando os botões Salvar/Cancelar para fora da viewport em telas menores.
-**Correção:** região de tarefas com altura máxima e scroll interno próprio, separada do formulário.
-**✅ Resolvido (2026-07-18):** lista de tarefas agora é `max-h-64 overflow-y-auto`, com scroll próprio separado do formulário — os botões Salvar/Cancelar continuam sempre visíveis independente de quantas tarefas o negócio tiver.
+**7. "Término (est.)" sempre verde, mesmo quando estima atraso.**
+`projects-table.tsx:150` pinta `forecastEndDate` com `text-primary` incondicional. Visto renderizado: projeto "Otimização" com término planejado 30/07/2026 e estimado **20/08/2026** (3 semanas de atraso previsto) — em verde vivo, a cor que o app inteiro usa para "positivo".
+**Correção:** neutro por padrão; `text-destructive` quando est. > plan. (e opcionalmente `text-success` quando est. < plan.). É exatamente o dado que justifica a coluna existir.
 
-**9. Botão "Definir padrão" da config de Funis é texto puro, sem hierarquia de botão.** `funis-client.tsx`.
-Ao lado de ações reais (excluir = ícone vermelho), "Definir padrão" é um link de texto verde solto — funciona, mas não segue o mesmo padrão visual (`button`/`Badge`) usado nas outras ações da mesma linha.
-**✅ Resolvido (2026-07-18):** virou um `Button` outline com ícone de estrela, mesmo peso visual do botão de excluir ao lado. Verificado com screenshot.
+**8. "Configurações" no menu principal é uma página morta ("Em desenvolvimento").**
+Item permanente da navegação global que entrega uma tela vazia. Confunde com as Configurações *do projeto* (aba na ficha) e com Funis (config do CRM), que são as configurações reais que existem hoje.
+**Correção:** remover o item do menu até a página existir (ou apontá-lo para o que já é configurável).
+
+**9. Rótulo de eixo ambíguo no Heatmap de Riscos.**
+"← PROBABILIDADE" aparece na horizontal, embaixo das colunas — mas a probabilidade é o eixo **vertical** (linhas Muito Alto → Muito Baixo); o horizontal é impacto (rotulado corretamente no topo).
+**Correção:** girar o rótulo para a vertical, à esquerda das linhas.
 
 ### 🔵 Baixo
 
-**10. Métricas do funil (Em aberto/Ponderado/Conversão/Ganhos-Perdidos) são visualmente idênticas independente do valor.** Sem cor mesmo quando conversão é 0% ou ganhos/perdidos desequilibrados — um pouco de codificação por cor (ex.: conversão baixa em âmbar) ajudaria o scan rápido, mas não é essencial num MVP.
-**✅ Resolvido, parcial (2026-07-18):** métrica "Conversão" agora fica verde (`text-success`) quando > 0%, neutra em 0%. Ganhos/Perdidos ficou como está — colorir esse par arriscava insinuar julgamento de negócio (ex.: "perdido" em vermelho automaticamente) que não é papel do design decidir sozinho.
-**11. Ícones de "congelar" (❄) e badges de tipo de tarefa são pequenos (11-13px) e próximos de outros elementos clicáveis — dentro do aceitável, mas no limite inferior de conforto de clique.
-**Avaliado, sem alteração (2026-07-18):** ao reinspecionar, esses alvos já têm área de clique/toque maior que o ícone visível (padding do botão) e não ficaram grudados em outros elementos nas telas revisadas. Não encontrei um caso concreto de erro de clique para justificar aumentar ícones em todo o app — risco de regressão visual maior que o ganho. Mantido como estava.
+**10. Calendário de Atividades comunica estado por dois canais que não batem.** A legenda usa bolinhas (A fazer/Em andamento/Concluída/Atrasada), mas nas barras o estado aparece como cor de fundo + texto vermelho para atrasada — o usuário precisa deduzir a correspondência. Confiança reduzida: os dados de teste (tarefas multi-semana "New Task") exageram o efeito; reavaliar com dados reais.
+**11. Ações da tabela de Usuários misturam padrões:** lápis/chave como botões-ícone e "Desativar/Ativar" como botão texto na mesma célula. Funciona, mas é o único lugar do app com esse híbrido; padronizar quando a tela for revisitada (ex.: tudo em `dropdown-menu` de ações, padrão do catálogo).
+**12. Login sem caminho de "esqueci a senha".** Aceitável em app interno com reset via ADMIN — mas vale um microcopy ("Esqueceu? Fale com o administrador") para não deixar o usuário sem saída.
 
 ---
 
 ## Inconsistências cross-tela
 
-- ~~**Empty state**: componente `EmptyState` catalogado é usado em Empresas/Pessoas, mas não na Timeline~~ — **resolvido** (achado #6). As colunas vazias do kanban continuam mostrando só "Vazio"/"Nenhum resultado" em texto — aceito como está: é dentro de um card compacto do board, onde o `EmptyState` completo (ícone + título + descrição) seria desproporcional ao espaço.
-- ~~**Indicador de urgência**: vocabulário visual (vermelho=atrasado, âmbar=hoje) não se propagava~~ — **resolvido**: agora consistente entre aba Tarefas, card do kanban (achado #1) e lista de tarefas do modal (achado #7).
-- ~~**Ação "definir padrão/principal"**: em Contatos é estrela+badge; em Funis era link de texto~~ — **resolvido** (achado #9): Funis agora usa `Button` outline com ícone de estrela, mesma lógica visual (não idêntico pixel a pixel a Contatos, mas mesmo nível de hierarquia de botão).
+- **Prioridade de tarefa**: 2 escalas de cor conflitantes (achado #1) — a mesma Task muda de cor entre Atividades e Kanban/Backlog de projeto.
+- **Status de projeto**: mapa central `StatusBadge` vs mapas locais azuis em `projects-table`/`project-card` (achado #2) — Dashboard e Projetos mostram o mesmo status com cores diferentes.
+- **Hex/cores fora de token** persistem em código de tela: `PRIORITY_META` (lib/activities.ts), `PRIORITY_CONFIG` (kanban-card, backlog-row), `STATUS_COLORS` (projects-table, project-card), `bg-blue-100` etc. Data-viz pura (heatmap de riscos, matriz de stakeholders, WBS, export PDF do charter) é exceção razoável — o problema são badges/status de UI comum.
+- **Dois kanbans, duas linguagens**: o kanban do CRM (barra colorida no topo da coluna, contagem + soma) e o de projeto (dot + badge de contagem) têm anatomia visual diferente para o mesmo conceito. Menor — mas se um dia convergirem, usar o do CRM como referência (mais denso e mais recente).
+
+## Top 3 ações (impacto ÷ esforço)
+
+1. **Unificar a escala de prioridade** (#1): criar mapa único (padrão `status-badge`), apagar os 3 mapas locais. ~1h, mata o pior problema semântico do app.
+2. **Projetos usar `StatusBadge`** (#2 + #7): troca de span por componente em 2 arquivos + cor condicional do término estimado. ~30min, elimina o azul off-brand e o conflito com o Dashboard.
+3. **Gantt: esconder toolbar da lib e formatar datas** (#3 + #4): CSS/config, sem tocar em dados. ~1h, a tela mais "de outro produto" volta pra marca.
 
 ---
 
-## Todas as ações implementadas em 2026-07-18
+## Histórico — 2026-07-18 (CRM)
 
-**Rodada 1 (crítico/alto no kanban):**
-1. Badge de urgência no card do kanban (#1)
-2. Concluir tarefa direto do card (#2)
-3. Cor da etapa aplicada à coluna (#3)
-
-**Rodada 2 (restante):**
-4. Board não ocupa o espaço — reavaliado, sem alteração de código (#4, ver nota acima)
-5. Filtro/segmentação no board — busca + "Meus negócios" (#5)
-6. Empty state da Timeline padronizado (#6)
-7. Hierarquia de urgência na lista de Tarefas do modal (#7)
-8. Scroll interno na seção de Tarefas do modal (#8)
-9. Botão "Definir padrão" dos Funis padronizado (#9)
-10. Cor na métrica de Conversão (#10, parcial — decisão deliberada de não colorir Ganhos/Perdidos)
-11. Tamanho de alvos de clique — avaliado, sem alteração necessária (#11)
-
-Build verde (`tsc` + `eslint` no frontend, 70 testes no backend) em ambas as rodadas. Cada mudança visual foi verificada com renderização real (Playwright, screenshots), incluindo os fluxos de busca/filtro, conclusão de tarefa e navegação entre sub-abas de config.
+Análise com renderização real do CRM completo (Empresas, Pessoas, Negócios/kanban, Tarefas, config de Funis, ficha de empresa). **11 achados, todos implementados e verificados na mesma data**, entre eles: badge de urgência + concluir tarefa direto no card do kanban, cor da etapa na coluna, barra de filtro + "Meus negócios", empty state da Timeline padronizado, hierarquia de urgência e scroll na lista de tarefas do modal, botão "Definir padrão" padronizado. Dois achados foram reavaliados e deliberadamente não alterados (largura do board; tamanho de alvos de clique). **Regressão verificada em 2026-07-19: tudo persiste.** Detalhes completos no histórico do git deste arquivo (commit da análise de 2026-07-18).
