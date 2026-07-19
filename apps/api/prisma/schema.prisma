@@ -649,6 +649,8 @@ model Opportunity {
   // Congelado é um marcador ortogonal à etapa do funil (não é WON/LOST/OPEN):
   // negócio pausado que some do funil ativo mas pode ser reativado depois.
   frozenAt          DateTime?
+  // Posição manual do card dentro da coluna/etapa no kanban (drag reorder).
+  order             Int       @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -657,7 +659,7 @@ model Opportunity {
 
   @@index([orgId])
   @@index([pipelineId, stageId])
-  @@index([stageId])
+  @@index([stageId, order])
   @@index([deletedAt])
 }
 

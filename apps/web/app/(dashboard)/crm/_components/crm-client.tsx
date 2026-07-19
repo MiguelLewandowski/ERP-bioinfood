@@ -6,7 +6,7 @@ import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   PointerSensor, useSensor, useSensors, closestCorners,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import {
   Plus, Settings, Snowflake, Sun, Search, User, X,
 } from 'lucide-react';
@@ -113,16 +113,48 @@ export function CrmClient(props: CrmClientProps) {
     const oppId = a.id as string;
     const overData = over.data.current as { stageId?: string; stageType?: string } | undefined;
     const targetStageId = overData?.stageId ?? (over.id as string);
-    const targetType = stages.find((s) => s.id === targetStageId)?.type;
     const opp = opps.find((o) => o.id === oppId);
-    if (!opp || opp.stageId === targetStageId) return;
+    if (!opp) return;
 
+    // Mesma coluna: reordenar posição do card dentro da etapa.
+    if (opp.stageId === targetStageId) {
+      if (over.id === oppId || over.id === targetStageId) return; // solto sobre si mesmo/área vazia
+      await reorderWithinStage(targetStageId, oppId, over.id as string);
+      return;
+    }
+
+    const targetType = stages.find((s) => s.id === targetStageId)?.type;
     // Losing a deal asks for a reason before committing the move.
     if (targetType === 'LOST') {
       setPendingLost({ oppId, stageId: targetStageId });
       return;
     }
     await commitMove(oppId, targetStageId, undefined, opp.stageId);
+  }
+
+  async function reorderWithinStage(stageId: string, activeId: string, overId: string) {
+    const stageOpps = opps
+      .filter((o) => o.stageId === stageId && !o.frozenAt && matchesFilter(o))
+      .sort((a, b) => a.order - b.order);
+    const oldIndex = stageOpps.findIndex((o) => o.id === activeId);
+    const newIndex = stageOpps.findIndex((o) => o.id === overId);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    const reordered = arrayMove(stageOpps, oldIndex, newIndex);
+    const items = reordered.map((o, i) => ({ id: o.id, order: i }));
+
+    const prevOpps = opps;
+    setOpps((prev) => prev.map((o) => {
+      const found = items.find((i) => i.id === o.id);
+      return found ? { ...o, order: found.order } : o;
+    }));
+
+    try {
+      await opportunitiesApi.reorder(stageId, items, token);
+    } catch (err) {
+      setOpps(prevOpps);
+      toast.error(getErrorMessage(err));
+    }
   }
 
   async function commitMove(oppId: string, stageId: string, lostReason: string | undefined, prevStageId: string) {
@@ -276,7 +308,9 @@ export function CrmClient(props: CrmClientProps) {
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
             {stages.map((stage) => {
               // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
-              const colOpps = opps.filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o));
+              const colOpps = opps
+                .filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o))
+                .sort((a, b) => a.order - b.order);
               return (
                 <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>

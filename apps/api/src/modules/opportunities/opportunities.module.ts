@@ -9,6 +9,7 @@ import { CreateOpportunityUseCase } from './application/create-opportunity.use-c
 import { UpdateOpportunityUseCase } from './application/update-opportunity.use-case';
 import { DeleteOpportunityUseCase } from './application/delete-opportunity.use-case';
 import { MoveOpportunityUseCase } from './application/move-opportunity.use-case';
+import { ReorderOpportunitiesUseCase } from './application/reorder-opportunities.use-case';
 
 @Module({
   imports: [PrismaModule],
@@ -21,6 +22,7 @@ import { MoveOpportunityUseCase } from './application/move-opportunity.use-case'
     UpdateOpportunityUseCase,
     DeleteOpportunityUseCase,
     MoveOpportunityUseCase,
+    ReorderOpportunitiesUseCase,
   ],
 })
 export class OpportunitiesModule {}

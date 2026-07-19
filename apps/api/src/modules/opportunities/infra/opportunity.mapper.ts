@@ -13,6 +13,7 @@ export interface OpportunityDto {
   expectedCloseDate: string | null;
   closedAt: string | null;
   frozenAt: string | null;
+  order: number;
   engagementStageId: string | null;
   organization: { id: string; legalName: string; tradeName: string | null };
   mainContact: { id: string; name: string } | null;

@@ -4,6 +4,7 @@ import { IOpportunityRepository, MoveData } from '../domain/opportunity.reposito
 import {
   CreateOpportunityData,
   OpportunityListItem,
+  ReorderItem,
   StageRef,
   UpdateOpportunityData,
 } from '../domain/opportunity.entity';
@@ -21,6 +22,7 @@ const SELECT = {
   expectedCloseDate: true,
   closedAt: true,
   frozenAt: true,
+  order: true,
   engagementStageId: true,
   organization: { select: { id: true, legalName: true, tradeName: true } },
   mainContact: { select: { id: true, name: true } },
@@ -61,7 +63,7 @@ export class OpportunitiesPrismaRepository implements IOpportunityRepository {
     const rows = await this.prisma.opportunity.findMany({
       where: { pipelineId, deletedAt: null },
       select: SELECT,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ stageId: 'asc' }, { order: 'asc' }, { createdAt: 'desc' }],
       take: 1000,
     });
     return rows.map((r) => toItem(r as Row));
@@ -108,6 +110,17 @@ export class OpportunitiesPrismaRepository implements IOpportunityRepository {
       select: SELECT,
     });
     return toItem(row as Row);
+  }
+
+  async reorder(stageId: string, items: ReorderItem[]): Promise<void> {
+    // where inclui stageId — um item que não pertence a esta etapa é
+    // silenciosamente ignorado (anti-IDOR: nunca reordena card de outra etapa).
+    await this.prisma.$transaction(
+      items.map((i) => this.prisma.opportunity.updateMany({
+        where: { id: i.id, stageId },
+        data: { order: i.order },
+      })),
+    );
   }
 
   findStageRef(stageId: string): Promise<StageRef | null> {

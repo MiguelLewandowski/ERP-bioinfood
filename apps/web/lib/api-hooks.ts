@@ -360,6 +360,9 @@ export const opportunitiesApi = {
   unfreeze: (id: string, token: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/unfreeze`, {}, token),
 
+  reorder: (stageId: string, items: Array<{ id: string; order: number }>, token: string) =>
+    api.patch<void>(`/opportunities/stages/${stageId}/reorder`, { items }, token),
+
   remove: (id: string, token: string) =>
     api.delete<void>(`/opportunities/${id}`, token),
 };

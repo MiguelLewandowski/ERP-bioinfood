@@ -11,8 +11,9 @@ import { CreateOpportunityUseCase } from '../application/create-opportunity.use-
 import { UpdateOpportunityUseCase } from '../application/update-opportunity.use-case';
 import { DeleteOpportunityUseCase } from '../application/delete-opportunity.use-case';
 import { MoveOpportunityUseCase } from '../application/move-opportunity.use-case';
+import { ReorderOpportunitiesUseCase } from '../application/reorder-opportunities.use-case';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
-import { UpdateOpportunityDto, MoveOpportunityDto } from './dto/update-opportunity.dto';
+import { UpdateOpportunityDto, MoveOpportunityDto, ReorderOpportunitiesDto } from './dto/update-opportunity.dto';
 import { toOpportunityDto } from './opportunity.mapper';
 
 // Ler = todos os papéis internos; escrever/mover = só ADMIN (decisão do owner).
@@ -27,6 +28,7 @@ export class OpportunitiesController {
     private updateOpportunity: UpdateOpportunityUseCase,
     private deleteOpportunity: DeleteOpportunityUseCase,
     private moveOpportunity: MoveOpportunityUseCase,
+    private reorderOpportunities: ReorderOpportunitiesUseCase,
   ) {}
 
   @Get()
@@ -34,6 +36,15 @@ export class OpportunitiesController {
     if (orgId) return (await this.listOrgOpportunities.execute(orgId)).map(toOpportunityDto);
     if (!pipelineId) throw new BadRequestException('pipelineId ou orgId é obrigatório');
     return (await this.listOpportunities.execute(pipelineId)).map(toOpportunityDto);
+  }
+
+  // Reordena os cards dentro de uma etapa (drag reorder no kanban). Path com
+  // prefixo 'stages/' — sem colisão com PATCH /opportunities/:id (arity diferente).
+  @Patch('stages/:stageId/reorder')
+  @Roles(SystemRole.ADMIN)
+  async reorder(@Param('stageId') stageId: string, @Body() dto: ReorderOpportunitiesDto) {
+    await this.reorderOpportunities.execute(stageId, dto.items);
+    return { ok: true };
   }
 
   @Post()

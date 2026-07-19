@@ -15,6 +15,8 @@ export interface OpportunityListItem {
   // Marcador ortogonal à etapa: negócio pausado, fora do funil ativo, sem
   // perder o histórico de etapa/valor — decisão 7 do crm-redesign-2026-07.
   frozenAt: string | null;
+  // Posição manual do card dentro da coluna (drag reorder no kanban).
+  order: number;
   organization: { id: string; legalName: string; tradeName: string | null };
   mainContact: { id: string; name: string } | null;
   responsible: { id: string; name: string } | null;
@@ -66,4 +68,9 @@ export interface MoveResult {
   probability: number;
   closedAt: Date | null;
   lostReason: string | null;
+}
+
+export interface ReorderItem {
+  id: string;
+  order: number;
 }

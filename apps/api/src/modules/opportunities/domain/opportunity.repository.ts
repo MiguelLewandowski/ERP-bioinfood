@@ -2,6 +2,7 @@ import {
   CreateOpportunityData,
   MoveResult,
   OpportunityListItem,
+  ReorderItem,
   StageRef,
   UpdateOpportunityData,
 } from './opportunity.entity';
@@ -23,6 +24,8 @@ export interface IOpportunityRepository {
   update(id: string, data: UpdateOpportunityData): Promise<OpportunityListItem>;
   softDelete(id: string): Promise<void>;
   move(id: string, data: MoveData): Promise<OpportunityListItem>;
+  // Reordena os cards dentro de uma mesma etapa (drag reorder no kanban).
+  reorder(stageId: string, items: ReorderItem[]): Promise<void>;
 
   // Stage lookup used to validate the target belongs to the opportunity's pipeline.
   findStageRef(stageId: string): Promise<StageRef | null>;

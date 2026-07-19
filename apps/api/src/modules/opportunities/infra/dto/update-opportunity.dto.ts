@@ -1,5 +1,7 @@
+import { Type } from 'class-transformer';
 import {
-  IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
+  ArrayMaxSize, IsArray, IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
+  ValidateNested,
 } from 'class-validator';
 
 export class UpdateOpportunityDto {
@@ -58,4 +60,21 @@ export class MoveOpportunityDto {
   @IsString()
   @MaxLength(500)
   lostReason?: string;
+}
+
+class ReorderOpportunityItemDto {
+  @IsString()
+  id: string;
+
+  @IsInt()
+  @Min(0)
+  order: number;
+}
+
+export class ReorderOpportunitiesDto {
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ReorderOpportunityItemDto)
+  items: ReorderOpportunityItemDto[];
 }
