@@ -1,12 +1,18 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ICharterRepository, CHARTER_REPOSITORY } from '../domain/charter.repository.interface';
-import { UpsertCharterData } from '../domain/charter.entity';
+import { CharterWithMeta, UpsertCharterData } from '../domain/charter.entity';
 
 @Injectable()
 export class UpsertCharterUseCase {
   constructor(@Inject(CHARTER_REPOSITORY) private repo: ICharterRepository) {}
 
-  execute(projectId: string, data: UpsertCharterData) {
-    return this.repo.upsert(projectId, data);
+  async execute(projectId: string, data: UpsertCharterData): Promise<CharterWithMeta> {
+    const charter = await this.repo.upsert(projectId, data);
+    const lastEdit = await this.repo.findLastEdit(charter.id);
+    return {
+      ...charter,
+      lastEditedBy: lastEdit?.actor ?? null,
+      lastEditedAt: lastEdit?.at ?? null,
+    };
   }
 }

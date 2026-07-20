@@ -7,6 +7,7 @@ import { GetCharterUseCase } from '../application/get-charter.use-case';
 import { UpsertCharterUseCase } from '../application/upsert-charter.use-case';
 import { ApproveCharterUseCase } from '../application/approve-charter.use-case';
 import { UpsertCharterDto } from './dto/upsert-charter.dto';
+import { toCharterDto } from './charter.mapper';
 
 @Controller('projects/:projectId/charter')
 @UseGuards(RolesGuard)
@@ -18,19 +19,22 @@ export class CharterController {
   ) {}
 
   @Get()
-  get(@Param('projectId') projectId: string) {
-    return this.getCharter.execute(projectId);
+  async get(@Param('projectId') projectId: string) {
+    const charter = await this.getCharter.execute(projectId);
+    return charter ? toCharterDto(charter) : null;
   }
 
   @Put()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  upsert(@Param('projectId') projectId: string, @Body() dto: UpsertCharterDto) {
-    return this.upsertCharter.execute(projectId, dto);
+  async upsert(@Param('projectId') projectId: string, @Body() dto: UpsertCharterDto) {
+    const charter = await this.upsertCharter.execute(projectId, dto);
+    return toCharterDto(charter);
   }
 
   @Post('approve')
   @Roles(SystemRole.APROVA, SystemRole.ADMIN)
-  approve(@Param('projectId') projectId: string, @CurrentUser() user: { id: string }) {
-    return this.approveCharter.execute(projectId, user.id);
+  async approve(@Param('projectId') projectId: string, @CurrentUser() user: { id: string }) {
+    const charter = await this.approveCharter.execute(projectId, user.id);
+    return toCharterDto(charter);
   }
 }
