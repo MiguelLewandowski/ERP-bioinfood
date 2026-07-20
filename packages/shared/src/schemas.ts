@@ -58,3 +58,16 @@ export const opportunitySchema = z.object({
 });
 
 export type OpportunityFormData = z.infer<typeof opportunitySchema>;
+
+// Tarefa de CRM (CrmActivity). Limites replicados em
+// apps/api/src/modules/crm-activities/infra/dto/create-crm-activity.dto.ts.
+export const crmTaskSchema = z.object({
+  title: z.string().min(1, 'Título é obrigatório').max(200, 'Máximo de 200 caracteres'),
+  type: z.enum(['NOTE', 'EMAIL', 'CALL', 'WHATSAPP', 'PROPOSAL', 'MEETING', 'VISIT']),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  dueDate: z.string().optional(),
+  responsibleId: z.string().optional(),
+  description: z.string().max(1000, 'Máximo de 1000 caracteres').optional(),
+});
+
+export type CrmTaskFormData = z.infer<typeof crmTaskSchema>;

@@ -28,7 +28,7 @@ import type {
   InteractionDto,
   CrmActivityDto,
   DueFilter,
-  StaleOrganizationDto,
+  ActivityStatus,
   UserDto,
   UserProjectAccessDto,
   SearchResultDto,
@@ -257,9 +257,6 @@ export const organizationsApi = {
   enrich: (cnpj: string, token: string) =>
     api.get<EnrichmentResultDto>(`/organizations/enrich/${encodeURIComponent(cnpj)}`, token),
 
-  stale: (token: string, days = 30) =>
-    api.get<StaleOrganizationDto[]>(`/organizations/stale?days=${days}`, token),
-
   addRole: (id: string, type: string, token: string) =>
     api.post<OrgRoleDto>(`/organizations/${id}/roles`, { type }, token),
 
@@ -423,13 +420,17 @@ export const interactionsApi = {
 export const crmActivitiesApi = {
   list: (
     token: string,
-    params?: { orgId?: string; opportunityId?: string; responsibleId?: string; due?: DueFilter },
+    params?: {
+      orgId?: string; opportunityId?: string; responsibleId?: string;
+      due?: DueFilter; status?: ActivityStatus;
+    },
   ) => {
     const qs = new URLSearchParams();
     if (params?.orgId) qs.set('orgId', params.orgId);
     if (params?.opportunityId) qs.set('opportunityId', params.opportunityId);
     if (params?.responsibleId) qs.set('responsibleId', params.responsibleId);
     if (params?.due) qs.set('due', params.due);
+    if (params?.status) qs.set('status', params.status);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     return api.get<CrmActivityDto[]>(`/crm/activities${suffix}`, token);
   },
