@@ -112,8 +112,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
 
   useEffect(() => {
     if (!isEdit) return;
-    popsApi.list(projectId, token).then(setAllPops).catch(() => {});
-  }, [isEdit, projectId, token]);
+    popsApi.list(token).then(setAllPops).catch(() => {});
+  }, [isEdit, token]);
 
   useEffect(() => {
     if (addingItem) newItemRef.current?.focus();

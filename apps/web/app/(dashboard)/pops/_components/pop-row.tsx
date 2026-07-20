@@ -14,13 +14,12 @@ function fmt(iso: string): string {
 }
 
 interface PopRowProps {
-  projectId: string;
   pop: PopDto;
   onDeleted: (id: string) => void;
   onVersionCreated: (id: string, latestVersion: PopVersionDto) => void;
 }
 
-export function PopRow({ projectId, pop, onDeleted, onVersionCreated }: PopRowProps) {
+export function PopRow({ pop, onDeleted, onVersionCreated }: PopRowProps) {
   const { token } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [versions, setVersions] = useState<PopVersionDto[] | null>(null);
@@ -37,7 +36,7 @@ export function PopRow({ projectId, pop, onDeleted, onVersionCreated }: PopRowPr
     if (next && versions === null) {
       setLoadingVersions(true);
       try {
-        const detail = await popsApi.get(projectId, pop.id, token);
+        const detail = await popsApi.get(pop.id, token);
         setVersions(detail.versions);
       } catch (err) {
         toast.error(getErrorMessage(err));
@@ -51,7 +50,6 @@ export function PopRow({ projectId, pop, onDeleted, onVersionCreated }: PopRowPr
     setSavingVersion(true);
     try {
       const detail = await popsApi.createVersion(
-        projectId,
         pop.id,
         { changeNotes: changeNotes.trim() || undefined },
         token,
@@ -71,7 +69,7 @@ export function PopRow({ projectId, pop, onDeleted, onVersionCreated }: PopRowPr
   async function handleDelete() {
     setDeleting(true);
     try {
-      await popsApi.remove(projectId, pop.id, token);
+      await popsApi.remove(pop.id, token);
       onDeleted(pop.id);
     } catch (err) {
       toast.error(getErrorMessage(err));

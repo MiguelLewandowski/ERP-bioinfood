@@ -462,7 +462,6 @@ export interface PopVersionDto {
 
 export interface PopDto {
   id: string;
-  projectId: string;
   title: string;
   description: string | null;
   latestVersion: PopVersionDto;

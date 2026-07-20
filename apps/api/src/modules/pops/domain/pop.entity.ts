@@ -1,6 +1,5 @@
 export interface PopEntity {
   id: string;
-  projectId: string;
   title: string;
   description: string | null;
   createdAt: Date;
@@ -31,7 +30,6 @@ export interface PopWithVersions extends PopEntity {
 }
 
 export interface CreatePopData {
-  projectId: string;
   title: string;
   description?: string;
   createdById: string;

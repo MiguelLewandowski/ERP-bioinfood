@@ -5,7 +5,7 @@ import { IPopRepository, POP_REPOSITORY } from '../domain/pops.repository.interf
 export class ListPopsUseCase {
   constructor(@Inject(POP_REPOSITORY) private repo: IPopRepository) {}
 
-  execute(projectId: string) {
-    return this.repo.findAllByProject(projectId);
+  execute() {
+    return this.repo.findAll();
   }
 }

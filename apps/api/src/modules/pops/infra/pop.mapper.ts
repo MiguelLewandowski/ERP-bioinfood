@@ -11,7 +11,6 @@ export interface PopVersionDto {
 
 export interface PopListItemDto {
   id: string;
-  projectId: string;
   title: string;
   description: string | null;
   latestVersion: PopVersionDto;
@@ -36,7 +35,6 @@ function toVersionDto(v: PopVersionWithAuthor): PopVersionDto {
 export function toPopListItemDto(p: PopWithLatestVersion): PopListItemDto {
   return {
     id: p.id,
-    projectId: p.projectId,
     title: p.title,
     description: p.description,
     latestVersion: toVersionDto(p.latestVersion),
@@ -47,7 +45,6 @@ export function toPopListItemDto(p: PopWithLatestVersion): PopListItemDto {
 export function toPopDetailDto(p: PopWithVersions): PopDetailDto {
   return {
     id: p.id,
-    projectId: p.projectId,
     title: p.title,
     description: p.description,
     latestVersion: toVersionDto(p.versions[0]),

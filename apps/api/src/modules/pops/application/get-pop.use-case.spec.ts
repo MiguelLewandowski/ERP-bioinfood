@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { GetPopUseCase } from './get-pop.use-case';
 import { IPopRepository } from '../domain/pops.repository.interface';
 
 function makeRepo(overrides: Partial<IPopRepository> = {}) {
   return {
-    findById: vi.fn().mockResolvedValue({ id: 'pop1', projectId: 'proj1' }),
+    findById: vi.fn().mockResolvedValue({ id: 'pop1' }),
     ...overrides,
   } as unknown as IPopRepository;
 }
@@ -23,15 +23,11 @@ describe('GetPopUseCase', () => {
     repo = makeRepo({ findById: vi.fn().mockResolvedValue(null) });
     useCase = new GetPopUseCase(repo);
 
-    await expect(useCase.execute('proj1', 'missing')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('missing')).rejects.toThrow(NotFoundException);
   });
 
-  it('should reject a POP that belongs to a different project (anti-IDOR)', async () => {
-    await expect(useCase.execute('OTHER_PROJECT', 'pop1')).rejects.toThrow(ForbiddenException);
-  });
-
-  it('should return the POP when it belongs to the project in the URL', async () => {
-    const pop = await useCase.execute('proj1', 'pop1');
-    expect(pop).toEqual({ id: 'pop1', projectId: 'proj1' });
+  it('should return the POP (global catalog, no project scoping)', async () => {
+    const pop = await useCase.execute('pop1');
+    expect(pop).toEqual({ id: 'pop1' });
   });
 });

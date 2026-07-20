@@ -14,8 +14,12 @@ import { UpdatePopDto } from './dto/update-pop.dto';
 import { CreatePopVersionDto } from './dto/create-pop-version.dto';
 import { toPopDetailDto, toPopListItemDto } from './pop.mapper';
 
-@Controller('projects/:projectId/pops')
+// POP é catálogo global (docs/regras-negocio/pop.md) — sem :projectId na rota.
+// Operação interna: CLIENTE nunca acessa (sem ProjectAccess pra filtrar algo
+// que não pertence a projeto nenhum).
+@Controller('pops')
 @UseGuards(RolesGuard)
+@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
 export class PopsController {
   constructor(
     private listPops: ListPopsUseCase,
@@ -27,54 +31,45 @@ export class PopsController {
   ) {}
 
   @Get()
-  async list(@Param('projectId') projectId: string) {
-    const pops = await this.listPops.execute(projectId);
+  async list() {
+    const pops = await this.listPops.execute();
     return pops.map(toPopListItemDto);
   }
 
   @Get(':id')
-  async get(@Param('projectId') projectId: string, @Param('id') id: string) {
-    const pop = await this.getPop.execute(projectId, id);
+  async get(@Param('id') id: string) {
+    const pop = await this.getPop.execute(id);
     return toPopDetailDto(pop);
   }
 
   @Post()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  async create(
-    @Param('projectId') projectId: string,
-    @Body() dto: CreatePopDto,
-    @CurrentUser() user: { id: string },
-  ) {
-    const pop = await this.createPop.execute({ ...dto, projectId, createdById: user.id });
+  async create(@Body() dto: CreatePopDto, @CurrentUser() user: { id: string }) {
+    const pop = await this.createPop.execute({ ...dto, createdById: user.id });
     return toPopDetailDto(pop);
   }
 
   @Patch(':id')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  async update(
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdatePopDto,
-  ) {
-    const pop = await this.updatePop.execute(projectId, id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdatePopDto) {
+    const pop = await this.updatePop.execute(id, dto);
     return toPopDetailDto(pop);
   }
 
   @Post(':id/versions')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
   async createVersion(
-    @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: CreatePopVersionDto,
     @CurrentUser() user: { id: string },
   ) {
-    const pop = await this.createPopVersion.execute(projectId, id, { ...dto, createdById: user.id });
+    const pop = await this.createPopVersion.execute(id, { ...dto, createdById: user.id });
     return toPopDetailDto(pop);
   }
 
   @Delete(':id')
   @Roles(SystemRole.APROVA, SystemRole.ADMIN)
-  remove(@Param('projectId') projectId: string, @Param('id') id: string) {
-    return this.deletePop.execute(projectId, id);
+  remove(@Param('id') id: string) {
+    return this.deletePop.execute(id);
   }
 }

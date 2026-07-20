@@ -699,7 +699,6 @@ model Project {
   risks        Risk[]
   milestones   Milestone[]
   stakeholders ProjectStakeholder[] // substitui sponsor/team/stakeholders texto
-  pops         Pop[]
   labOrders    LabOrder[] // LIMS ligado ao projeto (opcional)
 
   @@index([status])
@@ -954,25 +953,22 @@ model Milestone {
 }
 
 // ═══════════════════════════════ POPs ═════════════════════════════════════
-// Procedimento Operacional Padrão — versionável (docs/regras-negocio/pop.md).
-// Pop é a identidade (título estável); PopVersion é a revisão imutável de
-// conteúdo (nunca editada após criada); TaskPop registra qual VERSÃO exata
-// foi usada em qual task (não a Pop em si, para o vínculo sobreviver a
-// revisões futuras do documento).
+// Procedimento Operacional Padrão — versionável, GLOBAL (docs/regras-negocio/pop.md).
+// Pop é a identidade (título estável, catálogo único do ERP — sem projeto);
+// PopVersion é a revisão imutável de conteúdo (nunca editada após criada);
+// TaskPop registra qual VERSÃO exata foi usada em qual task de qual projeto
+// (o vínculo de uso é project-scoped via Task, não a Pop em si).
 
 model Pop {
   id          String    @id @default(cuid())
-  projectId   String
   title       String
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   versions PopVersion[]
 
-  @@index([projectId])
   @@index([deletedAt])
 }
 

@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, Target,
+  LayoutDashboard, FolderKanban, CalendarDays, Users, Settings, Target, FileCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/projects', label: 'Projetos', icon: FolderKanban },
   { href: '/activities', label: 'Atividades', icon: CalendarDays },
   { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
+  { href: '/pops', label: 'POPs', icon: FileCheck, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
   { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
   { href: '/settings', label: 'Configurações', icon: Settings },
 ];

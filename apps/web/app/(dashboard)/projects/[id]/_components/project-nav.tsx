@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, GitBranch, BarChart2, AlertTriangle,
-  List, Columns, Map, Settings, Users, FileCheck,
+  List, Columns, Map, Settings, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +14,6 @@ const TABS = [
   { label: 'Gantt',             href: 'gantt',         icon: BarChart2 },
   { label: 'Riscos',            href: 'risks',         icon: AlertTriangle },
   { label: 'Stakeholders',      href: 'stakeholders',  icon: Users },
-  { label: 'POPs',              href: 'pops',          icon: FileCheck },
   { label: 'Backlog',           href: 'backlog',       icon: List },
   { label: 'Kanban',            href: 'kanban',        icon: Columns },
   { label: 'Roadmap',           href: 'roadmap',       icon: Map },

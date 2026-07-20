@@ -22,11 +22,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 interface PopsClientProps {
-  projectId: string;
   initialPops: PopDto[];
 }
 
-export function PopsClient({ projectId, initialPops }: PopsClientProps) {
+export function PopsClient({ initialPops }: PopsClientProps) {
   const { token } = useAuth();
   const [pops, setPops] = useState<PopDto[]>(initialPops);
   const [open, setOpen] = useState(false);
@@ -39,9 +38,9 @@ export function PopsClient({ projectId, initialPops }: PopsClientProps) {
   async function onSubmit(values: FormValues) {
     setLoading(true);
     try {
-      const created = await popsApi.create(projectId, values, token);
+      const created = await popsApi.create(values, token);
       setPops((prev) => [
-        { id: created.id, projectId: created.projectId, title: created.title, description: created.description, latestVersion: created.latestVersion, createdAt: created.createdAt },
+        { id: created.id, title: created.title, description: created.description, latestVersion: created.latestVersion, createdAt: created.createdAt },
         ...prev,
       ]);
       reset();
@@ -67,7 +66,7 @@ export function PopsClient({ projectId, initialPops }: PopsClientProps) {
         <div>
           <h1 className="text-xl font-bold text-foreground">POPs — Procedimentos Operacionais Padrão</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {pops.length} POP{pops.length === 1 ? '' : 's'} cadastrada{pops.length === 1 ? '' : 's'}
+            {pops.length} POP{pops.length === 1 ? '' : 's'} cadastrada{pops.length === 1 ? '' : 's'} · catálogo global, usado por qualquer projeto
           </p>
         </div>
         <button
@@ -84,7 +83,7 @@ export function PopsClient({ projectId, initialPops }: PopsClientProps) {
           <EmptyState
             icon={FileCheck}
             title="Nenhuma POP cadastrada ainda"
-            description="Crie o primeiro Procedimento Operacional Padrão deste projeto."
+            description="Crie o primeiro Procedimento Operacional Padrão do catálogo."
             action={<Button onClick={() => setOpen(true)}><Plus size={14} /> Nova POP</Button>}
           />
         ) : (
@@ -92,7 +91,6 @@ export function PopsClient({ projectId, initialPops }: PopsClientProps) {
             {pops.map((pop) => (
               <PopRow
                 key={pop.id}
-                projectId={projectId}
                 pop={pop}
                 onDeleted={handleDeleted}
                 onVersionCreated={handleVersionCreated}

@@ -15,9 +15,9 @@ const AUTHOR = { select: { id: true, name: true } } as const;
 export class PopsPrismaRepository implements IPopRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findAllByProject(projectId: string): Promise<PopWithLatestVersion[]> {
+  async findAll(): Promise<PopWithLatestVersion[]> {
     const rows = await this.prisma.pop.findMany({
-      where: { projectId, deletedAt: null },
+      where: { deletedAt: null },
       include: {
         versions: {
           orderBy: { versionNumber: 'desc' },
@@ -47,7 +47,6 @@ export class PopsPrismaRepository implements IPopRepository {
   async create(data: CreatePopData): Promise<PopWithVersions> {
     const pop = await this.prisma.pop.create({
       data: {
-        projectId: data.projectId,
         title: data.title,
         description: data.description,
         versions: {
@@ -102,12 +101,12 @@ export class PopsPrismaRepository implements IPopRepository {
     return (await this.findById(popId))!;
   }
 
-  async findVersionProjectRef(popVersionId: string): Promise<{ id: string; projectId: string } | null> {
+  async findVersionRef(popVersionId: string): Promise<{ id: string } | null> {
     const version = await this.prisma.popVersion.findUnique({
       where: { id: popVersionId },
-      select: { id: true, pop: { select: { projectId: true, deletedAt: true } } },
+      select: { id: true, pop: { select: { deletedAt: true } } },
     });
     if (!version || version.pop.deletedAt) return null;
-    return { id: version.id, projectId: version.pop.projectId };
+    return { id: version.id };
   }
 }

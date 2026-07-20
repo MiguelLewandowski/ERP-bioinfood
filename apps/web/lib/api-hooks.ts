@@ -147,28 +147,24 @@ export const milestonesApi = {
 // ── POPs (Procedimento Operacional Padrão, versionável) ─────────────────────────
 
 export const popsApi = {
-  list: (projectId: string, token: string) =>
-    api.get<PopDto[]>(`/projects/${projectId}/pops`, token),
+  // Catálogo global — sem escopo de projeto (docs/regras-negocio/pop.md).
+  list: (token: string) =>
+    api.get<PopDto[]>('/pops', token),
 
-  get: (projectId: string, id: string, token: string) =>
-    api.get<PopDetailDto>(`/projects/${projectId}/pops/${id}`, token),
+  get: (id: string, token: string) =>
+    api.get<PopDetailDto>(`/pops/${id}`, token),
 
-  create: (projectId: string, data: { title: string; description?: string }, token: string) =>
-    api.post<PopDetailDto>(`/projects/${projectId}/pops`, data, token),
+  create: (data: { title: string; description?: string }, token: string) =>
+    api.post<PopDetailDto>('/pops', data, token),
 
-  update: (projectId: string, id: string, data: Record<string, unknown>, token: string) =>
-    api.patch<PopDetailDto>(`/projects/${projectId}/pops/${id}`, data, token),
+  update: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<PopDetailDto>(`/pops/${id}`, data, token),
 
-  createVersion: (
-    projectId: string,
-    id: string,
-    data: { changeNotes?: string; fileUrl?: string },
-    token: string,
-  ) =>
-    api.post<PopDetailDto>(`/projects/${projectId}/pops/${id}/versions`, data, token),
+  createVersion: (id: string, data: { changeNotes?: string; fileUrl?: string }, token: string) =>
+    api.post<PopDetailDto>(`/pops/${id}/versions`, data, token),
 
-  remove: (projectId: string, id: string, token: string) =>
-    api.delete<void>(`/projects/${projectId}/pops/${id}`, token),
+  remove: (id: string, token: string) =>
+    api.delete<void>(`/pops/${id}`, token),
 };
 
 // ── WBS ───────────────────────────────────────────────────────────────────────

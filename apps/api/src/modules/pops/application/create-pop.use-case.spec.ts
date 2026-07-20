@@ -6,7 +6,6 @@ function makeRepo(overrides: Partial<IPopRepository> = {}) {
   return {
     create: vi.fn().mockResolvedValue({
       id: 'pop1',
-      projectId: 'proj1',
       title: 'Limpeza de bancada',
       versions: [{ id: 'v1', versionNumber: 1 }],
     }),
@@ -25,13 +24,11 @@ describe('CreatePopUseCase', () => {
 
   it('should never create a POP without an initial version — delegated to the repository transaction', async () => {
     const pop = await useCase.execute({
-      projectId: 'proj1',
       title: 'Limpeza de bancada',
       createdById: 'u1',
     });
 
     expect(repo.create).toHaveBeenCalledWith({
-      projectId: 'proj1',
       title: 'Limpeza de bancada',
       createdById: 'u1',
     });
