@@ -2,26 +2,11 @@
 
 import Link from 'next/link';
 import { MoreVertical } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface ProjectCardProps {
   project: any;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  PLANNING: 'Planejamento',
-  IN_PROGRESS: 'Em andamento',
-  ON_HOLD: 'Pausado',
-  COMPLETED: 'Concluído',
-  CANCELLED: 'Cancelado',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PLANNING: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-green-100 text-green-700',
-  ON_HOLD: 'bg-yellow-100 text-yellow-700',
-  COMPLETED: 'bg-gray-100 text-gray-600',
-  CANCELLED: 'bg-red-100 text-red-600',
-};
 
 export default function ProjectCard({ project }: ProjectCardProps) {
   const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
@@ -29,9 +14,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-ring transition-all">
       <div className="flex items-start justify-between mb-3">
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[project.status] ?? 'bg-gray-100 text-gray-600'}`}>
-          {STATUS_LABELS[project.status] ?? project.status}
-        </span>
+        <StatusBadge status={project.status} />
         <button className="text-gray-400 hover:text-gray-600 transition-colors p-1">
           <MoreVertical size={16} />
         </button>

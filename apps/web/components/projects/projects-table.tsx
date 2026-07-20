@@ -5,14 +5,7 @@ import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import type { ProjectDto, ProjectStatus } from '@bioinfood/shared';
 import { PROJECT_STATUS_LABELS } from '@/lib/project-report';
-
-const STATUS_COLORS: Record<string, string> = {
-  PLANNING: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-green-100 text-green-700',
-  ON_HOLD: 'bg-yellow-100 text-yellow-700',
-  COMPLETED: 'bg-gray-100 text-gray-600',
-  CANCELLED: 'bg-red-100 text-red-600',
-};
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface ProjectsTableProps {
   projects: ProjectDto[];
@@ -136,13 +129,7 @@ export default function ProjectsTable({ projects }: ProjectsTableProps) {
                     </Link>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_COLORS[project.status] ?? 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {PROJECT_STATUS_LABELS[project.status] ?? project.status}
-                    </span>
+                    <StatusBadge status={project.status} />
                   </td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{project.client?.tradeName ?? project.client?.legalName ?? '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmt(project.startDate)}</td>

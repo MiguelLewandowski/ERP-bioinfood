@@ -11,6 +11,7 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeProps['variant']
   COMPLETED: { label: 'Concluído', variant: 'success' },
   CANCELLED: { label: 'Cancelado', variant: 'destructive' },
   // Atividades / tarefas
+  TODO: { label: 'A fazer', variant: 'neutral' },
   PENDING: { label: 'Pendente', variant: 'neutral' },
   DONE: { label: 'Concluída', variant: 'success' },
   // Organizações / genéricos

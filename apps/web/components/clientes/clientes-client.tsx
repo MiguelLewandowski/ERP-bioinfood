@@ -17,6 +17,7 @@ import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -36,11 +37,6 @@ interface ClientesClientProps {
 
 // Escrita do CRM é exclusiva do ADMIN (decisão do owner).
 const canCreate = (role: SystemRole) => role === 'ADMIN';
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Ativo',
-  ARCHIVED: 'Arquivado',
-};
 
 const ROLE_LABELS: Record<PartyRoleType, string> = {
   CUSTOMER: 'Cliente',
@@ -248,9 +244,7 @@ export default function ClientesClient({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={org.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                      {STATUS_LABELS[org.status] ?? org.status}
-                    </Badge>
+                    <StatusBadge status={org.status} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-3">

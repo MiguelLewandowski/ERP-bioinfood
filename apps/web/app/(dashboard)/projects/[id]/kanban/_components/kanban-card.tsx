@@ -2,15 +2,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PriorityBadge } from '@/components/ui/priority-badge';
 import type { Task } from './types';
 import { checklistProgress } from './types';
-
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  LOW:      { label: 'Baixa',    color: 'hsl(var(--muted-foreground))', bg: '#F3F4F6' },
-  MEDIUM:   { label: 'Média',    color: 'hsl(var(--accent))', bg: '#FDC75F' },
-  HIGH:     { label: 'Alta',     color: 'hsl(var(--primary-dark))', bg: '#86C175' },
-  CRITICAL: { label: 'Crítica',  color: 'white', bg: '#147F23' },
-};
 
 interface KanbanCardProps {
   task: Task;
@@ -30,8 +24,6 @@ export function KanbanCard({ task, isOverlay, onEdit }: KanbanCardProps) {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  const priority = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.MEDIUM;
 
   return (
     <div
@@ -60,12 +52,7 @@ export function KanbanCard({ task, isOverlay, onEdit }: KanbanCardProps) {
 
       <div className="flex items-start justify-between gap-6 mb-2 relative pointer-events-none">
         <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{task.title}</p>
-        <span
-          className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded"
-          style={{ backgroundColor: priority.bg, color: priority.color }}
-        >
-          {priority.label}
-        </span>
+        <PriorityBadge priority={task.priority} className="shrink-0" />
       </div>
 
       {task.description && (
