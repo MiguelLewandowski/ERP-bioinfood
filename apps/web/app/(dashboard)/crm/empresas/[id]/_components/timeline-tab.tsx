@@ -114,15 +114,15 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
       {showForm && (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
           <div className="grid grid-cols-3 gap-2">
-            <select {...register('type')} className={inputCls}>
+            <select aria-label="Tipo de interação" {...register('type')} className={inputCls}>
               {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            <select {...register('direction')} className={inputCls}>
+            <select aria-label="Direção" {...register('direction')} className={inputCls}>
               <option value="OUTBOUND">Saída</option>
               <option value="INBOUND">Entrada</option>
               <option value="INTERNAL">Interna</option>
             </select>
-            <select {...register('contactId')} className={inputCls}>
+            <select aria-label="Contato" {...register('contactId')} className={inputCls}>
               <option value="">Sem contato específico</option>
               {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -139,7 +139,7 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
           {createFollowUp && (
             <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-200 bg-white p-3">
               <input {...register('followUpTitle')} placeholder="Ex: Enviar proposta" className={inputCls} />
-              <input {...register('followUpDueDate')} type="date" className={inputCls} />
+              <input aria-label="Prazo do follow-up" {...register('followUpDueDate')} type="date" className={inputCls} />
             </div>
           )}
 

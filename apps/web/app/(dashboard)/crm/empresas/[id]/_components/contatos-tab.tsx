@@ -271,7 +271,7 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input {...register('skype')} placeholder="Skype" className={inputCls} />
-            <select {...register('sourceId')} className={inputCls}>
+            <select aria-label="Origem" {...register('sourceId')} className={inputCls}>
               <option value="">Origem…</option>
               {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
