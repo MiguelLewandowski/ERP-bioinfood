@@ -3,9 +3,8 @@
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useState } from 'react';
-import type { ProjectDto } from '@bioinfood/shared';
+import { projectSchema, type ProjectDto, type ProjectFormData } from '@bioinfood/shared';
 import { projectsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -19,21 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-const schema = z
-  .object({
-    name: z.string().min(1, 'Nome é obrigatório').max(200, 'Nome deve ter no máximo 200 caracteres'),
-    description: z.string().optional(),
-    status: z.enum(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED']).optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    clientId: z.string().optional(),
-  })
-  .refine((data) => !data.startDate || !data.endDate || data.endDate >= data.startDate, {
-    message: 'A data de fim não pode ser anterior à data de início',
-    path: ['endDate'],
-  });
-
-type FormData = z.infer<typeof schema>;
+type FormData = ProjectFormData;
 
 interface ProjectDialogProps {
   open: boolean;
@@ -46,7 +31,7 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
   const [serverError, setServerError] = useState('');
 
   const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(projectSchema),
     defaultValues: { status: 'PLANNING' },
   });
 

@@ -7,10 +7,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { OrganizationDto, TaxonomyDto, UserDto } from '@bioinfood/shared';
+import {
+  organizationSchema, type OrganizationDto, type OrganizationFormData, type TaxonomyDto, type UserDto,
+} from '@bioinfood/shared';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -25,31 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-// CNPJ obrigatório, exceto quando a empresa é marcada como estrangeira
-// (documentType = FOREIGN) — decisão 5 do crm-redesign-2026-07.
-const schema = z
-  .object({
-    legalName: z.string().min(1, 'Razão social é obrigatória').max(200, 'Máximo de 200 caracteres'),
-    tradeName: z.string().max(200, 'Máximo de 200 caracteres').optional(),
-    document: z.string().max(20, 'Máximo de 20 caracteres').optional(),
-    documentType: z.enum(['CNPJ', 'CPF', 'FOREIGN', 'OTHER']),
-    notes: z.string().max(4000, 'Máximo de 4000 caracteres').optional(),
-    sectorId: z.string().optional(),
-    sourceId: z.string().optional(),
-    categoryId: z.string().optional(),
-    salesRepId: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.documentType !== 'FOREIGN' && !data.document?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['document'],
-        message: 'CNPJ é obrigatório (ou marque a empresa como estrangeira)',
-      });
-    }
-  });
-
-type FormData = z.infer<typeof schema>;
+type FormData = OrganizationFormData;
 
 interface ClienteDialogProps {
   open: boolean;
@@ -73,7 +50,7 @@ export default function ClienteDialog({
   const {
     register, handleSubmit, reset, setError, setValue, watch, formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(organizationSchema),
     defaultValues: { documentType: 'CNPJ' },
   });
 

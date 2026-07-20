@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import {
   Trash2, ExternalLink, Snowflake, Sun,
 } from 'lucide-react';
-import type { OpportunityDto, UserDto } from '@bioinfood/shared';
+import { opportunitySchema, type OpportunityDto, type OpportunityFormData, type UserDto } from '@bioinfood/shared';
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -35,23 +36,14 @@ interface OpportunityDialogProps {
   onClose: () => void;
 }
 
-interface FormValues {
-  title: string;
-  clientId: string;
-  responsibleId: string;
-  amount: string;
-  startDate: string;
-  expectedCloseDate: string;
-  description: string;
-}
-
 export function OpportunityDialog({
   mode, pipelineId, defaultStageId, opportunity, users, onSaved, onDeleted, onClose,
 }: OpportunityDialogProps) {
   const { token } = useAuth();
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState(opportunity);
-  const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<OpportunityFormData>({
+    resolver: zodResolver(opportunitySchema),
     defaultValues: {
       title: opportunity?.title ?? '',
       clientId: opportunity?.organization.id ?? '',
@@ -63,7 +55,7 @@ export function OpportunityDialog({
     },
   });
 
-  async function onSubmit(v: FormValues) {
+  async function onSubmit(v: OpportunityFormData) {
     if (mode === 'create' && !v.clientId) {
       toast.error('Selecione o cliente');
       return;
@@ -73,7 +65,7 @@ export function OpportunityDialog({
       const payload = {
         title: v.title,
         responsibleId: v.responsibleId || undefined,
-        amount: parseCurrencyBRL(v.amount),
+        amount: parseCurrencyBRL(v.amount ?? ''),
         startDate: v.startDate || undefined,
         expectedCloseDate: v.expectedCloseDate || undefined,
         description: v.description || undefined,
@@ -151,10 +143,10 @@ export function OpportunityDialog({
             <Label htmlFor="opp-title">Título *</Label>
             <Input
               id="opp-title"
-              {...register('title', { required: true })}
+              {...register('title')}
               placeholder="Ex: Projeto Levedura"
             />
-            {errors.title && <p className="mt-1 text-xs text-destructive">Título é obrigatório</p>}
+            {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>}
           </div>
 
           {mode === 'create' && (
