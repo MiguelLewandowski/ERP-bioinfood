@@ -13,6 +13,7 @@ import { format, differenceInDays, startOfMonth, endOfMonth, addMonths, isBefore
 import { ptBR } from 'date-fns/locale';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { parseCalendarDate } from '@/lib/dates';
 
 const schema = z.object({
   title:       z.string().min(1, 'Título é obrigatório').max(200, 'Título deve ter no máximo 200 caracteres'),
@@ -29,7 +30,7 @@ interface RoadmapClientProps {
 
 export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapClientProps) {
   const [milestones, setMilestones] = useState<MilestoneDto[]>(
-    [...initialMilestones].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [...initialMilestones].sort((a, b) => parseCalendarDate(a.date).getTime() - parseCalendarDate(b.date).getTime()),
   );
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +43,7 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
     setLoading(true);
     try {
       const m = await api.post<MilestoneDto>(`/projects/${projectId}/milestones`, values, token);
-      setMilestones((prev) => [...prev, m].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+      setMilestones((prev) => [...prev, m].sort((a, b) => parseCalendarDate(a.date).getTime() - parseCalendarDate(b.date).getTime()));
       reset();
       setOpen(false);
     } catch (err) {
@@ -65,7 +66,7 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
   const reached = milestones.filter((m) => m.reached).length;
 
   // Build months range for timeline
-  const dates = milestones.map((m) => new Date(m.date));
+  const dates = milestones.map((m) => parseCalendarDate(m.date));
   const minDate = dates.length ? new Date(Math.min(...dates.map((d) => d.getTime()))) : now;
   const maxDate = dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : addMonths(now, 3);
   const timelineStart = startOfMonth(isBefore(minDate, now) ? minDate : now);
@@ -73,7 +74,7 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
   const totalDays     = differenceInDays(timelineEnd, timelineStart) || 1;
 
   function positionPercent(dateStr: string) {
-    const d = new Date(dateStr);
+    const d = parseCalendarDate(dateStr);
     const diff = differenceInDays(d, timelineStart);
     return Math.max(0, Math.min(100, (diff / totalDays) * 100));
   }
@@ -150,7 +151,7 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
                     onClick={() => toggleReached(m)}
                     className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group"
                     style={{ left: `${pct}%` }}
-                    title={`${m.title} — ${format(new Date(m.date), 'dd/MM/yyyy')}`}
+                    title={`${m.title} — ${format(parseCalendarDate(m.date), 'dd/MM/yyyy')}`}
                   >
                     <Flag
                       size={18}
@@ -183,7 +184,7 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
               {m.description && <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>}
             </div>
             <span className="text-xs font-medium text-muted-foreground shrink-0">
-              {format(new Date(m.date), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
+              {format(parseCalendarDate(m.date), "dd 'de' MMM 'de' yyyy", { locale: ptBR })}
             </span>
           </div>
         ))}
@@ -197,17 +198,17 @@ export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapCl
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
-                <input {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="milestone-title" className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
+                <input id="milestone-title" {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
-                <textarea {...register('description')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none" />
+                <label htmlFor="milestone-description" className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
+                <textarea id="milestone-description" {...register('description')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Data *</label>
-                <input {...register('date')} type="date" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="milestone-date" className="block text-xs font-semibold text-muted-foreground mb-1">Data *</label>
+                <input id="milestone-date" {...register('date')} type="date" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date.message}</p>}
               </div>
               <div className="flex justify-end gap-2 pt-1">
