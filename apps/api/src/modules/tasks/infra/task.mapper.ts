@@ -1,5 +1,5 @@
 import { TaskDependencyType, TaskPriority, TaskStatus } from '@prisma/client';
-import { TaskWithRelations } from '../domain/task.entity';
+import { TaskPopUsageEntity, TaskWithRelations } from '../domain/task.entity';
 
 export interface TaskChecklistItemDto {
   id: string;
@@ -43,6 +43,17 @@ export interface TaskDto {
   deletedAt: Date | null;
 }
 
+export function toTaskPopUsageDto(p: TaskPopUsageEntity): TaskPopUsageDto {
+  return {
+    id: p.id,
+    popVersionId: p.popVersionId,
+    addedBy: p.addedBy,
+    pop: p.popVersion.pop,
+    versionNumber: p.popVersion.versionNumber,
+    createdAt: p.createdAt,
+  };
+}
+
 export function toTaskDto(t: TaskWithRelations): TaskDto {
   return {
     id: t.id,
@@ -71,14 +82,7 @@ export function toTaskDto(t: TaskWithRelations): TaskDto {
       checked: c.checked,
       order: c.order,
     })),
-    pops: t.pops.map((p) => ({
-      id: p.id,
-      popVersionId: p.popVersionId,
-      addedBy: p.addedBy,
-      pop: p.popVersion.pop,
-      versionNumber: p.popVersion.versionNumber,
-      createdAt: p.createdAt,
-    })),
+    pops: t.pops.map(toTaskPopUsageDto),
     deletedAt: t.deletedAt,
   };
 }

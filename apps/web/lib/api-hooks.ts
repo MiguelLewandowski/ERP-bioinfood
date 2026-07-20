@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   TaskDto,
   TaskChecklistItemDto,
+  TaskPopUsageDto,
   TaskDependencyType,
   RiskDto,
   StakeholderDto,
@@ -90,7 +91,7 @@ export const tasksApi = {
     api.delete<void>(`/projects/${projectId}/tasks/${taskId}/dependencies/${depId}`, token),
 
   addPop: (projectId: string, taskId: string, popVersionId: string, token: string) =>
-    api.post<unknown>(`/projects/${projectId}/tasks/${taskId}/pops`, { popVersionId }, token),
+    api.post<TaskPopUsageDto>(`/projects/${projectId}/tasks/${taskId}/pops`, { popVersionId }, token),
 
   removePop: (projectId: string, taskId: string, linkId: string, token: string) =>
     api.delete<void>(`/projects/${projectId}/tasks/${taskId}/pops/${linkId}`, token),

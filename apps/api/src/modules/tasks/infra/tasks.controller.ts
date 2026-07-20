@@ -33,7 +33,7 @@ import { CreateChecklistItemDto } from './dto/create-checklist-item.dto';
 import { UpdateChecklistItemDto } from './dto/update-checklist-item.dto';
 import { AddPopUsageDto } from './dto/add-pop-usage.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { toTaskDto } from './task.mapper';
+import { toTaskDto, toTaskPopUsageDto } from './task.mapper';
 
 @Controller('projects/:projectId/tasks')
 @UseGuards(RolesGuard)
@@ -161,13 +161,14 @@ export class TasksController {
 
   @Post(':id/pops')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  addPop(
+  async addPop(
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
     @Body() dto: AddPopUsageDto,
     @CurrentUser() user: { id: string },
   ) {
-    return this.addPopUsage.execute(projectId, taskId, dto.popVersionId, user.id);
+    const link = await this.addPopUsage.execute(projectId, taskId, dto.popVersionId, user.id);
+    return toTaskPopUsageDto(link);
   }
 
   @Delete(':id/pops/:linkId')

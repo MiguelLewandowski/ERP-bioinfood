@@ -227,7 +227,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
     setPopLoading(true);
     try {
       const link = await tasksApi.addPop(projectId, task!.id, selectedPop, token);
-      const next = [...taskPops, link as (typeof taskPops)[number]];
+      const next = [...taskPops, link];
       setTaskPops(next);
       setSelectedPop('');
       setAddingPop(false);
