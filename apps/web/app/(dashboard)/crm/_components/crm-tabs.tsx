@@ -9,7 +9,7 @@ import type {
 import { cn } from '@/lib/utils';
 import ClientesClient from '@/components/clientes/clientes-client';
 import { CrmClient } from './crm-client';
-import { PendenciasPanel } from './pendencias-panel';
+import { TarefasTab } from './tarefas-tab';
 import { PessoasTab } from './pessoas-tab';
 
 interface CrmTabsProps {
@@ -84,7 +84,7 @@ export function CrmTabs(props: CrmTabsProps) {
           canEdit={props.canEdit}
         />
       )}
-      {tab === 'tarefas' && <PendenciasPanel canEdit={props.canEdit} />}
+      {tab === 'tarefas' && <TarefasTab users={props.users} canEdit={props.canEdit} />}
     </>
   );
 }
