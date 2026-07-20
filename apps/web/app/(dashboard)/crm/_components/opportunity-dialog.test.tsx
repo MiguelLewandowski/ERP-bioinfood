@@ -228,7 +228,7 @@ describe('OpportunityDialog — edit mode', () => {
 
     await user.click(screen.getByRole('button', { name: /Excluir/ }));
     await screen.findByText('Excluir negócio');
-    await user.click(screen.getByRole('button', { name: 'Excluir', exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Excluir' }));
 
     await waitFor(() => expect(removeMock).toHaveBeenCalledWith('opp-1', TEST_TOKEN));
     expect(onDeleted).toHaveBeenCalledWith('opp-1');

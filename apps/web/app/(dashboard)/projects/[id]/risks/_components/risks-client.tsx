@@ -174,13 +174,13 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
-                <input {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="risk-title" className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
+                <input id="risk-title" {...register('title')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Responsável</label>
-                <select {...register('ownerId')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                <label htmlFor="risk-owner" className="block text-xs font-semibold text-muted-foreground mb-1">Responsável</label>
+                <select id="risk-owner" {...register('ownerId')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                   <option value="">— Sem responsável —</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
@@ -189,21 +189,21 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Probabilidade</label>
-                  <select {...register('probability')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                  <label htmlFor="risk-probability" className="block text-xs font-semibold text-muted-foreground mb-1">Probabilidade</label>
+                  <select id="risk-probability" {...register('probability')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     {PROB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Impacto</label>
-                  <select {...register('impact')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                  <label htmlFor="risk-impact" className="block text-xs font-semibold text-muted-foreground mb-1">Impacto</label>
+                  <select id="risk-impact" {...register('impact')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     {PROB_LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Resposta / Plano de ação</label>
-                <textarea {...register('response')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none" placeholder="Como mitigar ou aceitar este risco…" />
+                <label htmlFor="risk-response" className="block text-xs font-semibold text-muted-foreground mb-1">Resposta / Plano de ação</label>
+                <textarea id="risk-response" {...register('response')} rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none" placeholder="Como mitigar ou aceitar este risco…" />
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
