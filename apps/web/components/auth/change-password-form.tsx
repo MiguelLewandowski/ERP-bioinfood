@@ -56,8 +56,9 @@ export default function ChangePasswordForm({ forced }: ChangePasswordFormProps) 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Senha atual</label>
+        <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">Senha atual</label>
         <input
+          id="current-password"
           {...register('currentPassword')}
           type="password"
           placeholder="••••••••"
@@ -66,8 +67,9 @@ export default function ChangePasswordForm({ forced }: ChangePasswordFormProps) 
         {errors.currentPassword && <p className="text-xs text-red-500 mt-1">{errors.currentPassword.message}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
+        <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
         <input
+          id="new-password"
           {...register('newPassword')}
           type="password"
           placeholder="••••••••"
@@ -76,8 +78,9 @@ export default function ChangePasswordForm({ forced }: ChangePasswordFormProps) 
         {errors.newPassword && <p className="text-xs text-red-500 mt-1">{errors.newPassword.message}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha</label>
+        <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha</label>
         <input
+          id="confirm-password"
           {...register('confirmPassword')}
           type="password"
           placeholder="••••••••"

@@ -45,8 +45,9 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+        <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
         <input
+          id="login-email"
           {...register('email')}
           type="email"
           placeholder="seu@email.com"
@@ -55,8 +56,9 @@ export default function LoginForm() {
         {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+        <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
         <input
+          id="login-password"
           {...register('password')}
           type="password"
           placeholder="••••••••"
