@@ -2,7 +2,7 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { Prisma, TaskDependencyType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ITaskRepository } from '../domain/tasks.repository.interface';
-import { CreateTaskData, TaskChecklistItemEntity, TaskFilters, TaskWithRelations, UpdateTaskData } from '../domain/task.entity';
+import { CreateTaskData, TaskChecklistItemEntity, TaskFilters, TaskPopUsageEntity, TaskWithRelations, UpdateTaskData } from '../domain/task.entity';
 import { TaskDependencyEntity } from '../domain/task-dependency.entity';
 
 const WITH_RELATIONS = {
@@ -11,6 +11,18 @@ const WITH_RELATIONS = {
   successors: { select: { id: true, successorId: true, type: true, lag: true } },
   predecessors: { select: { id: true, predecessorId: true, type: true, lag: true } },
   checklist: { orderBy: { order: 'asc' as const } },
+  pops: {
+    include: {
+      addedBy: { select: { id: true, name: true } },
+      popVersion: {
+        select: {
+          id: true,
+          versionNumber: true,
+          pop: { select: { id: true, title: true } },
+        },
+      },
+    },
+  },
 } as const;
 
 @Injectable()
@@ -147,6 +159,28 @@ export class TasksPrismaRepository implements ITaskRepository {
   findChecklistItem(projectId: string, itemId: string): Promise<TaskChecklistItemEntity | null> {
     return this.prisma.taskChecklistItem.findFirst({
       where: { id: itemId, task: { projectId } },
+    });
+  }
+
+  async addPopUsage(taskId: string, popVersionId: string, addedById: string): Promise<TaskPopUsageEntity> {
+    try {
+      return await this.prisma.taskPop.create({
+        data: { taskId, popVersionId, addedById },
+        include: WITH_RELATIONS.pops.include,
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('Esta versão da POP já está vinculada a esta task');
+      }
+      throw err;
+    }
+  }
+
+  async removePopUsage(projectId: string, id: string): Promise<void> {
+    // Idempotente E escopado: só apaga se o vínculo pertencer a uma task do
+    // projeto da URL. Link de outro projeto (ou já inexistente) vira no-op.
+    await this.prisma.taskPop.deleteMany({
+      where: { id, task: { projectId } },
     });
   }
 }

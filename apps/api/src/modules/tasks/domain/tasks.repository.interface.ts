@@ -4,6 +4,7 @@ import {
   CreateTaskData,
   TaskChecklistItemEntity,
   TaskFilters,
+  TaskPopUsageEntity,
   TaskWithRelations,
   UpdateTaskData,
 } from './task.entity';
@@ -34,4 +35,7 @@ export interface ITaskRepository {
   updateChecklistItem(projectId: string, itemId: string, data: { text?: string; checked?: boolean }): Promise<TaskChecklistItemEntity>;
   deleteChecklistItem(projectId: string, itemId: string): Promise<void>;
   findChecklistItem(projectId: string, itemId: string): Promise<TaskChecklistItemEntity | null>;
+  // POPs usadas — projectId escopa a exclusão pelo projeto da task dona (anti-IDOR).
+  addPopUsage(taskId: string, popVersionId: string, addedById: string): Promise<TaskPopUsageEntity>;
+  removePopUsage(projectId: string, id: string): Promise<void>;
 }

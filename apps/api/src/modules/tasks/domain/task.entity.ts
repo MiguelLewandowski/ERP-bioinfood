@@ -33,12 +33,27 @@ export interface TaskChecklistItemEntity {
   updatedAt: Date;
 }
 
+export interface TaskPopUsageEntity {
+  id: string;
+  taskId: string;
+  popVersionId: string;
+  addedById: string;
+  createdAt: Date;
+  addedBy: { id: string; name: string };
+  popVersion: {
+    id: string;
+    versionNumber: number;
+    pop: { id: string; title: string };
+  };
+}
+
 export interface TaskWithRelations extends TaskEntity {
   assignee: { id: string; name: string } | null;
   wbsNode: { id: string; code: string; title: string } | null;
   successors: Array<{ id: string; successorId: string; type: TaskDependencyType; lag: number }>;
   predecessors: Array<{ id: string; predecessorId: string; type: TaskDependencyType; lag: number }>;
   checklist: TaskChecklistItemEntity[];
+  pops: TaskPopUsageEntity[];
 }
 
 export interface CreateTaskData {

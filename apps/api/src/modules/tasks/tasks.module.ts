@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { PopsModule } from '../pops/pops.module';
 import { TASK_REPOSITORY } from './domain/tasks.repository.interface';
 import { TasksPrismaRepository } from './infra/tasks.prisma.repository';
 import { TasksController } from './infra/tasks.controller';
@@ -14,9 +15,11 @@ import { RemoveDependencyUseCase } from './application/use-cases/remove-dependen
 import { AddChecklistItemUseCase } from './application/use-cases/add-checklist-item.use-case';
 import { UpdateChecklistItemUseCase } from './application/use-cases/update-checklist-item.use-case';
 import { DeleteChecklistItemUseCase } from './application/use-cases/delete-checklist-item.use-case';
+import { AddPopUsageUseCase } from './application/use-cases/add-pop-usage.use-case';
+import { RemovePopUsageUseCase } from './application/use-cases/remove-pop-usage.use-case';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PopsModule],
   controllers: [TasksController],
   providers: [
     { provide: TASK_REPOSITORY, useClass: TasksPrismaRepository },
@@ -31,6 +34,8 @@ import { DeleteChecklistItemUseCase } from './application/use-cases/delete-check
     AddChecklistItemUseCase,
     UpdateChecklistItemUseCase,
     DeleteChecklistItemUseCase,
+    AddPopUsageUseCase,
+    RemovePopUsageUseCase,
   ],
 })
 export class TasksModule {}

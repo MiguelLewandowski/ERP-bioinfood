@@ -13,6 +13,7 @@ import { WbsModule } from './modules/wbs/wbs.module';
 import { RisksModule } from './modules/risks/risks.module';
 import { StakeholdersModule } from './modules/stakeholders/stakeholders.module';
 import { MilestonesModule } from './modules/milestones/milestones.module';
+import { PopsModule } from './modules/pops/pops.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TaxonomiesModule } from './modules/taxonomies/infra/taxonomies.module';
@@ -59,6 +60,7 @@ import { AuditModule } from './common/audit/audit.module';
     RisksModule,
     StakeholdersModule,
     MilestonesModule,
+    PopsModule,
     ActivitiesModule,
     OrganizationsModule,
     TaxonomiesModule,
