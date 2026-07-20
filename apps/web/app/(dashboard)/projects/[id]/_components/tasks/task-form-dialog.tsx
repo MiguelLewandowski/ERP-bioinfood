@@ -5,14 +5,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { X, Trash2, AlertTriangle, Link2, Plus, ArrowRight, CheckSquare, Square, ListChecks } from 'lucide-react';
+import { X, Trash2, AlertTriangle, Link2, Plus, ArrowRight, CheckSquare, Square, ListChecks, FileCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, dialogDrawerRightClass } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
+import { popsApi, tasksApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import type { ProjectMember } from '@/lib/project-members';
-import type { TaskDto as Task, TaskChecklistItemDto as TaskChecklistItem } from '@bioinfood/shared';
+import type { TaskDto as Task, TaskChecklistItemDto as TaskChecklistItem, PopDto } from '@bioinfood/shared';
 import { checklistProgress } from '@bioinfood/shared';
 
 const schema = z
@@ -95,12 +96,24 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   const [addingItem, setAddingItem]   = useState(false);
   const newItemRef                    = useRef<HTMLInputElement>(null);
 
+  // POPs utilizadas (edição apenas)
+  const [allPops, setAllPops]       = useState<PopDto[]>([]);
+  const [taskPops, setTaskPops]     = useState(task?.pops ?? []);
+  const [addingPop, setAddingPop]   = useState(false);
+  const [selectedPop, setSelectedPop] = useState('');
+  const [popLoading, setPopLoading] = useState(false);
+
   useEffect(() => {
     if (!isEdit) return;
     api.get<Task[]>(`/projects/${projectId}/tasks`, token)
       .then((data) => setAllTasks(data.filter((t) => t.id !== task!.id && !t.deletedAt)))
       .catch(() => {});
   }, [isEdit, projectId, token, task]);
+
+  useEffect(() => {
+    if (!isEdit) return;
+    popsApi.list(projectId, token).then(setAllPops).catch(() => {});
+  }, [isEdit, projectId, token]);
 
   useEffect(() => {
     if (addingItem) newItemRef.current?.focus();
@@ -207,6 +220,39 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
     }
   }
 
+  // ── POPs utilizadas ─────────────────────────────────────────────────────────
+
+  async function addPop() {
+    if (!selectedPop || !isEdit) return;
+    setPopLoading(true);
+    try {
+      const link = await tasksApi.addPop(projectId, task!.id, selectedPop, token);
+      const next = [...taskPops, link as (typeof taskPops)[number]];
+      setTaskPops(next);
+      setSelectedPop('');
+      setAddingPop(false);
+      onUpdated?.({ ...task!, predecessors, checklist, pops: next });
+      toast.success('POP vinculada');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setPopLoading(false);
+    }
+  }
+
+  async function removePop(linkId: string) {
+    if (!isEdit) return;
+    try {
+      await tasksApi.removePop(projectId, task!.id, linkId, token);
+      const next = taskPops.filter((p) => p.id !== linkId);
+      setTaskPops(next);
+      onUpdated?.({ ...task!, predecessors, checklist, pops: next });
+      toast.success('POP desvinculada');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  }
+
   // ── Checklist ───────────────────────────────────────────────────────────────
 
   async function addChecklistItem() {
@@ -260,6 +306,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   const predecessorTaskMap = new Map(allTasks.map((t) => [t.id, t]));
   const alreadyLinkedIds   = new Set(predecessors.map((p) => p.predecessorId));
   const availableToLink    = allTasks.filter((t) => !alreadyLinkedIds.has(t.id));
+
+  const alreadyLinkedPopIds = new Set(taskPops.map((p) => p.pop.id));
+  const availablePops       = allPops.filter((p) => !alreadyLinkedPopIds.has(p.id));
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -532,6 +581,65 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                         {depLoading ? '…' : 'OK'}
                       </button>
                       <button type="button" onClick={() => { setAddingDep(false); setSelectedPred(''); }} className="text-muted-foreground">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── POPs utilizadas ── */}
+                <div className="border-t border-gray-100 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <FileCheck size={13} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">POPs utilizadas</span>
+                    </div>
+                    {!addingPop && availablePops.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAddingPop(true)}
+                        className="flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
+                      >
+                        <Plus size={12} /> Adicionar
+                      </button>
+                    )}
+                  </div>
+
+                  {taskPops.length === 0 && !addingPop && (
+                    <p className="text-xs text-muted-foreground py-1">Nenhuma POP vinculada.</p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    {taskPops.map((link) => (
+                      <div key={link.id} className="flex items-center gap-2 bg-success/10 border border-ring/30 rounded-lg px-3 py-1.5">
+                        <FileCheck size={12} className="text-primary shrink-0" />
+                        <span className="flex-1 text-xs font-medium text-foreground truncate">{link.pop.title}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">v{link.versionNumber}</span>
+                        <button type="button" onClick={() => removePop(link.id)} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {addingPop && (
+                    <div className="mt-2 flex gap-2 items-center">
+                      <select
+                        value={selectedPop}
+                        onChange={(e) => setSelectedPop(e.target.value)}
+                        className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
+                      >
+                        <option value="">Selecione a POP…</option>
+                        {availablePops.map((p) => (
+                          <option key={p.id} value={p.latestVersion.id}>{p.title} (v{p.latestVersion.versionNumber})</option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={addPop} disabled={!selectedPop || popLoading}
+                        className="px-3 py-2 text-xs font-semibold text-white rounded-lg disabled:opacity-50"
+                        style={{ backgroundColor: 'hsl(var(--primary))' }}>
+                        {popLoading ? '…' : 'OK'}
+                      </button>
+                      <button type="button" onClick={() => { setAddingPop(false); setSelectedPop(''); }} className="text-muted-foreground">
                         <X size={14} />
                       </button>
                     </div>
