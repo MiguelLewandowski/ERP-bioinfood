@@ -3,6 +3,8 @@ import {
 } from 'class-validator';
 import { DocumentType, PartyType } from '@prisma/client';
 
+// Limites replicados de packages/shared/src/schemas.ts (organizationSchema) —
+// mudar lá primeiro, depois aqui.
 export class CreateOrganizationDto {
   @IsString()
   @MaxLength(200)

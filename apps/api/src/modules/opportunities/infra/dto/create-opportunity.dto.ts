@@ -2,6 +2,8 @@ import {
   IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
 } from 'class-validator';
 
+// Limites replicados de packages/shared/src/schemas.ts (opportunitySchema) —
+// mudar lá primeiro, depois aqui.
 export class CreateOpportunityDto {
   @IsString()
   orgId: string;
