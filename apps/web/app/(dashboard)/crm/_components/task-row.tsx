@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { CheckCircle2, Circle, Building2, User } from 'lucide-react';
 import type { CrmActivityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
-import { bucketOf, formatDueLabel } from '@/lib/crm-tasks';
+import { bucketOf, dueDisplay } from '@/lib/crm-tasks';
 import { ActivityTypeBadge } from '@/components/ui/activity-type-badge';
 import { PriorityBadge } from '@/components/ui/priority-badge';
 
@@ -27,6 +27,7 @@ export function TaskRow({ task, onToggle, onEdit, showContext }: TaskRowProps) {
   const [toggling, setToggling] = useState(false);
   const bucket = bucketOf(task);
   const done = bucket === 'done';
+  const { label, exact } = dueDisplay(task.dueDate);
 
   async function handleToggle() {
     if (!onToggle || toggling) return;
@@ -97,17 +98,26 @@ export function TaskRow({ task, onToggle, onEdit, showContext }: TaskRowProps) {
         )}
       </div>
 
-      <span
-        className={cn(
-          'shrink-0 whitespace-nowrap text-[11px] font-medium',
-          done && 'text-muted-foreground',
-          !done && bucket === 'overdue' && 'text-destructive',
-          !done && bucket === 'today' && 'text-accent',
-          !done && bucket !== 'overdue' && bucket !== 'today' && 'text-muted-foreground',
+      {/* Rótulo relativo dá a urgência num relance; a data exata embaixo evita
+          que o usuário tenha que abrir a tarefa para saber o dia. */}
+      <div className="shrink-0 text-right">
+        <span
+          className={cn(
+            'block whitespace-nowrap text-[11px] font-medium',
+            done && 'text-muted-foreground',
+            !done && bucket === 'overdue' && 'text-destructive',
+            !done && bucket === 'today' && 'text-accent',
+            !done && bucket !== 'overdue' && bucket !== 'today' && 'text-muted-foreground',
+          )}
+        >
+          {label}
+        </span>
+        {exact && (
+          <span className="block whitespace-nowrap text-[10px] text-muted-foreground">
+            {exact}
+          </span>
         )}
-      >
-        {formatDueLabel(task.dueDate)}
-      </span>
+      </div>
     </div>
   );
 }

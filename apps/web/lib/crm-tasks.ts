@@ -74,6 +74,48 @@ export function formatDueLabel(dueDate: string | null): string {
     .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
+/**
+ * Prazo para exibição: rótulo relativo (urgência num relance) e a data exata
+ * como apoio. `exact` vem null quando o próprio rótulo já é uma data, para não
+ * repetir a mesma informação em duas linhas.
+ */
+export function dueDisplay(dueDate: string | null): { label: string; exact: string | null } {
+  const label = formatDueLabel(dueDate);
+  if (!dueDate) return { label, exact: null };
+  const isRelative = daysUntilDue(dueDate) <= 7;
+  return {
+    label,
+    exact: isRelative
+      ? new Date(`${dueDate.slice(0, 10)}T00:00:00`).toLocaleDateString('pt-BR')
+      : null,
+  };
+}
+
+export type OpportunityTaskState = 'overdue' | 'today' | 'upcoming' | 'none';
+
+export interface OpportunityTaskSummary {
+  state: OpportunityTaskState;
+  /** Quantidade de tarefas pendentes (não conta concluídas). */
+  pending: number;
+}
+
+/**
+ * Estado das tarefas de um negócio para o indicador do card no funil: o
+ * usuário precisa distinguir "sem próximo passo" de "tem tarefa, mas só na
+ * semana que vem" sem abrir o negócio.
+ */
+export function summarizeOpportunityTasks(tasks: CrmActivityDto[]): OpportunityTaskSummary {
+  const pending = tasks.filter((t) => bucketOf(t) !== 'done');
+  if (pending.length === 0) return { state: 'none', pending: 0 };
+  const buckets = new Set(pending.map(bucketOf));
+  const state: OpportunityTaskState = buckets.has('overdue')
+    ? 'overdue'
+    : buckets.has('today')
+      ? 'today'
+      : 'upcoming';
+  return { state, pending: pending.length };
+}
+
 const BUCKET_ORDER: Record<TaskBucket, number> = {
   overdue: 0, today: 1, week: 2, later: 3, noDate: 4, done: 5,
 };
