@@ -110,8 +110,9 @@ export function PopsClient({ initialPops }: PopsClientProps) {
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
+                <label htmlFor="pop-title" className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
                 <input
+                  id="pop-title"
                   {...register('title')}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
                   placeholder="Ex: Limpeza e sanitização de bancada"
@@ -119,8 +120,9 @@ export function PopsClient({ initialPops }: PopsClientProps) {
                 {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
+                <label htmlFor="pop-description" className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
                 <textarea
+                  id="pop-description"
                   {...register('description')}
                   rows={3}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"

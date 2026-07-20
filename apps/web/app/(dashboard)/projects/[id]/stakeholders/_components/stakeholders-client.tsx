@@ -249,26 +249,26 @@ export function StakeholdersClient({ projectId, initialStakeholders }: Stakehold
                 {errors.contactId && <p className="text-xs text-red-500 mt-1">{errors.contactId.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Papel</label>
-                <select {...register('type')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                <label htmlFor="stakeholder-type" className="block text-xs font-semibold text-muted-foreground mb-1">Papel</label>
+                <select id="stakeholder-type" {...register('type')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                   {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Papel específico (opcional)</label>
-                <input {...register('roleNote')} placeholder="Ex: Diretora de P&D, ponto focal técnico…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="stakeholder-role-note" className="block text-xs font-semibold text-muted-foreground mb-1">Papel específico (opcional)</label>
+                <input id="stakeholder-role-note" {...register('roleNote')} placeholder="Ex: Diretora de P&D, ponto focal técnico…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Poder (influência)</label>
-                  <select {...register('influence')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                  <label htmlFor="stakeholder-influence" className="block text-xs font-semibold text-muted-foreground mb-1">Poder (influência)</label>
+                  <select id="stakeholder-influence" {...register('influence')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     <option value="">—</option>
                     {LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Interesse</label>
-                  <select {...register('interest')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
+                  <label htmlFor="stakeholder-interest" className="block text-xs font-semibold text-muted-foreground mb-1">Interesse</label>
+                  <select id="stakeholder-interest" {...register('interest')} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white">
                     <option value="">—</option>
                     {LEVELS.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
                   </select>

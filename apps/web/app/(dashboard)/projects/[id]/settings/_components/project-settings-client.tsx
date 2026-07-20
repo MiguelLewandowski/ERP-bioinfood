@@ -129,8 +129,9 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           <h3 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Identificação</h3>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">Nome do Projeto *</label>
+            <label htmlFor="settings-name" className="block text-xs font-semibold text-muted-foreground mb-1">Nome do Projeto *</label>
             <input
+              id="settings-name"
               {...register('name')}
               className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
             />
@@ -138,8 +139,9 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
+            <label htmlFor="settings-description" className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
             <textarea
+              id="settings-description"
               {...register('description')}
               rows={3}
               className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"
@@ -158,8 +160,9 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">Objetivo resumido</label>
+            <label htmlFor="settings-objective" className="block text-xs font-semibold text-muted-foreground mb-1">Objetivo resumido</label>
             <input
+              id="settings-objective"
               {...register('objective')}
               placeholder="Resumo do objetivo do projeto em uma linha"
               className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
@@ -172,8 +175,9 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
           <h3 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Status e Cronograma</h3>
 
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">Status</label>
+            <label htmlFor="settings-status" className="block text-xs font-semibold text-muted-foreground mb-1">Status</label>
             <select
+              id="settings-status"
               {...register('status')}
               className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
             >
@@ -185,16 +189,18 @@ export function ProjectSettingsClient({ projectId, token, project }: ProjectSett
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Data de Início</label>
+              <label htmlFor="settings-start-date" className="block text-xs font-semibold text-muted-foreground mb-1">Data de Início</label>
               <input
+                id="settings-start-date"
                 {...register('startDate')}
                 type="date"
                 className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Data de Término</label>
+              <label htmlFor="settings-end-date" className="block text-xs font-semibold text-muted-foreground mb-1">Data de Término</label>
               <input
+                id="settings-end-date"
                 {...register('endDate')}
                 type="date"
                 className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
