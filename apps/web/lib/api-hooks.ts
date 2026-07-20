@@ -31,6 +31,8 @@ import type {
   UserDto,
   UserProjectAccessDto,
   SearchResultDto,
+  PopDto,
+  PopDetailDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -86,6 +88,12 @@ export const tasksApi = {
 
   removeDependency: (projectId: string, taskId: string, depId: string, token: string) =>
     api.delete<void>(`/projects/${projectId}/tasks/${taskId}/dependencies/${depId}`, token),
+
+  addPop: (projectId: string, taskId: string, popVersionId: string, token: string) =>
+    api.post<unknown>(`/projects/${projectId}/tasks/${taskId}/pops`, { popVersionId }, token),
+
+  removePop: (projectId: string, taskId: string, linkId: string, token: string) =>
+    api.delete<void>(`/projects/${projectId}/tasks/${taskId}/pops/${linkId}`, token),
 };
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
@@ -134,6 +142,33 @@ export const milestonesApi = {
 
   remove: (projectId: string, id: string, token: string) =>
     api.delete<void>(`/projects/${projectId}/milestones/${id}`, token),
+};
+
+// ── POPs (Procedimento Operacional Padrão, versionável) ─────────────────────────
+
+export const popsApi = {
+  list: (projectId: string, token: string) =>
+    api.get<PopDto[]>(`/projects/${projectId}/pops`, token),
+
+  get: (projectId: string, id: string, token: string) =>
+    api.get<PopDetailDto>(`/projects/${projectId}/pops/${id}`, token),
+
+  create: (projectId: string, data: { title: string; description?: string }, token: string) =>
+    api.post<PopDetailDto>(`/projects/${projectId}/pops`, data, token),
+
+  update: (projectId: string, id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<PopDetailDto>(`/projects/${projectId}/pops/${id}`, data, token),
+
+  createVersion: (
+    projectId: string,
+    id: string,
+    data: { changeNotes?: string; fileUrl?: string },
+    token: string,
+  ) =>
+    api.post<PopDetailDto>(`/projects/${projectId}/pops/${id}/versions`, data, token),
+
+  remove: (projectId: string, id: string, token: string) =>
+    api.delete<void>(`/projects/${projectId}/pops/${id}`, token),
 };
 
 // ── WBS ───────────────────────────────────────────────────────────────────────
