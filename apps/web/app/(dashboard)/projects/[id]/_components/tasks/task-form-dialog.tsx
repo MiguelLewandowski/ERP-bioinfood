@@ -323,8 +323,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
 
             {/* ── Campos principais ── */}
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
+              <label htmlFor="task-title" className="block text-xs font-semibold text-muted-foreground mb-1">Título *</label>
               <input
+                id="task-title"
                 {...register('title')}
                 className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
                 placeholder="Título da tarefa"
@@ -333,8 +334,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
+              <label htmlFor="task-description" className="block text-xs font-semibold text-muted-foreground mb-1">Descrição</label>
               <textarea
+                id="task-description"
                 {...register('description')}
                 rows={3}
                 className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none resize-none"
@@ -345,8 +347,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
             <div className="grid grid-cols-2 gap-3">
               {isEdit && (
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Status</label>
+                  <label htmlFor="task-status" className="block text-xs font-semibold text-muted-foreground mb-1">Status</label>
                   <select
+                    id="task-status"
                     {...register('status')}
                     className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                   >
@@ -357,8 +360,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Prioridade</label>
+                <label htmlFor="task-priority" className="block text-xs font-semibold text-muted-foreground mb-1">Prioridade</label>
                 <select
+                  id="task-priority"
                   {...register('priority')}
                   className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                 >
@@ -371,8 +375,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Responsável</label>
+              <label htmlFor="task-assigneeId" className="block text-xs font-semibold text-muted-foreground mb-1">Responsável</label>
               <select
+                id="task-assigneeId"
                 {...register('assigneeId')}
                 className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
               >
@@ -384,8 +389,9 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Story Points</label>
+              <label htmlFor="task-storyPoints" className="block text-xs font-semibold text-muted-foreground mb-1">Story Points</label>
               <input
+                id="task-storyPoints"
                 {...register('storyPoints')}
                 type="number"
                 min={1}
@@ -397,21 +403,21 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Data de Início</label>
-                <input {...register('startDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="task-startDate" className="block text-xs font-semibold text-muted-foreground mb-1">Data de Início</label>
+                <input id="task-startDate" {...register('startDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Hora de Início</label>
-                <input {...register('startTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="task-startTime" className="block text-xs font-semibold text-muted-foreground mb-1">Hora de Início</label>
+                <input id="task-startTime" {...register('startTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Prazo</label>
-                <input {...register('dueDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="task-dueDate" className="block text-xs font-semibold text-muted-foreground mb-1">Prazo</label>
+                <input id="task-dueDate" {...register('dueDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate.message}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Hora Final</label>
-                <input {...register('endTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
+                <label htmlFor="task-endTime" className="block text-xs font-semibold text-muted-foreground mb-1">Hora Final</label>
+                <input id="task-endTime" {...register('endTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.endTime && <p className="text-xs text-red-500 mt-1">{errors.endTime.message}</p>}
               </div>
             </div>
