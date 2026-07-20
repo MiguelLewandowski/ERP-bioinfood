@@ -12,34 +12,32 @@ Substitui Notion, Excel e assinaturas desconexas.
 - Deploy:   Railway
 - PM:       pnpm
 
-## Estrutura a criar
+## Estrutura
+```
 bioinfood-erp/
-
 ├── apps/
-
-│   ├── api/          → NestJS (porta 3001)
-
-│   └── web/          → Next.js (porta 3000)
-
+│   ├── api/                → NestJS (porta 3001)
+│   │   ├── prisma/         → schema, migrations e seed
+│   │   └── src/modules/    → um diretório por módulo de domínio
+│   └── web/                → Next.js (porta 3000)
+│       ├── app/            → rotas (App Router)
+│       ├── components/     → componentes compartilhados + ui/
+│       └── lib/            → api client, hooks, utilitários
 ├── packages/
-
-│   └── shared/       → DTOs e tipos compartilhados
-
+│   └── shared/             → DTOs e tipos compartilhados (@bioinfood/shared)
 ├── docs/
-
-│   ├── agents/       → já existem, não modificar
-
-│   └── design/       → identidade-visual.pdf e paleta-de-cores.pdf
-
-├── .claude/
-
-│   └── commands/
-
+│   ├── agents/             → papéis usados pelas skills — não modificar
+│   ├── design/             → identidade visual (PDFs) + design-tokens.md
+│   └── regras-negocio/     → regras de negócio documentadas
+├── .claude/commands/       → skills (slash commands)
 ├── turbo.json
-
 ├── package.json
-
 └── CLAUDE.md
+```
+
+Módulos da API: `activities`, `auth`, `charter`, `contacts`, `crm-activities`,
+`interactions`, `milestones`, `opportunities`, `organizations`, `pipelines`, `pops`,
+`projects`, `risks`, `search`, `stakeholders`, `tasks`, `taxonomies`, `users`, `wbs`.
 
 ## Arquitetura — Clean Architecture (3 camadas)
 src/modules/<nome>/
@@ -85,14 +83,45 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | `/deploy <o que>` | Checklist pré-deploy para Railway |
 | `/commit <contexto>` | Criar commits semânticos, pequenos e separados por intenção |
 
+Skills de revisão e análise (não escrevem código de feature, produzem diagnóstico):
+
+| Skill | Quando usar |
+|---|---|
+| `/analisar-backend` | Revisão do backend NestJS por um Tech Lead sênior |
+| `/analisar-frontend` | Revisão do frontend Next.js por um Tech Lead sênior |
+| `/analisar-uiux` | Revisão de UI/UX por um designer sênior |
+| `/analisar-cientista` | Avaliação do ERP pela ótica de quem usa o sistema todo dia |
+| `/analisar-oportunidades` | Visão de produto e negócio sobre o que construir a seguir |
+| `/council` | Submeter uma decisão ao conselho — contraponto sem bajulação |
+| `/ralph-loop` | Trabalho autônomo e contínuo (piloto automático) |
+
 ## Design
 Antes de criar qualquer componente de UI, ler `docs/design/design-tokens.md`.
+
+## Testes
+Vitest nos dois apps. `pnpm test` na raiz roda a suíte completa via Turborepo.
+- **API**: Vitest puro sobre casos de uso, com repositórios mockados.
+- **Web**: Vitest + jsdom + Testing Library. O helper `apps/web/lib/test-utils.tsx`
+  (`renderWithProviders`) usa os providers **reais** (`AuthProvider`, `ConfirmProvider`)
+  em vez de mocks — o fluxo de confirmação de exclusão precisa ser exercitado de ponta a
+  ponta. A API é mockada via `vi.mock('@/lib/api-hooks')` ou `vi.mock('@/lib/api')`.
+
+Padrão: **Arrange → Act → Assert**, nomes `should X when Y`, em inglês.
+Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
+
+> Ao testar formulário, lembrar que validação nativa do HTML (`type="email"`,
+> `type="number"` com `min`/`max`, `required`) bloqueia o submit **antes** do zod rodar —
+> a mensagem do schema nunca aparece nesses casos.
+
+> Campo de dia é dia de calendário, não instante: usar `parseCalendarDate()` de
+> `apps/web/lib/dates.ts` ao formatar `date`/`dueDate`/`startDate`. `new Date('2026-10-01')`
+> é meia-noite **UTC** e renderiza um dia antes em `America/Sao_Paulo`.
 
 ## Convenções
 - TypeScript strict em todos os projetos
 - Arquivos: kebab-case
 - Classes: PascalCase · funções/vars: camelCase
-- Commits: feat: fix: chore: docs: refactor:
+- Commits: feat: fix: chore: docs: refactor: test:
 - Nunca apagar migrations — sempre adicionar novas
 - Server Components por padrão no Next.js
 - Sem console.log ou TODO no código commitado
