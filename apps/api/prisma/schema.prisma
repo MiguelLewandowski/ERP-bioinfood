@@ -230,6 +230,8 @@ model User {
   loggedInteractions       Interaction[]
   responsibleActivities    Activity[]
   responsibleOpportunities Opportunity[]
+  authoredPopVersions      PopVersion[] @relation("PopVersionAuthor")
+  addedTaskPops            TaskPop[]    @relation("TaskPopAddedBy")
 }
 
 model RefreshToken {
@@ -697,6 +699,7 @@ model Project {
   risks        Risk[]
   milestones   Milestone[]
   stakeholders ProjectStakeholder[] // substitui sponsor/team/stakeholders texto
+  pops         Pop[]
   labOrders    LabOrder[] // LIMS ligado ao projeto (opcional)
 
   @@index([status])
@@ -870,6 +873,7 @@ model Task {
   successors   TaskDependency[]    @relation("Predecessor")
   predecessors TaskDependency[]    @relation("Successor")
   checklist    TaskChecklistItem[]
+  pops         TaskPop[]
 
   @@index([projectId])
   @@index([status])
@@ -947,6 +951,62 @@ model Milestone {
 
   @@index([projectId])
   @@index([date])
+}
+
+// ═══════════════════════════════ POPs ═════════════════════════════════════
+// Procedimento Operacional Padrão — versionável (docs/regras-negocio/pop.md).
+// Pop é a identidade (título estável); PopVersion é a revisão imutável de
+// conteúdo (nunca editada após criada); TaskPop registra qual VERSÃO exata
+// foi usada em qual task (não a Pop em si, para o vínculo sobreviver a
+// revisões futuras do documento).
+
+model Pop {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions PopVersion[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+}
+
+model PopVersion {
+  id            String   @id @default(cuid())
+  popId         String
+  versionNumber Int
+  changeNotes   String?
+  fileUrl       String? // upload de PDF ainda não implementado — só o campo
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  pop        Pop       @relation(fields: [popId], references: [id], onDelete: Cascade)
+  createdBy  User      @relation("PopVersionAuthor", fields: [createdById], references: [id])
+  taskUsages TaskPop[]
+
+  @@unique([popId, versionNumber])
+  @@index([popId])
+}
+
+model TaskPop {
+  id           String   @id @default(cuid())
+  taskId       String
+  popVersionId String
+  addedById    String
+  createdAt    DateTime @default(now())
+
+  task       Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  popVersion PopVersion @relation(fields: [popVersionId], references: [id])
+  addedBy    User       @relation("TaskPopAddedBy", fields: [addedById], references: [id])
+
+  @@unique([taskId, popVersionId])
+  @@index([taskId])
+  @@index([popVersionId])
 }
 
 // ══════════════ GANCHOS DE MÓDULOS (stubs — detalhar depois) ═══════════════
