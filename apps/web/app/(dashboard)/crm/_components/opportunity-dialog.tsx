@@ -12,6 +12,7 @@ import { opportunitySchema, type OpportunityDto, type OpportunityFormData, type 
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useConfirm } from '@/components/providers/confirm-provider';
 import { OrganizationSelect } from '@/components/shared/organization-select';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -31,15 +32,19 @@ interface OpportunityDialogProps {
   defaultStageId: string;
   opportunity?: OpportunityDto;
   users: UserDto[];
+  canEdit: boolean;
   onSaved: (o: OpportunityDto) => void;
   onDeleted?: (id: string) => void;
+  onTasksChanged?: () => void;
   onClose: () => void;
 }
 
 export function OpportunityDialog({
-  mode, pipelineId, defaultStageId, opportunity, users, onSaved, onDeleted, onClose,
+  mode, pipelineId, defaultStageId, opportunity, users, canEdit,
+  onSaved, onDeleted, onTasksChanged, onClose,
 }: OpportunityDialogProps) {
   const { token } = useAuth();
+  const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState(opportunity);
   const { register, handleSubmit, control, formState: { errors } } = useForm<OpportunityFormData>({
@@ -86,6 +91,13 @@ export function OpportunityDialog({
 
   async function handleDelete() {
     if (!opportunity) return;
+    const ok = await confirm({
+      title: 'Excluir negócio',
+      description: `"${opportunity.title}" e as tarefas vinculadas serão removidos. Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       await opportunitiesApi.remove(opportunity.id, token);
@@ -217,7 +229,13 @@ export function OpportunityDialog({
         </form>
 
         {mode === 'edit' && current && (
-          <OpportunityTasksSection opportunityId={current.id} orgId={current.organization.id} />
+          <OpportunityTasksSection
+            opportunityId={current.id}
+            orgId={current.organization.id}
+            users={users}
+            canEdit={canEdit}
+            onTasksChanged={onTasksChanged}
+          />
         )}
       </DialogContent>
     </Dialog>

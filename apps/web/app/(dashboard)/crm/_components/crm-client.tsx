@@ -63,6 +63,20 @@ export function CrmClient(props: CrmClientProps) {
     return map;
   }, [urgentTasks]);
 
+  // Recarrega o sinal de urgência depois que tarefas mudam dentro do modal do
+  // negócio — sem isto o badge do card ficava velho até um refresh da página.
+  async function reloadUrgentTasks() {
+    try {
+      const [overdue, today] = await Promise.all([
+        crmActivitiesApi.list(token, { due: 'overdue' }),
+        crmActivitiesApi.list(token, { due: 'today' }),
+      ]);
+      setUrgentTasks([...overdue, ...today].filter((t) => t.opportunityId));
+    } catch {
+      // Sinal auxiliar: falhar aqui não deve interromper o fluxo do kanban.
+    }
+  }
+
   async function completeUrgentTask(taskId: string) {
     const prev = urgentTasks;
     setUrgentTasks((p) => p.filter((t) => t.id !== taskId));
@@ -369,7 +383,9 @@ export function CrmClient(props: CrmClientProps) {
           pipelineId={pipeline.id}
           defaultStageId={firstOpen.id}
           users={props.users}
+          canEdit={props.canEdit}
           onSaved={onSaved}
+          onTasksChanged={reloadUrgentTasks}
           onClose={() => setCreating(false)}
         />
       )}
@@ -381,8 +397,10 @@ export function CrmClient(props: CrmClientProps) {
           defaultStageId={editing.stageId}
           opportunity={editing}
           users={props.users}
+          canEdit={props.canEdit}
           onSaved={onSaved}
           onDeleted={onDeleted}
+          onTasksChanged={reloadUrgentTasks}
           onClose={() => setEditing(null)}
         />
       )}

@@ -8,17 +8,13 @@ import {
 } from 'lucide-react';
 import type { CrmActivityDto, OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
+import { isOverdue } from '@/lib/crm-tasks';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
   if (amount === null) return '—';
   const n = Number(amount);
   if (Number.isNaN(n)) return '—';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(n);
-}
-
-function isOverdueTask(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  return dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
 }
 
 interface CrmCardProps {
@@ -95,7 +91,7 @@ export function CrmCard({
         </div>
       )}
       {urgentTask && (() => {
-        const overdue = isOverdueTask(urgentTask.dueDate);
+        const overdue = isOverdue(urgentTask.dueDate);
         return (
           <div
             className={cn(

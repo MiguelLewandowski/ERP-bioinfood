@@ -1,174 +1,162 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, Circle, Plus } from 'lucide-react';
-import type { CrmActivityDto, CrmActivityType } from '@bioinfood/shared';
+import { Plus, ListChecks } from 'lucide-react';
+import type { CrmActivityDto, UserDto } from '@bioinfood/shared';
 import { crmActivitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { bucketOf, sortByUrgency } from '@/lib/crm-tasks';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import { TaskRow } from './task-row';
+import { TaskDialog } from './task-dialog';
 
-const TYPE_LABELS: Record<CrmActivityType, string> = {
-  NOTE: 'Nota',
-  EMAIL: 'E-mail',
-  CALL: 'Ligação',
-  WHATSAPP: 'WhatsApp',
-  PROPOSAL: 'Proposta',
-  MEETING: 'Reunião',
-  VISIT: 'Visita',
-};
-
-// Mesmo vocabulário de urgência da aba Tarefas e do card do kanban (achado #7
-// da análise de UI/UX): vencida = destructive, hoje = accent.
-function isOverdueTask(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  return dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
+interface OpportunityTasksSectionProps {
+  opportunityId: string;
+  orgId: string;
+  users: UserDto[];
+  /** Escrita de CRM é exclusiva do ADMIN — sem isto a UI oferecia ações que davam 403. */
+  canEdit: boolean;
+  /** Avisa o kanban para atualizar o badge de tarefa urgente do card. */
+  onTasksChanged?: () => void;
 }
 
-function isDueToday(dueDate: string | null): boolean {
-  if (!dueDate) return false;
-  return dueDate.slice(0, 10) === new Date().toISOString().slice(0, 10);
-}
-
-function sortByUrgency(a: CrmActivityDto, b: CrmActivityDto): number {
-  if (a.status === 'DONE' && b.status !== 'DONE') return 1;
-  if (a.status !== 'DONE' && b.status === 'DONE') return -1;
-  if (!a.dueDate && !b.dueDate) return 0;
-  if (!a.dueDate) return 1;
-  if (!b.dueDate) return -1;
-  return a.dueDate < b.dueDate ? -1 : 1;
-}
-
-interface TaskFormValues {
-  type: CrmActivityType;
-  title: string;
-  dueDate: string;
-}
-
-export function OpportunityTasksSection({ opportunityId, orgId }: { opportunityId: string; orgId: string }) {
-  const { token, session } = useAuth();
+export function OpportunityTasksSection({
+  opportunityId, orgId, users, canEdit, onTasksChanged,
+}: OpportunityTasksSectionProps) {
+  const { token } = useAuth();
   const [tasks, setTasks] = useState<CrmActivityDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const { register, handleSubmit, reset } = useForm<TaskFormValues>({
-    defaultValues: { type: 'NOTE', title: '', dueDate: '' },
-  });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<CrmActivityDto | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     crmActivitiesApi.list(token, { opportunityId })
       .then((items) => { if (!cancelled) setTasks(items); })
-      .catch((err) => toast.error(getErrorMessage(err)))
+      .catch((err) => { if (!cancelled) toast.error(getErrorMessage(err)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [opportunityId, token]);
 
-  async function onSubmit(v: TaskFormValues) {
-    if (!v.title.trim()) return;
-    setSaving(true);
-    try {
-      const created = await crmActivitiesApi.create(
-        {
-          opportunityId, orgId, type: v.type, title: v.title, dueDate: v.dueDate || undefined,
-          responsibleId: session.sub,
-        },
-        token,
-      );
-      setTasks((prev) => [created, ...prev]);
-      reset({ type: 'NOTE', title: '', dueDate: '' });
-      setShowForm(false);
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  }
+  const { pending, done } = useMemo(() => {
+    const sorted = [...tasks].sort(sortByUrgency);
+    return {
+      pending: sorted.filter((t) => bucketOf(t) !== 'done'),
+      done: sorted.filter((t) => bucketOf(t) === 'done'),
+    };
+  }, [tasks]);
 
   async function toggleDone(task: CrmActivityDto) {
     const nextStatus = task.status === 'DONE' ? 'PENDING' : 'DONE';
     try {
       const updated = await crmActivitiesApi.update(task.id, { status: nextStatus }, token);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      onTasksChanged?.();
     } catch (err) {
       toast.error(getErrorMessage(err));
     }
   }
 
+  function handleSaved(saved: CrmActivityDto) {
+    setTasks((prev) => {
+      const exists = prev.some((t) => t.id === saved.id);
+      return exists ? prev.map((t) => (t.id === saved.id ? saved : t)) : [saved, ...prev];
+    });
+    onTasksChanged?.();
+  }
+
+  function handleDeleted(taskId: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    onTasksChanged?.();
+  }
+
+  function openNew() {
+    setEditing(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(task: CrmActivityDto) {
+    setEditing(task);
+    setDialogOpen(true);
+  }
+
   return (
     <div className="mt-2 border-t border-border pt-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Tarefas</h3>
-        {!showForm && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(true)}>
-            <Plus size={14} /> Adicionar tarefa
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <ListChecks size={15} className="text-muted-foreground" />
+          Tarefas
+          {pending.length > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">({pending.length} pendente{pending.length > 1 ? 's' : ''})</span>
+          )}
+        </h3>
+        {canEdit && (
+          <Button type="button" variant="outline" size="sm" onClick={openNew}>
+            <Plus size={14} /> Nova tarefa
           </Button>
         )}
       </div>
 
-      {loading && <p className="text-xs text-muted-foreground">Carregando…</p>}
-      {!loading && tasks.length === 0 && !showForm && (
-        <p className="text-xs text-muted-foreground">Nenhuma tarefa registrada para este negócio.</p>
+      {loading && (
+        <div className="space-y-1.5">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg border border-border/60 bg-muted/40" />
+          ))}
+        </div>
       )}
 
-      <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
-        {[...tasks].sort(sortByUrgency).map((t) => {
-          const overdue = t.status !== 'DONE' && isOverdueTask(t.dueDate);
-          const dueToday = t.status !== 'DONE' && isDueToday(t.dueDate);
-          return (
-            <li key={t.id} className="flex items-center gap-2 rounded-lg border border-border/60 px-2.5 py-1.5">
-              <button
-                type="button"
-                onClick={() => toggleDone(t)}
-                className="shrink-0 text-muted-foreground hover:text-primary"
-                aria-label={t.status === 'DONE' ? 'Reabrir tarefa' : 'Concluir tarefa'}
-              >
-                {t.status === 'DONE' ? <CheckCircle2 size={16} className="text-primary" /> : <Circle size={16} />}
-              </button>
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {TYPE_LABELS[t.type]}
-              </span>
-              <span className={`flex-1 truncate text-sm ${t.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                {t.title}
-              </span>
-              {t.dueDate && (
-                <span
-                  className={`shrink-0 text-[11px] font-medium ${
-                    overdue ? 'text-destructive' : dueToday ? 'text-accent' : 'text-muted-foreground'
-                  }`}
-                >
-                  {new Date(t.dueDate).toLocaleDateString('pt-BR')}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {!loading && tasks.length === 0 && (
+        <p className="py-3 text-center text-xs text-muted-foreground">
+          Nenhuma tarefa neste negócio.
+          {canEdit && ' Crie uma para não perder o próximo passo.'}
+        </p>
+      )}
 
-      {showForm && (
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-2 space-y-2 rounded-lg bg-muted/40 p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Select {...register('type')} aria-label="Tipo de tarefa">
-              {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </Select>
-            <Input {...register('dueDate')} type="date" aria-label="Prazo" />
+      {!loading && pending.length > 0 && (
+        <div className="space-y-1.5">
+          {pending.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              onToggle={canEdit ? toggleDone : undefined}
+              onEdit={canEdit ? openEdit : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Concluídas colapsadas: antes empilhavam na mesma lista rolável e
+          comiam a área útil do modal conforme o negócio envelhecia. */}
+      {!loading && done.length > 0 && (
+        <details className="mt-2 group">
+          <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground hover:text-foreground">
+            Concluídas ({done.length})
+          </summary>
+          <div className="mt-1.5 space-y-1.5">
+            {done.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                onToggle={canEdit ? toggleDone : undefined}
+                onEdit={canEdit ? openEdit : undefined}
+              />
+            ))}
           </div>
-          <Input {...register('title', { required: true })} placeholder="Título da tarefa" autoFocus />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => { reset(); setShowForm(false); }}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" disabled={saving}>
-              {saving ? 'Salvando…' : 'Adicionar'}
-            </Button>
-          </div>
-        </form>
+        </details>
+      )}
+
+      {dialogOpen && (
+        <TaskDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          task={editing}
+          defaults={{ opportunityId, orgId }}
+          users={users}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
       )}
     </div>
   );
