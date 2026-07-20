@@ -8,6 +8,7 @@ import { UpdateWbsNodeUseCase } from '../application/update-wbs-node.use-case';
 import { DeleteWbsNodeUseCase } from '../application/delete-wbs-node.use-case';
 import { CreateWbsNodeDto } from './dto/create-wbs-node.dto';
 import { UpdateWbsNodeDto } from './dto/update-wbs-node.dto';
+import { toWbsNodeDto } from './wbs-node.mapper';
 
 @Controller('projects/:projectId/wbs')
 @UseGuards(RolesGuard)
@@ -20,24 +21,27 @@ export class WbsController {
   ) {}
 
   @Get()
-  list(@Param('projectId') projectId: string) {
-    return this.listWbs.execute(projectId);
+  async list(@Param('projectId') projectId: string) {
+    const nodes = await this.listWbs.execute(projectId);
+    return nodes.map(toWbsNodeDto);
   }
 
   @Post()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  create(@Param('projectId') projectId: string, @Body() dto: CreateWbsNodeDto) {
-    return this.createNode.execute({ ...dto, projectId });
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateWbsNodeDto) {
+    const node = await this.createNode.execute({ ...dto, projectId });
+    return toWbsNodeDto(node);
   }
 
   @Patch(':id')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  update(
+  async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: UpdateWbsNodeDto,
   ) {
-    return this.updateNode.execute(projectId, id, dto);
+    const node = await this.updateNode.execute(projectId, id, dto);
+    return toWbsNodeDto(node);
   }
 
   @Delete(':id')

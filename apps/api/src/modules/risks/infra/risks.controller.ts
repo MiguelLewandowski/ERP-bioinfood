@@ -8,6 +8,7 @@ import { UpdateRiskUseCase } from '../application/update-risk.use-case';
 import { DeleteRiskUseCase } from '../application/delete-risk.use-case';
 import { CreateRiskDto } from './dto/create-risk.dto';
 import { UpdateRiskDto } from './dto/update-risk.dto';
+import { toRiskDto } from './risk.mapper';
 
 @Controller('projects/:projectId/risks')
 @UseGuards(RolesGuard)
@@ -20,24 +21,27 @@ export class RisksController {
   ) {}
 
   @Get()
-  list(@Param('projectId') projectId: string) {
-    return this.listRisks.execute(projectId);
+  async list(@Param('projectId') projectId: string) {
+    const risks = await this.listRisks.execute(projectId);
+    return risks.map(toRiskDto);
   }
 
   @Post()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  create(@Param('projectId') projectId: string, @Body() dto: CreateRiskDto) {
-    return this.createRisk.execute({ ...dto, projectId });
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateRiskDto) {
+    const risk = await this.createRisk.execute({ ...dto, projectId });
+    return toRiskDto(risk);
   }
 
   @Patch(':id')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  update(
+  async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: UpdateRiskDto,
   ) {
-    return this.updateRisk.execute(projectId, id, dto);
+    const risk = await this.updateRisk.execute(projectId, id, dto);
+    return toRiskDto(risk);
   }
 
   @Delete(':id')

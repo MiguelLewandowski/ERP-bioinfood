@@ -8,6 +8,7 @@ import { UpdateMilestoneUseCase } from '../application/update-milestone.use-case
 import { DeleteMilestoneUseCase } from '../application/delete-milestone.use-case';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
+import { toMilestoneDto } from './milestone.mapper';
 
 @Controller('projects/:projectId/milestones')
 @UseGuards(RolesGuard)
@@ -20,32 +21,35 @@ export class MilestonesController {
   ) {}
 
   @Get()
-  list(@Param('projectId') projectId: string) {
-    return this.listMilestones.execute(projectId);
+  async list(@Param('projectId') projectId: string) {
+    const milestones = await this.listMilestones.execute(projectId);
+    return milestones.map(toMilestoneDto);
   }
 
   @Post()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  create(@Param('projectId') projectId: string, @Body() dto: CreateMilestoneDto) {
-    return this.createMilestone.execute({
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateMilestoneDto) {
+    const milestone = await this.createMilestone.execute({
       ...dto,
       projectId,
       date: new Date(dto.date),
     });
+    return toMilestoneDto(milestone);
   }
 
   @Patch(':id')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  update(
+  async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: UpdateMilestoneDto,
   ) {
     const { date, ...rest } = dto;
-    return this.updateMilestone.execute(projectId, id, {
+    const milestone = await this.updateMilestone.execute(projectId, id, {
       ...rest,
       date: date ? new Date(date) : undefined,
     });
+    return toMilestoneDto(milestone);
   }
 
   @Delete(':id')

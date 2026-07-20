@@ -8,6 +8,7 @@ import { UpdateStakeholderUseCase } from '../application/update-stakeholder.use-
 import { DeleteStakeholderUseCase } from '../application/delete-stakeholder.use-case';
 import { CreateStakeholderDto } from './dto/create-stakeholder.dto';
 import { UpdateStakeholderDto } from './dto/update-stakeholder.dto';
+import { toStakeholderDto } from './stakeholder.mapper';
 
 @Controller('projects/:projectId/stakeholders')
 @UseGuards(RolesGuard)
@@ -20,24 +21,27 @@ export class StakeholdersController {
   ) {}
 
   @Get()
-  list(@Param('projectId') projectId: string) {
-    return this.listStakeholders.execute(projectId);
+  async list(@Param('projectId') projectId: string) {
+    const stakeholders = await this.listStakeholders.execute(projectId);
+    return stakeholders.map(toStakeholderDto);
   }
 
   @Post()
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  create(@Param('projectId') projectId: string, @Body() dto: CreateStakeholderDto) {
-    return this.createStakeholder.execute({ ...dto, projectId });
+  async create(@Param('projectId') projectId: string, @Body() dto: CreateStakeholderDto) {
+    const stakeholder = await this.createStakeholder.execute({ ...dto, projectId });
+    return toStakeholderDto(stakeholder);
   }
 
   @Patch(':id')
   @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
-  update(
+  async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: UpdateStakeholderDto,
   ) {
-    return this.updateStakeholder.execute(projectId, id, dto);
+    const stakeholder = await this.updateStakeholder.execute(projectId, id, dto);
+    return toStakeholderDto(stakeholder);
   }
 
   @Delete(':id')
