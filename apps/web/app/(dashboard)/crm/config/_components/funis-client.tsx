@@ -26,9 +26,9 @@ const TYPE_LABELS: Record<StageType, string> = { OPEN: 'Aberta', WON: 'Ganho', L
 // New pipelines start with a usable OPEN → WON → LOST skeleton.
 // Cores de etapa são dados persistidos (config do usuário), não tokens do tema.
 const DEFAULT_STAGES = [
-  { name: 'Novo', type: 'OPEN', probability: 10, color: 'hsl(var(--muted-foreground))' },
-  { name: 'Em andamento', type: 'OPEN', probability: 50, color: 'hsl(var(--accent))' },
-  { name: 'Ganho', type: 'WON', probability: 100, color: 'hsl(var(--primary-dark))' },
+  { name: 'Novo', type: 'OPEN', probability: 10, color: '#706F6F' },
+  { name: 'Em andamento', type: 'OPEN', probability: 50, color: '#DD8005' },
+  { name: 'Ganho', type: 'WON', probability: 100, color: '#156D1D' },
   { name: 'Perdido', type: 'LOST', probability: 0, color: '#C0392B' },
 ];
 
