@@ -11,7 +11,6 @@ import {
   OrganizationListItem,
   OrgCustomerProfile,
   OrgRole,
-  StaleOrganization,
   UpdateOrganizationData,
 } from '../domain/organization.entity';
 
@@ -193,28 +192,5 @@ export class OrganizationsPrismaRepository implements IOrganizationRepository {
 
   async removeProductService(orgId: string, productServiceId: string): Promise<void> {
     await this.prisma.organizationProductService.deleteMany({ where: { orgId, productServiceId } });
-  }
-
-  async findStale(days: number): Promise<StaleOrganization[]> {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-
-    const rows = await this.prisma.$queryRaw<
-      Array<{ id: string; legalName: string; tradeName: string | null; lastInteractionAt: Date | null }>
-    >`
-      SELECT o.id, o."legalName", o."tradeName", MAX(i."interactionAt") AS "lastInteractionAt"
-      FROM "Organization" o
-      LEFT JOIN "Interaction" i ON i."orgId" = o.id AND i."deletedAt" IS NULL
-      WHERE o."deletedAt" IS NULL AND o.status = 'ACTIVE'
-      GROUP BY o.id
-      HAVING MAX(i."interactionAt") IS NULL OR MAX(i."interactionAt") < ${cutoff}
-      ORDER BY "lastInteractionAt" ASC NULLS FIRST
-      LIMIT 200
-    `;
-
-    return rows.map((r) => ({
-      ...r,
-      lastInteractionAt: r.lastInteractionAt?.toISOString() ?? null,
-    }));
   }
 }

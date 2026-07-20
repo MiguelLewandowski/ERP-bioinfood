@@ -8,7 +8,6 @@ import {
   OrganizationListItem,
   OrgCustomerProfile,
   OrgRole,
-  StaleOrganization,
   UpdateOrganizationData,
 } from './organization.entity';
 
@@ -34,5 +33,4 @@ export interface IOrganizationRepository {
   addProductService(orgId: string, productServiceId: string): Promise<{ id: string; name: string }>;
   removeProductService(orgId: string, productServiceId: string): Promise<void>;
 
-  findStale(days: number): Promise<StaleOrganization[]>;
 }

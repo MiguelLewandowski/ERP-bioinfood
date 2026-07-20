@@ -299,13 +299,6 @@ export interface CrmActivityDto {
   responsible: { id: string; name: string } | null;
 }
 
-export interface StaleOrganizationDto {
-  id: string;
-  legalName: string;
-  tradeName: string | null;
-  lastInteractionAt: string | null;
-}
-
 // ── Busca global (command palette) ───────────────────────────────────────────
 
 export type SearchResultType = 'project' | 'organization' | 'opportunity' | 'contact';

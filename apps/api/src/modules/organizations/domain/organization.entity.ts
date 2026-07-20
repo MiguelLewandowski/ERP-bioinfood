@@ -134,13 +134,6 @@ export interface CustomerProfileData {
   salesRepId?: string | null;
 }
 
-export interface StaleOrganization {
-  id: string;
-  legalName: string;
-  tradeName: string | null;
-  lastInteractionAt: string | null;
-}
-
 // CNPJ/CPF stored as digits only. Deduplication and lookups use this form.
 export function normalizeDocument(doc?: string | null): string | null {
   if (!doc) return null;

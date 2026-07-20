@@ -13,7 +13,6 @@ import { ManageRolesUseCase } from '../application/manage-roles.use-case';
 import { ManageAddressesUseCase } from '../application/manage-addresses.use-case';
 import { ManageProductServicesUseCase } from '../application/manage-product-services.use-case';
 import { UpsertCustomerProfileUseCase } from '../application/upsert-customer-profile.use-case';
-import { GetStaleOrganizationsUseCase } from '../application/get-stale-organizations.use-case';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { PartyRoleDto } from './dto/party-role.dto';
@@ -43,19 +42,12 @@ export class OrganizationsController {
     private manageAddresses: ManageAddressesUseCase,
     private manageProductServices: ManageProductServicesUseCase,
     private upsertCustomerProfile: UpsertCustomerProfileUseCase,
-    private getStaleOrganizations: GetStaleOrganizationsUseCase,
   ) {}
 
   @Get()
   async list() {
     const organizations = await this.listOrganizations.execute();
     return organizations.map(toOrganizationDto);
-  }
-
-  // Static segment — must be declared before ':id' to avoid being swallowed by it.
-  @Get('stale')
-  stale(@Query('days') days?: string) {
-    return this.getStaleOrganizations.execute(days ? Number(days) : 30);
   }
 
   // Declared before ':id' — two segments, so no clash, but explicit is clearer.
