@@ -348,6 +348,15 @@ export interface TaskChecklistItemDto {
   order: number;
 }
 
+export interface TaskPopUsageDto {
+  id: string;
+  popVersionId: string;
+  addedBy: { id: string; name: string };
+  pop: { id: string; title: string };
+  versionNumber: number;
+  createdAt: string;
+}
+
 export interface TaskDto {
   id: string;
   projectId: string;
@@ -369,6 +378,7 @@ export interface TaskDto {
   predecessors: Array<{ id: string; predecessorId: string; type: TaskDependencyType; lag: number }>;
   successors: Array<{ id: string; successorId: string; type: TaskDependencyType; lag: number }>;
   checklist: TaskChecklistItemDto[];
+  pops: TaskPopUsageDto[];
   deletedAt: string | null;
 }
 
@@ -439,6 +449,30 @@ export interface MilestoneDto {
   order: number;
 }
 
+// ── POPs (Procedimento Operacional Padrão, versionável) ─────────────────────────
+
+export interface PopVersionDto {
+  id: string;
+  versionNumber: number;
+  changeNotes: string | null;
+  fileUrl: string | null;
+  createdBy: { id: string; name: string };
+  createdAt: string;
+}
+
+export interface PopDto {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  latestVersion: PopVersionDto;
+  createdAt: string;
+}
+
+export interface PopDetailDto extends PopDto {
+  versions: PopVersionDto[];
+}
+
 // ── WBS ───────────────────────────────────────────────────────────────────────
 
 export interface WbsNodeDto {
@@ -502,3 +536,5 @@ export function checklistProgress(checklist: TaskChecklistItemDto[]): number {
   if (checklist.length === 0) return 0;
   return Math.round((checklist.filter((i) => i.checked).length / checklist.length) * 100);
 }
+
+export * from './schemas';
