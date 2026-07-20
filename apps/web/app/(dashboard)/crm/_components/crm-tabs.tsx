@@ -25,7 +25,7 @@ interface CrmTabsProps {
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
   summary: PipelineSummaryDto | null;
-  urgentTasks: CrmActivityDto[];
+  opportunityTasks: CrmActivityDto[];
   canEdit: boolean;
 }
 
@@ -79,7 +79,7 @@ export function CrmTabs(props: CrmTabsProps) {
           currentPipeline={props.currentPipeline}
           initialOpportunities={props.initialOpportunities}
           summary={props.summary}
-          initialUrgentTasks={props.urgentTasks}
+          initialTasks={props.opportunityTasks}
           users={props.users}
           canEdit={props.canEdit}
         />

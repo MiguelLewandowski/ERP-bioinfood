@@ -27,7 +27,7 @@ export default async function CrmPage({ searchParams }: Props) {
   // Erros de API borbulham para o error.tsx do segmento (sem falso-vazio).
   const [
     pipelines, organizations, contacts, sources, sectors, categories, productServices, users,
-    overdueTasks, todayTasks,
+    allTasks,
   ] = await Promise.all([
     pipelinesApi.list(token),
     organizationsApi.list(token),
@@ -37,13 +37,13 @@ export default async function CrmPage({ searchParams }: Props) {
     taxonomiesApi.list('categories', token),
     taxonomiesApi.list('product-services', token),
     usersApi.list(token),
-    // Sinal de urgência nos cards do kanban — best-effort, não derruba o CRM.
-    crmActivitiesApi.list(token, { due: 'overdue' }).catch(() => [] as CrmActivityDto[]),
-    crmActivitiesApi.list(token, { due: 'today' }).catch(() => [] as CrmActivityDto[]),
+    // Indicador de pendências nos cards do kanban — best-effort, não derruba o
+    // CRM. Vem a lista inteira porque o card precisa distinguir "sem tarefa" de
+    // "tem tarefa, mas só semana que vem", e não só o que está urgente hoje.
+    crmActivitiesApi.list(token).catch(() => [] as CrmActivityDto[]),
   ]);
   const currentPipeline = pipelines.find((p) => p.isDefault) ?? pipelines[0] ?? null;
-  // Atrasadas antes das de hoje — a primeira ocorrência por negócio "vence" no map do client.
-  const urgentTasks = [...overdueTasks, ...todayTasks].filter((t) => t.opportunityId);
+  const opportunityTasks = allTasks.filter((t) => t.opportunityId);
 
   const [opportunities, summary] = currentPipeline
     ? await Promise.all([
@@ -73,7 +73,7 @@ export default async function CrmPage({ searchParams }: Props) {
         currentPipeline={currentPipeline}
         initialOpportunities={opportunities}
         summary={summary}
-        urgentTasks={urgentTasks}
+        opportunityTasks={opportunityTasks}
         canEdit={canEdit}
       />
     </div>

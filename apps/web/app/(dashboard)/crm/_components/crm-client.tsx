@@ -26,6 +26,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { bucketOf, sortByUrgency, summarizeOpportunityTasks } from '@/lib/crm-tasks';
 import { CrmColumn } from './crm-column';
 import { CrmCard, formatBRL } from './crm-card';
 import { OpportunityDialog } from './opportunity-dialog';
@@ -35,7 +36,7 @@ interface CrmClientProps {
   currentPipeline: PipelineDto | null;
   initialOpportunities: OpportunityDto[];
   summary: PipelineSummaryDto | null;
-  initialUrgentTasks: CrmActivityDto[];
+  initialTasks: CrmActivityDto[];
   users: UserDto[];
   canEdit: boolean;
 }
@@ -45,7 +46,7 @@ export function CrmClient(props: CrmClientProps) {
   const [pipeline, setPipeline] = useState(props.currentPipeline);
   const [opps, setOpps] = useState(props.initialOpportunities);
   const [summary, setSummary] = useState(props.summary);
-  const [urgentTasks, setUrgentTasks] = useState(props.initialUrgentTasks);
+  const [tasks, setTasks] = useState(props.initialTasks);
   const [active, setActive] = useState<OpportunityDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<OpportunityDto | null>(null);
@@ -53,38 +54,48 @@ export function CrmClient(props: CrmClientProps) {
   const [search, setSearch] = useState('');
   const [onlyMine, setOnlyMine] = useState(false);
 
-  // Atrasadas vêm antes das de hoje na lista — a primeira ocorrência por
-  // negócio "vence" e é a mais urgente (achado #1 da análise de UI/UX).
-  const urgentByOpportunity = useMemo(() => {
-    const map = new Map<string, CrmActivityDto>();
-    for (const t of urgentTasks) {
-      if (t.opportunityId && !map.has(t.opportunityId)) map.set(t.opportunityId, t);
+  const tasksByOpportunity = useMemo(() => {
+    const map = new Map<string, CrmActivityDto[]>();
+    for (const t of tasks) {
+      if (!t.opportunityId) continue;
+      const list = map.get(t.opportunityId);
+      if (list) list.push(t);
+      else map.set(t.opportunityId, [t]);
     }
     return map;
-  }, [urgentTasks]);
+  }, [tasks]);
 
-  // Recarrega o sinal de urgência depois que tarefas mudam dentro do modal do
-  // negócio — sem isto o badge do card ficava velho até um refresh da página.
-  async function reloadUrgentTasks() {
+  // Tarefa mais urgente por negócio: a de menor balde (atrasada > hoje) vence.
+  const urgentByOpportunity = useMemo(() => {
+    const map = new Map<string, CrmActivityDto>();
+    for (const [oppId, list] of tasksByOpportunity) {
+      const urgent = list
+        .filter((t) => ['overdue', 'today'].includes(bucketOf(t)))
+        .sort(sortByUrgency)[0];
+      if (urgent) map.set(oppId, urgent);
+    }
+    return map;
+  }, [tasksByOpportunity]);
+
+  // Recarrega o indicador depois que tarefas mudam dentro do modal do negócio —
+  // sem isto o card ficava desatualizado até um refresh da página.
+  async function reloadTasks() {
     try {
-      const [overdue, today] = await Promise.all([
-        crmActivitiesApi.list(token, { due: 'overdue' }),
-        crmActivitiesApi.list(token, { due: 'today' }),
-      ]);
-      setUrgentTasks([...overdue, ...today].filter((t) => t.opportunityId));
+      const items = await crmActivitiesApi.list(token);
+      setTasks(items.filter((t) => t.opportunityId));
     } catch {
       // Sinal auxiliar: falhar aqui não deve interromper o fluxo do kanban.
     }
   }
 
   async function completeUrgentTask(taskId: string) {
-    const prev = urgentTasks;
-    setUrgentTasks((p) => p.filter((t) => t.id !== taskId));
+    const prev = tasks;
+    setTasks((p) => p.map((t) => (t.id === taskId ? { ...t, status: 'DONE' as const } : t)));
     try {
       await crmActivitiesApi.update(taskId, { status: 'DONE' }, token);
       toast.success('Tarefa concluída');
     } catch (err) {
-      setUrgentTasks(prev);
+      setTasks(prev);
       toast.error(getErrorMessage(err));
     }
   }
@@ -327,6 +338,7 @@ export function CrmClient(props: CrmClientProps) {
                         onEdit={props.canEdit ? setEditing : undefined}
                         draggable={props.canEdit}
                         urgentTask={urgentByOpportunity.get(o.id) ?? null}
+                        taskSummary={summarizeOpportunityTasks(tasksByOpportunity.get(o.id) ?? [])}
                         onCompleteTask={props.canEdit ? completeUrgentTask : undefined}
                       />
                     ))}
@@ -385,7 +397,7 @@ export function CrmClient(props: CrmClientProps) {
           users={props.users}
           canEdit={props.canEdit}
           onSaved={onSaved}
-          onTasksChanged={reloadUrgentTasks}
+          onTasksChanged={reloadTasks}
           onClose={() => setCreating(false)}
         />
       )}
@@ -400,7 +412,7 @@ export function CrmClient(props: CrmClientProps) {
           canEdit={props.canEdit}
           onSaved={onSaved}
           onDeleted={onDeleted}
-          onTasksChanged={reloadUrgentTasks}
+          onTasksChanged={reloadTasks}
           onClose={() => setEditing(null)}
         />
       )}

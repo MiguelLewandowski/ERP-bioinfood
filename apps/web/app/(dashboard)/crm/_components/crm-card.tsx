@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Building2, User, Snowflake, AlertTriangle, Clock, CheckCircle2,
+  Building2, User, Snowflake, AlertTriangle, Clock, CheckCircle2, ListChecks, CircleDashed,
 } from 'lucide-react';
 import type { CrmActivityDto, OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
-import { isOverdue } from '@/lib/crm-tasks';
+import {
+  isOverdue, type OpportunityTaskState, type OpportunityTaskSummary,
+} from '@/lib/crm-tasks';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
   if (amount === null) return '—';
@@ -17,11 +19,41 @@ export function formatBRL(amount: string | null, currency = 'BRL'): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(n);
 }
 
+// Indicador de pendências: o usuário precisa varrer a coluna e ver de cara
+// quais negócios têm próximo passo definido e quais estão parados.
+const TASK_STATE_META: Record<
+  OpportunityTaskState,
+  { icon: typeof AlertTriangle; className: string; label: (n: number) => string }
+> = {
+  overdue: {
+    icon: AlertTriangle,
+    className: 'text-destructive',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — há atrasada`,
+  },
+  today: {
+    icon: Clock,
+    className: 'text-accent',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — há uma para hoje`,
+  },
+  upcoming: {
+    icon: ListChecks,
+    className: 'text-muted-foreground',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''}`,
+  },
+  none: {
+    icon: CircleDashed,
+    className: 'text-muted-foreground/50',
+    label: () => 'Sem tarefa — negócio sem próximo passo',
+  },
+};
+
 interface CrmCardProps {
   opportunity: OpportunityDto;
   onEdit?: (o: OpportunityDto) => void;
   isOverlay?: boolean;
   draggable?: boolean;
+  /** Estado agregado das tarefas do negócio, para o indicador do cabeçalho. */
+  taskSummary?: OpportunityTaskSummary;
   // Tarefa mais urgente vinculada a este negócio (atrasada tem prioridade sobre
   // a de hoje) — sinaliza no card sem precisar abrir o modal (achado #1 da
   // análise de UI/UX 2026-07-18).
@@ -30,7 +62,7 @@ interface CrmCardProps {
 }
 
 export function CrmCard({
-  opportunity, onEdit, isOverlay, draggable = true, urgentTask, onCompleteTask,
+  opportunity, onEdit, isOverlay, draggable = true, taskSummary, urgentTask, onCompleteTask,
 }: CrmCardProps) {
   const sortable = useSortable({
     id: opportunity.id,
@@ -59,9 +91,28 @@ export function CrmCard({
     >
       <div className="flex items-start justify-between gap-1">
         <p className="text-sm font-medium leading-snug text-foreground">{opportunity.title}</p>
-        {opportunity.frozenAt && (
-          <Snowflake size={13} className="mt-0.5 shrink-0 text-blue-500" aria-label="Congelado" />
-        )}
+        <div className="mt-0.5 flex shrink-0 items-center gap-1">
+          {taskSummary && (() => {
+            const meta = TASK_STATE_META[taskSummary.state];
+            const Icon = meta.icon;
+            const title = meta.label(taskSummary.pending);
+            return (
+              <span
+                className={cn('flex items-center gap-0.5', meta.className)}
+                title={title}
+                aria-label={title}
+              >
+                <Icon size={13} />
+                {taskSummary.pending > 1 && (
+                  <span className="text-[10px] font-semibold leading-none">{taskSummary.pending}</span>
+                )}
+              </span>
+            );
+          })()}
+          {opportunity.frozenAt && (
+            <Snowflake size={13} className="text-blue-500" aria-label="Congelado" />
+          )}
+        </div>
       </div>
       <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
         <Building2 size={12} />
