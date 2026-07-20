@@ -41,7 +41,7 @@ export class ManageStagesUseCase {
 
   async reorder(pipelineId: string, items: ReorderItem[]) {
     await this.assertPipeline(pipelineId);
-    await this.repo.reorderStages(items);
+    await this.repo.reorderStages(pipelineId, items);
   }
 
   private async assertPipeline(pipelineId: string) {

@@ -24,7 +24,7 @@ export interface IPipelineRepository {
   addStage(pipelineId: string, data: CreateStageData): Promise<PipelineStageItem>;
   updateStage(stageId: string, data: UpdateStageData): Promise<PipelineStageItem>;
   removeStage(stageId: string): Promise<void>;
-  reorderStages(items: ReorderItem[]): Promise<void>;
+  reorderStages(pipelineId: string, items: ReorderItem[]): Promise<void>;
 
   // Invariant helpers.
   countActiveOpenStages(pipelineId: string, excludeStageId?: string): Promise<number>;

@@ -88,9 +88,14 @@ export class PipelinesPrismaRepository implements IPipelineRepository {
     await this.prisma.pipelineStage.delete({ where: { id: stageId } });
   }
 
-  async reorderStages(items: ReorderItem[]): Promise<void> {
+  async reorderStages(pipelineId: string, items: ReorderItem[]): Promise<void> {
+    // where inclui pipelineId — uma etapa que não pertence a este funil é
+    // silenciosamente ignorada (anti-IDOR: nunca reordena etapa de outro funil).
     await this.prisma.$transaction(
-      items.map((i) => this.prisma.pipelineStage.update({ where: { id: i.id }, data: { order: i.order } })),
+      items.map((i) => this.prisma.pipelineStage.updateMany({
+        where: { id: i.id, pipelineId },
+        data: { order: i.order },
+      })),
     );
   }
 
