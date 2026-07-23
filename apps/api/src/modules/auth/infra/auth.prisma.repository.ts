@@ -61,4 +61,12 @@ export class AuthPrismaRepository implements IAuthRepository {
       data: { revokedAt: new Date() },
     });
   }
+
+  async revokeAllForUser(userId: string): Promise<number> {
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return count;
+  }
 }

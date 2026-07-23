@@ -11,6 +11,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { LoginUseCase } from '../application/login.use-case';
 import { RefreshUseCase } from '../application/refresh.use-case';
+import { LogoutUseCase } from '../application/logout.use-case';
 import { MeUseCase } from '../application/me.use-case';
 import { ChangePasswordUseCase } from '../application/change-password.use-case';
 
@@ -36,6 +37,7 @@ import { ChangePasswordUseCase } from '../application/change-password.use-case';
     JwtStrategy,
     LoginUseCase,
     RefreshUseCase,
+    LogoutUseCase,
     MeUseCase,
     ChangePasswordUseCase,
   ],

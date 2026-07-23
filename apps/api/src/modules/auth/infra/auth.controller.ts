@@ -1,13 +1,15 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, HttpCode } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../../common/decorators/public.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { LoginUseCase, LoginResult } from '../application/login.use-case';
 import { RefreshUseCase } from '../application/refresh.use-case';
+import { LogoutUseCase } from '../application/logout.use-case';
 import { MeUseCase } from '../application/me.use-case';
 import { ChangePasswordUseCase } from '../application/change-password.use-case';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthUser } from '../domain/auth.types';
 
@@ -16,6 +18,7 @@ export class AuthController {
   constructor(
     private loginUseCase: LoginUseCase,
     private refreshUseCase: RefreshUseCase,
+    private logoutUseCase: LogoutUseCase,
     private meUseCase: MeUseCase,
     private changePasswordUseCase: ChangePasswordUseCase,
   ) {}
@@ -33,6 +36,15 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.refreshUseCase.execute(dto.refreshToken);
+  }
+
+  // Público de propósito: sair precisa funcionar com o access token já expirado.
+  // A autorização vem da posse do refresh token, que é verificado no use-case.
+  @Public()
+  @Post('logout')
+  @HttpCode(204)
+  async logout(@Body() dto: LogoutDto): Promise<void> {
+    await this.logoutUseCase.execute(dto.refreshToken, dto.allDevices ?? false);
   }
 
   @Get('me')

@@ -15,4 +15,6 @@ export interface IAuthRepository {
   saveRefreshToken(data: SaveRefreshTokenData): Promise<void>;
   findRefreshToken(jti: string): Promise<{ id: string; revokedAt: Date | null } | null>;
   revokeRefreshToken(jti: string): Promise<void>;
+  /** Derruba todas as sessões do usuário. Usado na detecção de reuso e no logout global. */
+  revokeAllForUser(userId: string): Promise<number>;
 }
