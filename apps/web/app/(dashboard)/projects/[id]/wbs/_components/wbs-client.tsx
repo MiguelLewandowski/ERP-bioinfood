@@ -1,7 +1,7 @@
 'use client'; // interactive tree
 
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package, ListTree, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WbsNodeDto } from '@bioinfood/shared';
@@ -52,6 +52,10 @@ interface EditingNode {
 export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
   const [nodes, setNodes] = useState<WbsNode[]>(initialNodes);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Pacotes de trabalho com o painel de detalhes aberto. Começa vazio: o resumo
+  // na própria linha já diz o que está preenchido, e abrir tudo de uma vez
+  // transformaria a árvore num muro de texto.
+  const [openDetails, setOpenDetails] = useState<Set<string>>(new Set());
   const [addForm, setAddForm] = useState<AddForm | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -66,6 +70,19 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+
+  function toggleDetails(id: string) {
+    setOpenDetails((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function expandAllDetails() {
+    const leaves = nodes.filter((n) => !nodes.some((c) => c.parentId === n.id));
+    setOpenDetails((prev) => prev.size === leaves.length ? new Set() : new Set(leaves.map((n) => n.id)));
   }
 
   async function handleAdd() {
@@ -130,13 +147,24 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
           <h2 className="text-xl font-bold text-foreground">EAP / WBS</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Estrutura Analítica do Projeto — {nodes.length} entregáveis</p>
         </div>
-        <button
-          onClick={() => setAddForm({ parentId: null, parentCode: '' })}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-          style={{ backgroundColor: 'hsl(var(--primary))' }}
-        >
-          <Plus size={16} /> Novo Entregável
-        </button>
+        <div className="flex items-center gap-2">
+          {nodes.length > 0 && (
+            <button
+              onClick={expandAllDetails}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-200 text-muted-foreground hover:bg-gray-50 transition-colors"
+            >
+              <ListTree size={14} />
+              {openDetails.size > 0 ? 'Recolher detalhes' : 'Expandir detalhes'}
+            </button>
+          )}
+          <button
+            onClick={() => setAddForm({ parentId: null, parentCode: '' })}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: 'hsl(var(--primary))' }}
+          >
+            <Plus size={16} /> Novo Entregável
+          </button>
+        </div>
       </div>
 
       {nodes.length === 0 && !addForm && (
@@ -156,7 +184,9 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
             node={node}
             depth={0}
             collapsed={collapsed}
+            openDetails={openDetails}
             onToggle={toggleCollapse}
+            onToggleDetails={toggleDetails}
             onAdd={(parentId, parentCode) => setAddForm({ parentId, parentCode })}
             onEdit={startEdit}
           />
@@ -254,12 +284,14 @@ interface WbsTreeNodeProps {
   node: WbsNodeTree;
   depth: number;
   collapsed: Set<string>;
+  openDetails: Set<string>;
   onToggle: (id: string) => void;
+  onToggleDetails: (id: string) => void;
   onAdd: (parentId: string, parentCode: string) => void;
   onEdit: (node: WbsNode) => void;
 }
 
-function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTreeNodeProps) {
+function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDetails, onAdd, onEdit }: WbsTreeNodeProps) {
   const isCollapsed = collapsed.has(node.id);
   const hasChildren = node.children.length > 0;
   const isLeaf      = !hasChildren;
@@ -267,7 +299,10 @@ function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTre
   const depthColors = ['#147F23', '#46AD48', '#86C175', '#706F6F'];
   const color = depthColors[Math.min(depth, depthColors.length - 1)];
 
-  const hasDetails = node.owner || node.readyCriteria || node.outputs;
+  const hasDetails    = !!(node.owner || node.readyCriteria || node.outputs);
+  const detailsOpen   = openDetails.has(node.id);
+  // Só pacote de trabalho (folha) tem dono/pronto/saídas — nó com filhos é agrupador.
+  const showDetailRow = isLeaf;
 
   return (
     <div>
@@ -276,41 +311,64 @@ function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTre
         style={{ paddingLeft: `${16 + depth * 24}px`, paddingRight: '16px' }}
       >
         <button
-          onClick={() => hasChildren && onToggle(node.id)}
-          className={cn('w-5 h-5 flex items-center justify-center shrink-0', !hasChildren && 'invisible')}
+          onClick={() => hasChildren ? onToggle(node.id) : onToggleDetails(node.id)}
+          className="w-5 h-5 flex items-center justify-center shrink-0"
+          title={hasChildren ? 'Expandir sub-entregáveis' : 'Ver detalhes do pacote'}
         >
-          {isCollapsed ? <ChevronRight size={14} style={{ color }} /> : <ChevronDown size={14} style={{ color }} />}
+          {(hasChildren ? isCollapsed : !detailsOpen)
+            ? <ChevronRight size={14} style={{ color }} />
+            : <ChevronDown size={14} style={{ color }} />}
         </button>
 
         <span className="text-xs font-bold shrink-0 w-12" style={{ color }}>{node.code}</span>
-        <span className="flex-1 text-sm text-foreground font-medium">{node.title}</span>
 
-        {/* Metadata chips */}
-        {node.owner && (
-          <span className="hidden group-hover:flex items-center gap-1 text-[10px] text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-            <User size={9} /> {node.owner}
-          </span>
-        )}
+        <button
+          onClick={() => showDetailRow ? onToggleDetails(node.id) : onToggle(node.id)}
+          className="flex-1 text-left text-sm text-foreground font-medium hover:text-primary transition-colors"
+        >
+          {node.title}
+        </button>
 
-        {isLeaf && (
-          <button
-            onClick={() => onEdit(node)}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-all ml-1"
-            title="Editar dono, pronto e saídas"
-          >
-            {hasDetails
-              ? <span className="text-primary">✓ detalhes</span>
-              : <span>+ detalhes</span>}
-          </button>
+        {/* Resumo sempre visível: diz o que já está documentado sem exigir clique. */}
+        {showDetailRow && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {node.owner && (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
+                <User size={9} /> {node.owner}
+              </span>
+            )}
+            {node.readyCriteria && (
+              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-success/20 text-primary-dark" title="Tem critério de pronto">
+                <CheckSquare size={9} /> pronto
+              </span>
+            )}
+            {node.outputs && (
+              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-success/20 text-primary-dark" title="Tem saídas definidas">
+                <Package size={9} /> saídas
+              </span>
+            )}
+            {!hasDetails && (
+              <button
+                onClick={() => onEdit(node)}
+                className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                + detalhes
+              </button>
+            )}
+          </div>
         )}
 
         <button
           onClick={() => onAdd(node.id, node.code)}
-          className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[10px] text-primary font-semibold hover:underline transition-opacity"
+          className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[10px] text-primary font-semibold hover:underline transition-opacity shrink-0"
         >
           <Plus size={11} /> sub
         </button>
       </div>
+
+      {showDetailRow && detailsOpen && (
+        <WbsDetailPanel node={node} indent={16 + depth * 24} onEdit={() => onEdit(node)} />
+      )}
 
       {!isCollapsed && node.children.map((child) => (
         <WbsTreeNode
@@ -318,11 +376,49 @@ function WbsTreeNode({ node, depth, collapsed, onToggle, onAdd, onEdit }: WbsTre
           node={child}
           depth={depth + 1}
           collapsed={collapsed}
+          openDetails={openDetails}
           onToggle={onToggle}
+          onToggleDetails={onToggleDetails}
           onAdd={onAdd}
           onEdit={onEdit}
         />
       ))}
+    </div>
+  );
+}
+
+function WbsDetailPanel({ node, indent, onEdit }: { node: WbsNode; indent: number; onEdit: () => void }) {
+  const fields = [
+    { icon: User,        label: 'Dono',              value: node.owner },
+    { icon: CheckSquare, label: 'Critério de pronto', value: node.readyCriteria },
+    { icon: Package,     label: 'Saídas',             value: node.outputs },
+  ];
+
+  return (
+    <div
+      className="border-b border-gray-50 bg-gray-50/60 py-3 pr-4"
+      style={{ paddingLeft: `${indent + 28}px` }}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <dl className="flex-1 space-y-2.5">
+          {fields.map(({ icon: Icon, label, value }) => (
+            <div key={label}>
+              <dt className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <Icon size={10} /> {label}
+              </dt>
+              <dd className={cn('text-xs mt-0.5 whitespace-pre-wrap', value ? 'text-foreground' : 'text-muted-foreground italic')}>
+                {value || 'Não preenchido'}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <button
+          onClick={onEdit}
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-gray-50 transition-colors"
+        >
+          <Pencil size={11} /> Editar
+        </button>
+      </div>
     </div>
   );
 }
