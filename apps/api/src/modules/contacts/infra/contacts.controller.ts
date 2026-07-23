@@ -24,7 +24,7 @@ const WRITE_ROLES = [SystemRole.ADMIN] as const;
 
 @Controller('contacts')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class ContactsController {
   constructor(
     private listContacts: ListContactsUseCase,

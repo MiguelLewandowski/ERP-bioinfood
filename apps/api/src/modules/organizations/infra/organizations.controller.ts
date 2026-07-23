@@ -30,7 +30,7 @@ const ROLE_ADMINS = [SystemRole.ADMIN] as const;
 
 @Controller('organizations')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class OrganizationsController {
   constructor(
     private listOrganizations: ListOrganizationsUseCase,

@@ -1,6 +1,18 @@
 // ── Enums ────────────────────────────────────────────────────────────────────
 
-export type SystemRole = 'ADMIN' | 'APROVA' | 'INSERE' | 'CONSULTA' | 'CLIENTE';
+/**
+ * ADMIN   — faz e vê tudo, inclusive usuários, CRM e exclusão definitiva.
+ * PADRAO  — interno: vê e edita todos os projetos. Sem tela de usuários, sem
+ *           CRM, e nada de exclusão irreversível (só soft delete).
+ * CLIENTE — externo: só os projetos liberados em ProjectAccess.
+ */
+export type SystemRole = 'ADMIN' | 'PADRAO' | 'CLIENTE';
+
+export const SYSTEM_ROLE_LABELS: Record<SystemRole, string> = {
+  ADMIN: 'Administrador',
+  PADRAO: 'Usuário padrão',
+  CLIENTE: 'Cliente',
+};
 export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -455,10 +467,19 @@ export interface PopVersionDto {
   createdAt: string;
 }
 
+export interface PopCategoryDto {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
+}
+
 export interface PopDto {
   id: string;
   title: string;
   description: string | null;
+  /** Toda POP pertence a uma categoria — obrigatório desde 2026-07-23. */
+  category: { id: string; name: string };
   latestVersion: PopVersionDto;
   createdAt: string;
 }

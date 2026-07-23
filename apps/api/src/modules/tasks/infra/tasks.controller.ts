@@ -66,7 +66,7 @@ export class TasksController {
   }
 
   @Post()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Param('projectId') projectId: string, @Body() dto: CreateTaskDto) {
     const task = await this.createTask.execute({
       ...dto,
@@ -78,7 +78,7 @@ export class TasksController {
   }
 
   @Patch('reorder')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   reorder(@Param('projectId') projectId: string, @Body() dto: ReorderTasksDto) {
     return this.reorderTasks.execute(projectId, dto.items);
   }
@@ -90,7 +90,7 @@ export class TasksController {
   }
 
   @Patch(':id')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -106,7 +106,7 @@ export class TasksController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   remove(@Param('projectId') projectId: string, @Param('id') id: string) {
     return this.deleteTask.execute(projectId, id);
   }
@@ -114,7 +114,7 @@ export class TasksController {
   // ── Dependencies ─────────────────────────────────────────────────────────────
 
   @Post(':id/dependencies')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   addDep(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -124,7 +124,7 @@ export class TasksController {
   }
 
   @Delete(':id/dependencies/:depId')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   removeDep(@Param('projectId') projectId: string, @Param('depId') depId: string) {
     return this.removeDependency.execute(projectId, depId);
   }
@@ -132,7 +132,7 @@ export class TasksController {
   // ── Checklist ────────────────────────────────────────────────────────────────
 
   @Post(':id/checklist')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   addChecklist(
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
@@ -142,7 +142,7 @@ export class TasksController {
   }
 
   @Patch(':id/checklist/:itemId')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   updateChecklist(
     @Param('projectId') projectId: string,
     @Param('itemId') itemId: string,
@@ -152,7 +152,7 @@ export class TasksController {
   }
 
   @Delete(':id/checklist/:itemId')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   deleteChecklist(@Param('projectId') projectId: string, @Param('itemId') itemId: string) {
     return this.deleteChecklistItem.execute(projectId, itemId);
   }
@@ -160,7 +160,7 @@ export class TasksController {
   // ── POPs utilizadas ─────────────────────────────────────────────────────────
 
   @Post(':id/pops')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async addPop(
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
@@ -172,7 +172,7 @@ export class TasksController {
   }
 
   @Delete(':id/pops/:linkId')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   removePop(@Param('projectId') projectId: string, @Param('linkId') linkId: string) {
     return this.removePopUsage.execute(projectId, linkId);
   }

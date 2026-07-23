@@ -9,6 +9,7 @@ import { CreatePopUseCase } from './application/create-pop.use-case';
 import { UpdatePopUseCase } from './application/update-pop.use-case';
 import { CreatePopVersionUseCase } from './application/create-pop-version.use-case';
 import { DeletePopUseCase } from './application/delete-pop.use-case';
+import { ManagePopCategoriesUseCase } from './application/manage-pop-categories.use-case';
 
 @Module({
   imports: [PrismaModule],
@@ -21,6 +22,7 @@ import { DeletePopUseCase } from './application/delete-pop.use-case';
     UpdatePopUseCase,
     CreatePopVersionUseCase,
     DeletePopUseCase,
+    ManagePopCategoriesUseCase,
   ],
   exports: [POP_REPOSITORY],
 })

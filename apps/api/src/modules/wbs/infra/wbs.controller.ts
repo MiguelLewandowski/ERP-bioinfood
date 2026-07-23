@@ -27,14 +27,14 @@ export class WbsController {
   }
 
   @Post()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Param('projectId') projectId: string, @Body() dto: CreateWbsNodeDto) {
     const node = await this.createNode.execute({ ...dto, projectId });
     return toWbsNodeDto(node);
   }
 
   @Patch(':id')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -45,7 +45,7 @@ export class WbsController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   remove(@Param('projectId') projectId: string, @Param('id') id: string) {
     return this.deleteNode.execute(projectId, id);
   }

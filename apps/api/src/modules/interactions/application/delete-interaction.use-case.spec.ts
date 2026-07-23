@@ -22,13 +22,13 @@ describe('DeleteInteractionUseCase', () => {
   });
 
   it('allows the author to soft-delete their own interaction', async () => {
-    await useCase.execute('i1', { id: 'author-1', role: SystemRole.CONSULTA });
+    await useCase.execute('i1', { id: 'author-1', role: SystemRole.PADRAO });
     expect(repo.softDelete).toHaveBeenCalledWith('i1');
   });
 
   it('rejects a non-author, non-ADMIN requester', async () => {
     await expect(
-      useCase.execute('i1', { id: 'intruder', role: SystemRole.INSERE }),
+      useCase.execute('i1', { id: 'intruder', role: SystemRole.PADRAO }),
     ).rejects.toThrow(ForbiddenException);
     expect(repo.softDelete).not.toHaveBeenCalled();
   });

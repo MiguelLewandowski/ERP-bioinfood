@@ -1,4 +1,6 @@
-import { PopVersionWithAuthor, PopWithLatestVersion, PopWithVersions } from '../domain/pop.entity';
+import {
+  PopCategoryEntity, PopVersionWithAuthor, PopWithLatestVersion, PopWithVersions,
+} from '../domain/pop.entity';
 
 export interface PopVersionDto {
   id: string;
@@ -13,8 +15,16 @@ export interface PopListItemDto {
   id: string;
   title: string;
   description: string | null;
+  category: { id: string; name: string };
   latestVersion: PopVersionDto;
   createdAt: Date;
+}
+
+export interface PopCategoryDto {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
 }
 
 export interface PopDetailDto extends PopListItemDto {
@@ -37,6 +47,7 @@ export function toPopListItemDto(p: PopWithLatestVersion): PopListItemDto {
     id: p.id,
     title: p.title,
     description: p.description,
+    category: p.category,
     latestVersion: toVersionDto(p.latestVersion),
     createdAt: p.createdAt,
   };
@@ -47,8 +58,13 @@ export function toPopDetailDto(p: PopWithVersions): PopDetailDto {
     id: p.id,
     title: p.title,
     description: p.description,
+    category: p.category,
     latestVersion: toVersionDto(p.versions[0]),
     versions: p.versions.map(toVersionDto),
     createdAt: p.createdAt,
   };
+}
+
+export function toPopCategoryDto(c: PopCategoryEntity): PopCategoryDto {
+  return { id: c.id, name: c.name, isActive: c.isActive, order: c.order };
 }

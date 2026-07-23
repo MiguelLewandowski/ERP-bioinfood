@@ -27,14 +27,14 @@ export class StakeholdersController {
   }
 
   @Post()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Param('projectId') projectId: string, @Body() dto: CreateStakeholderDto) {
     const stakeholder = await this.createStakeholder.execute({ ...dto, projectId });
     return toStakeholderDto(stakeholder);
   }
 
   @Patch(':id')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -45,7 +45,7 @@ export class StakeholdersController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   remove(@Param('projectId') projectId: string, @Param('id') id: string) {
     return this.deleteStakeholder.execute(projectId, id);
   }

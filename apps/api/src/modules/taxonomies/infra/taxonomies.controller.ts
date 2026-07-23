@@ -34,7 +34,7 @@ function resolveKind(pathKind: string): TaxonomyKind {
 // Ler = todos os papéis internos; configurar = só ADMIN (decisão 3 do plano).
 @Controller('taxonomies')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class TaxonomiesController {
   constructor(
     private listTaxonomy: ListTaxonomyUseCase,

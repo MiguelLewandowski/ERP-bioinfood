@@ -37,13 +37,8 @@ describe('ProjectAccessGuard', () => {
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should return true when user is INSERE (non-CLIENTE)', async () => {
-    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.INSERE }, PROJECT_ID, false);
-    await expect(guard.canActivate(ctx)).resolves.toBe(true);
-  });
-
-  it('should return true when user is CONSULTA (non-CLIENTE)', async () => {
-    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.CONSULTA }, PROJECT_ID, false);
+  it('should return true when user is PADRAO (non-CLIENTE)', async () => {
+    const { guard, ctx } = makeContext({ id: USER_ID, role: SystemRole.PADRAO }, PROJECT_ID, false);
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
@@ -71,7 +66,7 @@ describe('ProjectAccessGuard', () => {
   });
 
   it('should NOT query prisma when user is not CLIENTE', async () => {
-    const { guard, ctx, prisma } = makeContext({ id: USER_ID, role: SystemRole.APROVA }, PROJECT_ID, false);
+    const { guard, ctx, prisma } = makeContext({ id: USER_ID, role: SystemRole.PADRAO }, PROJECT_ID, false);
     await guard.canActivate(ctx);
     expect(prisma.projectAccess.findUnique).not.toHaveBeenCalled();
   });

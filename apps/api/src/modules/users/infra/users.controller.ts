@@ -24,8 +24,11 @@ export class UsersController {
     private listUserProjectAccess: ListUserProjectAccessUseCase,
   ) {}
 
+  // PADRAO lê a lista porque ela alimenta seletores de pessoa (equipe do TAP,
+  // responsável de tarefa, dono de pacote da EAP). O que o papel não acessa é a
+  // TELA de usuários — criar, editar e resetar senha continuam ADMIN.
   @Get()
-  @Roles(SystemRole.ADMIN, SystemRole.APROVA)
+  @Roles(SystemRole.PADRAO)
   list(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.listUsers.execute(Number(page ?? 1), Number(limit ?? 20));
   }
@@ -37,7 +40,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles(SystemRole.ADMIN, SystemRole.APROVA)
+  @Roles(SystemRole.ADMIN)
   get(@Param('id') id: string) {
     return this.getUser.execute(id);
   }
@@ -55,7 +58,7 @@ export class UsersController {
   }
 
   @Get(':id/project-access')
-  @Roles(SystemRole.ADMIN, SystemRole.APROVA)
+  @Roles(SystemRole.ADMIN)
   listAccess(@Param('id') id: string) {
     return this.listUserProjectAccess.execute(id);
   }

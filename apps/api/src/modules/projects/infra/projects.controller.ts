@@ -40,7 +40,7 @@ export class ProjectsController {
   }
 
   @Post()
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Body() dto: CreateProjectDto, @CurrentUser() user: AuthUser) {
     const project = await this.createProject.execute({
       ...dto,
@@ -58,7 +58,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
-  @Roles(SystemRole.APROVA, SystemRole.INSERE, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
     const { startDate, endDate, ...rest } = dto;
     const project = await this.updateProject.execute(id, {
@@ -70,7 +70,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   cancel(@Param('id') id: string) {
     return this.cancelProject.execute(id);
   }
@@ -83,19 +83,19 @@ export class ProjectsController {
   }
 
   @Post(':id/access')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   access(@Param('id') projectId: string, @Body() dto: GrantAccessDto, @CurrentUser() user: AuthUser) {
     return this.grantAccess.execute(projectId, dto.userId, user.id);
   }
 
   @Delete(':id/access/:userId')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   revokeAccessEndpoint(@Param('id') projectId: string, @Param('userId') userId: string) {
     return this.revokeAccess.execute(projectId, userId);
   }
 
   @Post(':id/baseline')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async baseline(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     const project = await this.setBaseline.execute(id, user.id);
     return toProjectDto(project);

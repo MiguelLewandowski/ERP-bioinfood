@@ -18,7 +18,7 @@ import { toInteractionDto } from './interaction.mapper';
 // plano de CRM); update/delete ainda checam autor-ou-ADMIN no use-case.
 @Controller('interactions')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class InteractionsController {
   constructor(
     private listInteractions: ListInteractionsUseCase,

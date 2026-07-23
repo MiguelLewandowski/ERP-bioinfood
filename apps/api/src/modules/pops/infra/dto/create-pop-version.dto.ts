@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsUrl } from 'class-validator';
 
 export class CreatePopVersionDto {
   @IsOptional()
@@ -6,10 +6,10 @@ export class CreatePopVersionDto {
   @MaxLength(1000)
   changeNotes?: string;
 
-  // Placeholder — upload de PDF ainda não implementado. Aceita uma URL crua
-  // se um dia vier de outro fluxo, mas nenhum endpoint escreve nisso ainda.
+  // Link do documento desta versão. Só http/https — evita que `javascript:`
+  // vire href clicável no frontend.
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(2000)
   fileUrl?: string;
 }

@@ -18,7 +18,7 @@ import { toPipelineDto, toStageDto } from './pipeline.mapper';
 // Configurar funis = só ADMIN. Ler (kanban/relatórios) = todos os papéis internos.
 @Controller('pipelines')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class PipelinesController {
   constructor(
     private listPipelines: ListPipelinesUseCase,

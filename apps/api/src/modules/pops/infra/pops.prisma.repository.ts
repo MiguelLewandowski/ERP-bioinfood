@@ -4,21 +4,39 @@ import { IPopRepository } from '../domain/pops.repository.interface';
 import {
   CreatePopData,
   CreatePopVersionData,
+  PopCategoryEntity,
   PopWithLatestVersion,
   PopWithVersions,
   UpdatePopData,
 } from '../domain/pop.entity';
+import { PopFilter } from '../domain/pops.repository.interface';
 
 const AUTHOR = { select: { id: true, name: true } } as const;
+const CATEGORY = { select: { id: true, name: true } } as const;
 
 @Injectable()
 export class PopsPrismaRepository implements IPopRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<PopWithLatestVersion[]> {
+  async findAll(filter: PopFilter = {}): Promise<PopWithLatestVersion[]> {
+    const search = filter.search?.trim();
     const rows = await this.prisma.pop.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(filter.categoryId ? { categoryId: filter.categoryId } : {}),
+        // `mode: insensitive` é do conector Postgres — busca sem acentuação
+        // continua sensível a acento, o que é aceitável para título de POP.
+        ...(search
+          ? {
+              OR: [
+                { title: { contains: search, mode: 'insensitive' as const } },
+                { description: { contains: search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
       include: {
+        category: CATEGORY,
         versions: {
           orderBy: { versionNumber: 'desc' },
           take: 1,
@@ -35,6 +53,7 @@ export class PopsPrismaRepository implements IPopRepository {
     const row = await this.prisma.pop.findFirst({
       where: { id, deletedAt: null },
       include: {
+        category: CATEGORY,
         versions: {
           orderBy: { versionNumber: 'desc' },
           include: { createdBy: AUTHOR },
@@ -44,19 +63,56 @@ export class PopsPrismaRepository implements IPopRepository {
     return row as PopWithVersions | null;
   }
 
+  async findCategories(): Promise<PopCategoryEntity[]> {
+    return this.prisma.popCategory.findMany({
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      take: 100,
+    });
+  }
+
+  async createCategory(name: string): Promise<PopCategoryEntity> {
+    const last = await this.prisma.popCategory.findFirst({
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    return this.prisma.popCategory.create({
+      data: { name, order: (last?.order ?? -1) + 1 },
+    });
+  }
+
+  async updateCategory(id: string, data: { name?: string; isActive?: boolean }): Promise<PopCategoryEntity> {
+    return this.prisma.popCategory.update({ where: { id }, data });
+  }
+
+  async countPopsInCategory(categoryId: string): Promise<number> {
+    return this.prisma.pop.count({ where: { categoryId, deletedAt: null } });
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await this.prisma.popCategory.delete({ where: { id } });
+  }
+
+  async categoryExists(id: string): Promise<boolean> {
+    const found = await this.prisma.popCategory.findUnique({ where: { id }, select: { id: true } });
+    return !!found;
+  }
+
   async create(data: CreatePopData): Promise<PopWithVersions> {
     const pop = await this.prisma.pop.create({
       data: {
         title: data.title,
         description: data.description,
+        categoryId: data.categoryId,
         versions: {
           create: {
             versionNumber: 1,
+            fileUrl: data.fileUrl,
             createdById: data.createdById,
           },
         },
       },
       include: {
+        category: CATEGORY,
         versions: {
           orderBy: { versionNumber: 'desc' },
           include: { createdBy: AUTHOR },

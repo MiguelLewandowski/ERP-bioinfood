@@ -26,10 +26,8 @@ datasource db {
 
 // -- Segurança / permissão (SÓ sobre o que o login pode fazer) --
 enum SystemRole {
-  ADMIN
-  APROVA
-  INSERE
-  CONSULTA
+  ADMIN // gestão total, inclusive usuários, CRM e exclusão definitiva.
+  PADRAO // interno: vê e edita todos os projetos. Sem tela de usuários, sem CRM, exclusão só reversível (soft delete).
   CLIENTE // login externo restrito (portal do cliente). Vê só projetos liberados via ProjectAccess.
 }
 
@@ -202,7 +200,7 @@ model User {
   name         String
   email        String     @unique
   passwordHash String
-  role         SystemRole @default(CONSULTA)
+  role         SystemRole @default(PADRAO)
   isActive     Boolean    @default(true)
   mustChangePassword Boolean @default(false)
   createdAt    DateTime   @default(now())
@@ -959,16 +957,34 @@ model Milestone {
 // TaskPop registra qual VERSÃO exata foi usada em qual task de qual projeto
 // (o vínculo de uso é project-scoped via Task, não a Pop em si).
 
+// Taxonomia de POPs — mesma forma das taxonomias do CRM (Sector, Category...).
+// Vive fora do CRM porque a tela de POPs é acessível ao papel PADRAO.
+model PopCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pops Pop[]
+}
+
 model Pop {
   id          String    @id @default(cuid())
   title       String
   description String?
+  // Toda POP pertence a uma categoria. Excluir categoria em uso é bloqueado
+  // (Restrict) — desativar em vez de excluir, como nas taxonomias do CRM.
+  categoryId  String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
+  category PopCategory  @relation(fields: [categoryId], references: [id])
   versions PopVersion[]
 
+  @@index([categoryId])
   @@index([deletedAt])
 }
 
@@ -977,7 +993,9 @@ model PopVersion {
   popId         String
   versionNumber Int
   changeNotes   String?
-  fileUrl       String? // upload de PDF ainda não implementado — só o campo
+  // Link do documento desta versão (Drive, SharePoint...). Quando o upload de
+  // PDF para o Supabase entrar, o arquivo enviado grava a URL pública aqui.
+  fileUrl       String?
   createdById   String
   createdAt     DateTime @default(now())
 

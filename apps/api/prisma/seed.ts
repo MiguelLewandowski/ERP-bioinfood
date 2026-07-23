@@ -91,7 +91,7 @@ async function main() {
       name: 'Líder de Projeto',
       email: 'lider@bioinfood.com',
       passwordHash: liderHash,
-      role: SystemRole.APROVA,
+      role: SystemRole.PADRAO,
     },
   });
 

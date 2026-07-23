@@ -27,14 +27,14 @@ export class RisksController {
   }
 
   @Post()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Param('projectId') projectId: string, @Body() dto: CreateRiskDto) {
     const risk = await this.createRisk.execute({ ...dto, projectId });
     return toRiskDto(risk);
   }
 
   @Patch(':id')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -45,7 +45,7 @@ export class RisksController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   remove(@Param('projectId') projectId: string, @Param('id') id: string) {
     return this.deleteRisk.execute(projectId, id);
   }

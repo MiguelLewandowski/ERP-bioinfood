@@ -18,7 +18,7 @@ import { DueFilter } from '../domain/crm-activity.entity';
 // escrever = só ADMIN (§5 do plano de CRM).
 @Controller('crm/activities')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class CrmActivitiesController {
   constructor(
     private listCrmActivities: ListCrmActivitiesUseCase,

@@ -27,7 +27,7 @@ export class MilestonesController {
   }
 
   @Post()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async create(@Param('projectId') projectId: string, @Body() dto: CreateMilestoneDto) {
     const milestone = await this.createMilestone.execute({
       ...dto,
@@ -38,7 +38,7 @@ export class MilestonesController {
   }
 
   @Patch(':id')
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async update(
     @Param('projectId') projectId: string,
     @Param('id') id: string,
@@ -53,7 +53,7 @@ export class MilestonesController {
   }
 
   @Delete(':id')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   remove(@Param('projectId') projectId: string, @Param('id') id: string) {
     return this.deleteMilestone.execute(projectId, id);
   }

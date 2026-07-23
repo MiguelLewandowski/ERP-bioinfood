@@ -19,7 +19,7 @@ import { toOpportunityDto } from './opportunity.mapper';
 // Ler = todos os papéis internos; escrever/mover = só ADMIN (decisão do owner).
 @Controller('opportunities')
 @UseGuards(RolesGuard)
-@Roles(SystemRole.ADMIN, SystemRole.APROVA, SystemRole.INSERE, SystemRole.CONSULTA)
+@Roles(SystemRole.PADRAO)
 export class OpportunitiesController {
   constructor(
     private listOpportunities: ListOpportunitiesUseCase,

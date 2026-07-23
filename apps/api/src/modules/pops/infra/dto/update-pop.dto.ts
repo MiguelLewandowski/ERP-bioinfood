@@ -11,4 +11,9 @@ export class UpdatePopDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  categoryId?: string;
 }

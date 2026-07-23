@@ -35,7 +35,7 @@ describe('UpdateInteractionUseCase', () => {
     repo = makeRepo({ findAuthorId: vi.fn().mockResolvedValue('author-1') });
     useCase = new UpdateInteractionUseCase(repo);
     await expect(
-      useCase.execute('i1', { subject: 'novo' }, { id: 'intruder', role: SystemRole.APROVA }),
+      useCase.execute('i1', { subject: 'novo' }, { id: 'intruder', role: SystemRole.PADRAO }),
     ).rejects.toThrow(ForbiddenException);
     expect(repo.update).not.toHaveBeenCalled();
   });

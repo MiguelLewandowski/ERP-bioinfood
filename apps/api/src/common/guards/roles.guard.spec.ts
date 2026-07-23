@@ -17,27 +17,33 @@ function makeContext(user: { role: SystemRole }, roles: SystemRole[] | undefined
 
 describe('RolesGuard', () => {
   it('should return true when no @Roles() decorator is present', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.CONSULTA }, undefined);
+    const { guard, ctx } = makeContext({ role: SystemRole.PADRAO }, undefined);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should return true when user is ADMIN regardless of required roles', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.ADMIN }, [SystemRole.APROVA]);
+    const { guard, ctx } = makeContext({ role: SystemRole.ADMIN }, [SystemRole.PADRAO]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should return true when user role matches required roles', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.INSERE }, [SystemRole.INSERE, SystemRole.APROVA]);
+    const { guard, ctx } = makeContext({ role: SystemRole.PADRAO }, [SystemRole.PADRAO]);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should throw ForbiddenException when user role is not in required roles', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.CONSULTA }, [SystemRole.INSERE, SystemRole.APROVA]);
+    const { guard, ctx } = makeContext({ role: SystemRole.CLIENTE }, [SystemRole.PADRAO]);
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 
-  it('should throw ForbiddenException when CLIENTE tries to access INSERE-only route', () => {
-    const { guard, ctx } = makeContext({ role: SystemRole.CLIENTE }, [SystemRole.INSERE]);
+  // Só ADMIN passa nas rotas de usuários, CRM e exclusão definitiva.
+  it('should throw ForbiddenException when PADRAO tries to access an admin-only route', () => {
+    const { guard, ctx } = makeContext({ role: SystemRole.PADRAO }, [SystemRole.ADMIN]);
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+  });
+
+  it('should throw ForbiddenException when CLIENTE tries to access PADRAO-only route', () => {
+    const { guard, ctx } = makeContext({ role: SystemRole.CLIENTE }, [SystemRole.PADRAO]);
     expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
   });
 });

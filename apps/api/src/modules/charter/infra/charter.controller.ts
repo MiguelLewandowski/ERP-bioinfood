@@ -25,14 +25,14 @@ export class CharterController {
   }
 
   @Put()
-  @Roles(SystemRole.INSERE, SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async upsert(@Param('projectId') projectId: string, @Body() dto: UpsertCharterDto) {
     const charter = await this.upsertCharter.execute(projectId, dto);
     return toCharterDto(charter);
   }
 
   @Post('approve')
-  @Roles(SystemRole.APROVA, SystemRole.ADMIN)
+  @Roles(SystemRole.PADRAO)
   async approve(@Param('projectId') projectId: string, @CurrentUser() user: { id: string }) {
     const charter = await this.approveCharter.execute(projectId, user.id);
     return toCharterDto(charter);
