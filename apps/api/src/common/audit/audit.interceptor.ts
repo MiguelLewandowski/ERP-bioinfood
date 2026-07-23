@@ -55,6 +55,9 @@ export class AuditInterceptor implements NestInterceptor {
     private prisma: PrismaService,
   ) {}
 
+  // Devolve a linha crua, com todas as colunas — inclusive as sensíveis.
+  // Quem tira `passwordHash` e afins é o `AuditService`, ponto único de escrita
+  // na trilha; não replicar a lista de chaves aqui.
   private async captureBefore(entity: string, entityId: string): Promise<object | null> {
     const model = ENTITY_MODEL[entity];
     if (!model) return null;
