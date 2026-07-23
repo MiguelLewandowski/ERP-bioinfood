@@ -37,8 +37,15 @@ const LEAF = makeNode({
   outputs: 'Relatório de extração + planilha bruta',
 });
 
-function setup(nodes: WbsNodeDto[] = [PARENT, LEAF]) {
-  return renderWithProviders(<WbsClient projectId="proj-1" token="t" initialNodes={nodes} />);
+const MEMBERS = [
+  { id: 'user-2', name: 'Juliana' },
+  { id: 'user-3', name: 'Thiago' },
+];
+
+function setup(nodes: WbsNodeDto[] = [PARENT, LEAF], members = MEMBERS) {
+  return renderWithProviders(
+    <WbsClient projectId="proj-1" token="t" initialNodes={nodes} members={members} />,
+  );
 }
 
 describe('WbsClient — detalhes do pacote de trabalho', () => {
@@ -114,5 +121,59 @@ describe('WbsClient — detalhes do pacote de trabalho', () => {
     expect(await screen.findByText('Dono')).toBeInTheDocument();
     // Continua sendo agrupador: abrir detalhes não esconde os filhos.
     expect(screen.getByRole('button', { name: 'Comissionamento' })).toBeInTheDocument();
+  });
+});
+
+// O dono era texto livre: cada um digitava o nome de um jeito e nada garantia
+// que a pessoa estivesse no projeto.
+describe('WbsClient — dono do pacote', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  async function openEditor(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Curva de extração' }));
+    await user.click(await screen.findByRole('button', { name: /Editar/ }));
+    return screen.findByLabelText(/Dono/);
+  }
+
+  it('should offer the project team as owner options instead of a free text field', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    const select = await openEditor(user);
+
+    expect(select.tagName).toBe('SELECT');
+    expect(screen.getByRole('option', { name: 'Juliana' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Thiago' })).toBeInTheDocument();
+  });
+
+  it('should allow clearing the owner', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await openEditor(user);
+
+    expect(screen.getByRole('option', { name: '— Sem responsável —' })).toBeInTheDocument();
+  });
+
+  // Nó antigo com nome digitado à mão não pode perder o dono só por abrir o drawer.
+  it('should keep an owner that is not on the team as a selectable option', async () => {
+    const user = userEvent.setup();
+    setup([PARENT, { ...LEAF, owner: 'Fulano Antigo' } as WbsNodeDto]);
+
+    const select = await openEditor(user);
+
+    expect(select).toHaveValue('Fulano Antigo');
+    expect(screen.getByText(/não está na equipe do projeto/)).toBeInTheDocument();
+  });
+
+  it('should point to the charter when the project has no team yet', async () => {
+    const user = userEvent.setup();
+    setup([PARENT, LEAF], []);
+
+    await openEditor(user);
+
+    expect(screen.getByRole('link', { name: 'Termo de Abertura' })).toHaveAttribute(
+      'href', '/projects/proj-1/charter',
+    );
   });
 });

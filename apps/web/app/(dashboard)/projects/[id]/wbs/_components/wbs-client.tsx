@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package, ListTree, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import type { WbsNodeDto } from '@bioinfood/shared';
+import type { ProjectMember } from '@/lib/project-members';
 import { wbsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, dialogDrawerRightClass } from '@/components/ui/dialog';
@@ -35,6 +37,8 @@ interface WbsClientProps {
   projectId: string;
   token: string;
   initialNodes: WbsNode[];
+  /** Equipe do TAP + acessos do projeto — as opções de dono do pacote. */
+  members: ProjectMember[];
 }
 
 interface AddForm {
@@ -49,7 +53,7 @@ interface EditingNode {
   outputs: string;
 }
 
-export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
+export function WbsClient({ projectId, token, initialNodes, members }: WbsClientProps) {
   const [nodes, setNodes] = useState<WbsNode[]>(initialNodes);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // Pacotes de trabalho com o painel de detalhes aberto. Começa vazio: o resumo
@@ -63,6 +67,15 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
   const [savingEdit, setSavingEdit] = useState(false);
 
   const tree = buildTree(nodes);
+
+  // `WbsNode.owner` é texto livre no banco: nós antigos (ou o seed) podem ter um
+  // nome que não corresponde a ninguém da equipe. Ele entra na lista para o
+  // select conseguir exibi-lo — senão abrir o drawer zeraria o dono em silêncio.
+  const legacyOwner =
+    editing?.owner && !members.some((m) => m.name === editing.owner) ? editing.owner : null;
+  const ownerOptions = legacyOwner
+    ? [...members.map((m) => m.name), legacyOwner]
+    : members.map((m) => m.name);
 
   function toggleCollapse(id: string) {
     setCollapsed((prev) => {
@@ -231,15 +244,32 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
+                <label htmlFor="wbs-owner" className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
                   <User size={12} /> Dono
                 </label>
-                <input
+                <select
+                  id="wbs-owner"
                   value={editing.owner}
                   onChange={(e) => setEditing({ ...editing, owner: e.target.value })}
-                  placeholder="Nome do responsável…"
-                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
-                />
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
+                >
+                  <option value="">— Sem responsável —</option>
+                  {ownerOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                {members.length === 0 ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Nenhuma pessoa na equipe ainda — monte a equipe em{' '}
+                    <Link href={`/projects/${projectId}/charter`} className="font-medium text-primary hover:underline">
+                      Termo de Abertura
+                    </Link>.
+                  </p>
+                ) : legacyOwner ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    &quot;{legacyOwner}&quot; foi digitado à mão e não está na equipe do projeto.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1.5">
