@@ -81,8 +81,7 @@ export function WbsClient({ projectId, token, initialNodes }: WbsClientProps) {
   }
 
   function expandAllDetails() {
-    const leaves = nodes.filter((n) => !nodes.some((c) => c.parentId === n.id));
-    setOpenDetails((prev) => prev.size === leaves.length ? new Set() : new Set(leaves.map((n) => n.id)));
+    setOpenDetails((prev) => prev.size > 0 ? new Set() : new Set(nodes.map((n) => n.id)));
   }
 
   async function handleAdd() {
@@ -294,15 +293,12 @@ interface WbsTreeNodeProps {
 function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDetails, onAdd, onEdit }: WbsTreeNodeProps) {
   const isCollapsed = collapsed.has(node.id);
   const hasChildren = node.children.length > 0;
-  const isLeaf      = !hasChildren;
 
   const depthColors = ['#147F23', '#46AD48', '#86C175', '#706F6F'];
   const color = depthColors[Math.min(depth, depthColors.length - 1)];
 
-  const hasDetails    = !!(node.owner || node.readyCriteria || node.outputs);
-  const detailsOpen   = openDetails.has(node.id);
-  // Só pacote de trabalho (folha) tem dono/pronto/saídas — nó com filhos é agrupador.
-  const showDetailRow = isLeaf;
+  const hasDetails  = !!(node.owner || node.readyCriteria || node.outputs);
+  const detailsOpen = openDetails.has(node.id);
 
   return (
     <div>
@@ -322,16 +318,17 @@ function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDe
 
         <span className="text-xs font-bold shrink-0 w-12" style={{ color }}>{node.code}</span>
 
+        {/* Título sempre abre os detalhes; o chevron cuida da navegação da árvore. */}
         <button
-          onClick={() => showDetailRow ? onToggleDetails(node.id) : onToggle(node.id)}
+          onClick={() => onToggleDetails(node.id)}
           className="flex-1 text-left text-sm text-foreground font-medium hover:text-primary transition-colors"
+          title="Ver detalhes"
         >
           {node.title}
         </button>
 
         {/* Resumo sempre visível: diz o que já está documentado sem exigir clique. */}
-        {showDetailRow && (
-          <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
             {node.owner && (
               <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
                 <User size={9} /> {node.owner}
@@ -355,8 +352,7 @@ function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDe
                 + detalhes
               </button>
             )}
-          </div>
-        )}
+        </div>
 
         <button
           onClick={() => onAdd(node.id, node.code)}
@@ -366,7 +362,7 @@ function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDe
         </button>
       </div>
 
-      {showDetailRow && detailsOpen && (
+      {detailsOpen && (
         <WbsDetailPanel node={node} indent={16 + depth * 24} onEdit={() => onEdit(node)} />
       )}
 

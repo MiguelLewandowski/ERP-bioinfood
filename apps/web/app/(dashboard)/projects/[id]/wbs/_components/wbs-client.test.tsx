@@ -90,13 +90,29 @@ describe('WbsClient — detalhes do pacote de trabalho', () => {
     expect(screen.getByRole('button', { name: /Recolher detalhes/ })).toBeInTheDocument();
   });
 
-  // Nó com filhos é agrupador: o clique nele navega a árvore, não abre detalhes.
-  it('should collapse children instead of showing details for a parent node', async () => {
+  // O chevron navega a árvore; o título abre os detalhes. Separados porque um
+  // agrupador precisa das duas ações e antes o dono dele não aparecia em lugar nenhum.
+  it('should collapse children from the chevron, not from the title', async () => {
     const user = userEvent.setup();
     setup();
 
-    await user.click(screen.getByRole('button', { name: 'Bancada' }));
+    await user.click(screen.getByRole('button', { name: 'Expandir sub-entregáveis' }));
 
     expect(screen.queryByRole('button', { name: 'Curva de extração' })).not.toBeInTheDocument();
+  });
+
+  it('should show the details of a parent node too', async () => {
+    const user = userEvent.setup();
+    setup([
+      makeNode({ id: 'p2', code: '2', title: 'Piloto', owner: 'Thiago' }),
+      makeNode({ id: 'l3', code: '2.1', title: 'Comissionamento', parentId: 'p2' }),
+    ]);
+
+    expect(screen.getByText('Thiago')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Piloto' }));
+
+    expect(await screen.findByText('Dono')).toBeInTheDocument();
+    // Continua sendo agrupador: abrir detalhes não esconde os filhos.
+    expect(screen.getByRole('button', { name: 'Comissionamento' })).toBeInTheDocument();
   });
 });
