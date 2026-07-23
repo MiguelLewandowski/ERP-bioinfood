@@ -655,7 +655,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                       return (
                         <div key={dep.id} className="flex items-center gap-2 bg-success/10 border border-ring/30 rounded-lg px-3 py-1.5">
                           <ArrowRight size={12} className="text-primary shrink-0" />
-                          <span className="flex-1 text-xs font-medium text-foreground truncate">{pred?.title ?? dep.predecessorId}</span>
+                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{pred?.title ?? dep.predecessorId}</span>
                           <span className="text-[10px] text-muted-foreground shrink-0">
                             {pred?.status === 'DONE' ? '✓ Concluída' : pred?.status === 'IN_PROGRESS' ? 'Em andamento' : 'Pendente'}
                           </span>
@@ -673,7 +673,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                         value={selectedPred}
                         onChange={(e) => setSelectedPred(e.target.value)}
                         aria-label="Tarefa predecessora"
-                        className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
+                        className="min-w-0 flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                       >
                         <option value="">Selecione a predecessora…</option>
                         {availableToLink.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
@@ -717,7 +717,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                     {taskPops.map((link) => (
                       <div key={link.id} className="flex items-center gap-2 bg-success/10 border border-ring/30 rounded-lg px-3 py-1.5">
                         <FileCheck size={12} className="text-primary shrink-0" />
-                        <span className="flex-1 text-xs font-medium text-foreground truncate">{link.pop.title}</span>
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{link.pop.title}</span>
                         <span className="text-[10px] text-muted-foreground shrink-0">v{link.versionNumber}</span>
                         <button type="button" onClick={() => removePop(link.id)} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
                           <X size={12} />
@@ -726,13 +726,16 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                     ))}
                   </div>
 
+                  {/* min-w-0 no select: item flex não encolhe abaixo do próprio
+                      conteúdo por padrão, e título de POP é longo — sem isso ele
+                      estoura a largura do drawer e cria scroll horizontal. */}
                   {addingPop && (
                     <div className="mt-2 flex gap-2 items-center">
                       <select
                         value={selectedPop}
                         onChange={(e) => setSelectedPop(e.target.value)}
                         aria-label="POP a vincular"
-                        className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
+                        className="min-w-0 flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                       >
                         <option value="">Selecione a POP…</option>
                         {availablePops.map((p) => (
