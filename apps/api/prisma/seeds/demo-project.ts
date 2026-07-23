@@ -55,23 +55,23 @@ type TeamKey = (typeof TEAM)[number]['key'];
 
 // ── EAP / WBS ────────────────────────────────────────────────────────────────
 
-const WBS: Array<{ code: string; title: string; owner: string; outputs?: string }> = [
+const WBS: Array<{ code: string; title: string; owner: string; readyCriteria?: string; outputs?: string }> = [
   { code: '1',   title: 'Gestão do Projeto',                owner: 'Marina Alencar' },
-  { code: '1.1', title: 'Planejamento e Governança',        owner: 'Marina Alencar',     outputs: 'TAP aprovado, plano de comunicação, linha de base' },
-  { code: '1.2', title: 'Monitoramento e Controle',         owner: 'Marina Alencar',     outputs: 'Relatórios de progresso, atas de revisão' },
+  { code: '1.1', title: 'Planejamento e Governança',        owner: 'Marina Alencar',     readyCriteria: 'TAP aprovado pelo patrocinador e linha de base congelada.', outputs: 'TAP aprovado, plano de comunicação, linha de base' },
+  { code: '1.2', title: 'Monitoramento e Controle',         owner: 'Marina Alencar',     readyCriteria: 'Relatórios entregues no prazo e desvios com plano de ação registrado.', outputs: 'Relatórios de progresso, atas de revisão' },
   { code: '2',   title: 'Matéria-Prima',                    owner: 'Rafael Bittencourt' },
-  { code: '2.1', title: 'Prospecção de Coprodutos',         owner: 'Rafael Bittencourt', outputs: 'Mapa de fornecedores, lotes amostrados' },
-  { code: '2.2', title: 'Caracterização Físico-Química',    owner: 'Juliana Prado',      outputs: 'Laudos analíticos, relatório de caracterização' },
+  { code: '2.1', title: 'Prospecção de Coprodutos',         owner: 'Rafael Bittencourt', readyCriteria: 'Ao menos 3 fornecedores qualificados com lote amostrado e rastreável.', outputs: 'Mapa de fornecedores, lotes amostrados' },
+  { code: '2.2', title: 'Caracterização Físico-Química',    owner: 'Juliana Prado',      readyCriteria: 'Composição centesimal e perfil de fibras em triplicata, com desvio abaixo de 5%.', outputs: 'Laudos analíticos, relatório de caracterização' },
   { code: '3',   title: 'Desenvolvimento em Bancada',       owner: 'Rafael Bittencourt' },
-  { code: '3.1', title: 'Rota Tecnológica',                 owner: 'Rafael Bittencourt', outputs: 'Rota enzimática definida e reprodutível' },
-  { code: '3.2', title: 'Otimização de Processo',           owner: 'Juliana Prado',      outputs: 'Condições ótimas, modelo de rendimento, extrato estável' },
+  { code: '3.1', title: 'Rota Tecnológica',                 owner: 'Rafael Bittencourt', readyCriteria: 'Rota reproduzida 3 vezes por operadores diferentes com o mesmo rendimento.', outputs: 'Rota enzimática definida e reprodutível' },
+  { code: '3.2', title: 'Otimização de Processo',           owner: 'Juliana Prado',      readyCriteria: 'Rendimento acima de 70% e extrato estável por 90 dias em prateleira.', outputs: 'Condições ótimas, modelo de rendimento, extrato estável' },
   { code: '4',   title: 'Escalonamento Piloto',             owner: 'Thiago Nakamura' },
-  { code: '4.1', title: 'Infraestrutura Piloto',            owner: 'Thiago Nakamura',    outputs: 'Planta piloto comissionada e qualificada' },
-  { code: '4.2', title: 'Lotes de Validação',               owner: 'Juliana Prado',      outputs: '3 lotes reprodutíveis, balanço de massa, custo' },
+  { code: '4.1', title: 'Infraestrutura Piloto',            owner: 'Thiago Nakamura',    readyCriteria: 'Planta comissionada, qualificação de instalação e operação assinadas.', outputs: 'Planta piloto comissionada e qualificada' },
+  { code: '4.2', title: 'Lotes de Validação',               owner: 'Juliana Prado',      readyCriteria: '3 lotes consecutivos dentro da especificação e balanço de massa fechando em 95%.', outputs: '3 lotes reprodutíveis, balanço de massa, custo' },
   { code: '5',   title: 'Validação e Transferência',        owner: 'Camila Rezende' },
-  { code: '5.1', title: 'Ensaios de Aplicação',             owner: 'Rafael Bittencourt', outputs: 'Provas de conceito em panificação e bebida' },
-  { code: '5.2', title: 'Regulatório e Propriedade Intelectual', owner: 'Camila Rezende', outputs: 'Dossiê de segurança, protocolo ANVISA, pedido de patente' },
-  { code: '5.3', title: 'Transferência Tecnológica',        owner: 'Thiago Nakamura',    outputs: 'Manual de processo, equipe treinada, aceite formal' },
+  { code: '5.1', title: 'Ensaios de Aplicação',             owner: 'Rafael Bittencourt', readyCriteria: 'Aprovação sensorial em painel treinado nas duas matrizes testadas.', outputs: 'Provas de conceito em panificação e bebida' },
+  { code: '5.2', title: 'Regulatório e Propriedade Intelectual', owner: 'Camila Rezende', readyCriteria: 'Protocolo aceito pela ANVISA e pedido de patente com número de depósito.', outputs: 'Dossiê de segurança, protocolo ANVISA, pedido de patente' },
+  { code: '5.3', title: 'Transferência Tecnológica',        owner: 'Thiago Nakamura',    readyCriteria: 'Equipe do cliente operando sozinha por um lote completo, com aceite assinado.', outputs: 'Manual de processo, equipe treinada, aceite formal' },
 ];
 
 // ── Tarefas ──────────────────────────────────────────────────────────────────
@@ -440,6 +440,7 @@ export async function seedDemoProject(prisma: PrismaClient, adminId: string, lid
         code: node.code,
         title: node.title,
         owner: node.owner,
+        readyCriteria: node.readyCriteria ?? null,
         outputs: node.outputs ?? null,
         order: index,
       },
