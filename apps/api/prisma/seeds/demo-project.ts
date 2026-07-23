@@ -44,11 +44,11 @@ const LAST_DAY = 729; // 2027-06-30
 // ── Equipe interna (vira User: pode ser responsável por tarefa) ───────────────
 
 const TEAM = [
-  { key: 'marina',  name: 'Marina Alencar',      email: 'marina@bioinfood.com',  role: SystemRole.APROVA },
-  { key: 'rafael',  name: 'Rafael Bittencourt',  email: 'rafael@bioinfood.com',  role: SystemRole.INSERE },
-  { key: 'juliana', name: 'Juliana Prado',       email: 'juliana@bioinfood.com', role: SystemRole.INSERE },
-  { key: 'thiago',  name: 'Thiago Nakamura',     email: 'thiago@bioinfood.com',  role: SystemRole.INSERE },
-  { key: 'camila',  name: 'Camila Rezende',      email: 'camila@bioinfood.com',  role: SystemRole.INSERE },
+  { key: 'marina',  name: 'Marina Alencar',      email: 'marina@bioinfood.com',  role: SystemRole.PADRAO },
+  { key: 'rafael',  name: 'Rafael Bittencourt',  email: 'rafael@bioinfood.com',  role: SystemRole.PADRAO },
+  { key: 'juliana', name: 'Juliana Prado',       email: 'juliana@bioinfood.com', role: SystemRole.PADRAO },
+  { key: 'thiago',  name: 'Thiago Nakamura',     email: 'thiago@bioinfood.com',  role: SystemRole.PADRAO },
+  { key: 'camila',  name: 'Camila Rezende',      email: 'camila@bioinfood.com',  role: SystemRole.PADRAO },
 ] as const;
 
 type TeamKey = (typeof TEAM)[number]['key'];
@@ -273,11 +273,19 @@ const STAKEHOLDERS: Array<{
 
 // ── POPs ─────────────────────────────────────────────────────────────────────
 
+const POP_CATEGORIES = [
+  { id: 'popcat-analitico',  name: 'Análise laboratorial', order: 0 },
+  { id: 'popcat-processo',   name: 'Processo e equipamento', order: 1 },
+  { id: 'popcat-qualidade',  name: 'Qualidade e segurança', order: 2 },
+  { id: 'popcat-geral',      name: 'Geral', order: 3 },
+];
+
 const POPS = [
   {
     id: 'pop-demo-centesimal',
     title: 'Preparo de amostras para caracterização centesimal',
     description: 'Moagem, homogeneização e quarteamento de coprodutos agroindustriais antes das análises.',
+    categoryId: 'popcat-analitico',
     versions: [
       { versionNumber: 1, changeNotes: 'Versão inicial.' },
       { versionNumber: 2, changeNotes: 'Inclui granulometria mínima e tempo de secagem revisado após os lotes da safra 2025.' },
@@ -287,12 +295,14 @@ const POPS = [
     id: 'pop-demo-reator',
     title: 'Operação do reator piloto de hidrólise enzimática',
     description: 'Partida, condução e parada da batelada no reator de 500 L, com pontos de coleta.',
+    categoryId: 'popcat-processo',
     versions: [{ versionNumber: 1, changeNotes: 'Emitido após o comissionamento da planta piloto.' }],
   },
   {
     id: 'pop-demo-micro',
     title: 'Controle microbiológico de lotes piloto',
     description: 'Sanitização entre bateladas e plano de amostragem microbiológica.',
+    categoryId: 'popcat-qualidade',
     versions: [{ versionNumber: 1, changeNotes: 'Versão inicial, derivada do risco de contaminação cruzada.' }],
   },
 ];
@@ -540,12 +550,25 @@ export async function seedDemoProject(prisma: PrismaClient, adminId: string, lid
   }
 
   // ── POPs e uso nas tarefas ──
+  for (const category of POP_CATEGORIES) {
+    await prisma.popCategory.upsert({
+      where: { id: category.id },
+      update: { name: category.name, order: category.order },
+      create: category,
+    });
+  }
+
   const popVersionIds: Record<string, string> = {};
   for (const pop of POPS) {
     await prisma.pop.upsert({
       where: { id: pop.id },
-      update: {},
-      create: { id: pop.id, title: pop.title, description: pop.description },
+      update: { categoryId: pop.categoryId },
+      create: {
+        id: pop.id,
+        title: pop.title,
+        description: pop.description,
+        categoryId: pop.categoryId,
+      },
     });
     for (const version of pop.versions) {
       const created = await prisma.popVersion.upsert({

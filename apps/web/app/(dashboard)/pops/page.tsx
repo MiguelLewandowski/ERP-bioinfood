@@ -6,7 +6,10 @@ export default async function PopsPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const pops = await popsApi.list(token);
+  const [pops, categories] = await Promise.all([
+    popsApi.list(token),
+    popsApi.listCategories(token),
+  ]);
 
-  return <PopsClient initialPops={pops} />;
+  return <PopsClient initialPops={pops} categories={categories} />;
 }

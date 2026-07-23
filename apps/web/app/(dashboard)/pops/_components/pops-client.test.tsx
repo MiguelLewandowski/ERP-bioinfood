@@ -26,6 +26,7 @@ const CREATED_POP: PopDto = {
   id: 'pop-new',
   title: 'Limpeza de bancada',
   description: null,
+  category: { id: 'cat-1', name: 'Qualidade' },
   latestVersion: {
     id: 'v1',
     versionNumber: 1,
@@ -37,8 +38,13 @@ const CREATED_POP: PopDto = {
   createdAt: '2026-07-20T00:00:00.000Z',
 };
 
-function setup(initialPops: PopDto[] = []) {
-  renderWithProviders(<PopsClient initialPops={initialPops} />);
+const CATEGORIES = [
+  { id: 'cat-1', name: 'Qualidade', isActive: true, order: 0 },
+  { id: 'cat-2', name: 'Processo', isActive: true, order: 1 },
+];
+
+function setup(initialPops: PopDto[] = [], categories = CATEGORIES) {
+  renderWithProviders(<PopsClient initialPops={initialPops} categories={categories} />);
 }
 
 // With an empty list there are two entry points — the header button and the
@@ -46,6 +52,12 @@ function setup(initialPops: PopDto[] = []) {
 async function openForm(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getAllByRole('button', { name: /Nova POP/ })[0]);
   await screen.findByLabelText('Título *');
+}
+
+// Categoria virou obrigatória — sem escolher uma, o zod barra o submit.
+async function fillRequired(user: ReturnType<typeof userEvent.setup>, title: string) {
+  await user.type(screen.getByLabelText('Título *'), title);
+  await user.selectOptions(screen.getByLabelText('Categoria *'), 'cat-1');
 }
 
 describe('PopsClient form', () => {
@@ -83,7 +95,7 @@ describe('PopsClient form', () => {
     setup();
 
     await openForm(user);
-    await user.type(screen.getByLabelText('Título *'), 'Limpeza de bancada');
+    await fillRequired(user, 'Limpeza de bancada');
     await user.type(screen.getByLabelText('Descrição'), 'Procedimento diário');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
@@ -101,7 +113,7 @@ describe('PopsClient form', () => {
     setup();
 
     await openForm(user);
-    await user.type(screen.getByLabelText('Título *'), 'Limpeza de bancada');
+    await fillRequired(user, 'Limpeza de bancada');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(await screen.findByText('Limpeza de bancada')).toBeInTheDocument();
@@ -114,7 +126,7 @@ describe('PopsClient form', () => {
     setup();
 
     await openForm(user);
-    await user.type(screen.getByLabelText('Título *'), 'Limpeza de bancada');
+    await fillRequired(user, 'Limpeza de bancada');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Forbidden resource'));
@@ -130,5 +142,72 @@ describe('PopsClient form', () => {
 
     await waitFor(() => expect(screen.queryByLabelText('Título *')).not.toBeInTheDocument());
     expect(createMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('PopsClient — busca e filtros', () => {
+  const LIMPEZA: PopDto = { ...CREATED_POP, id: 'p1', title: 'Limpeza de bancada' };
+  const REATOR: PopDto = {
+    ...CREATED_POP,
+    id: 'p2',
+    title: 'Operação do reator piloto',
+    description: 'Partida e parada da batelada',
+    category: { id: 'cat-2', name: 'Processo' },
+  };
+
+  it('should filter the list by the typed name', async () => {
+    const user = userEvent.setup();
+    setup([LIMPEZA, REATOR]);
+
+    await user.type(screen.getByLabelText('Buscar POP por nome'), 'reator');
+
+    expect(screen.getByText('Operação do reator piloto')).toBeInTheDocument();
+    expect(screen.queryByText('Limpeza de bancada')).not.toBeInTheDocument();
+  });
+
+  it('should match the description too, not only the title', async () => {
+    const user = userEvent.setup();
+    setup([LIMPEZA, REATOR]);
+
+    await user.type(screen.getByLabelText('Buscar POP por nome'), 'batelada');
+
+    expect(screen.getByText('Operação do reator piloto')).toBeInTheDocument();
+  });
+
+  it('should ignore casing when searching', async () => {
+    const user = userEvent.setup();
+    setup([LIMPEZA, REATOR]);
+
+    await user.type(screen.getByLabelText('Buscar POP por nome'), 'LIMPEZA');
+
+    expect(screen.getByText('Limpeza de bancada')).toBeInTheDocument();
+  });
+
+  it('should narrow the list to the chosen category', async () => {
+    const user = userEvent.setup();
+    setup([LIMPEZA, REATOR]);
+
+    await user.click(screen.getByRole('button', { name: /Processo/ }));
+
+    expect(screen.getByText('Operação do reator piloto')).toBeInTheDocument();
+    expect(screen.queryByText('Limpeza de bancada')).not.toBeInTheDocument();
+  });
+
+  it('should count the POPs of each category on the filter chip', () => {
+    setup([LIMPEZA, REATOR]);
+
+    expect(screen.getByRole('button', { name: /Todas 2/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Qualidade 1/ })).toBeInTheDocument();
+  });
+
+  it('should offer a way out when nothing matches', async () => {
+    const user = userEvent.setup();
+    setup([LIMPEZA, REATOR]);
+
+    await user.type(screen.getByLabelText('Buscar POP por nome'), 'inexistente');
+    expect(screen.getByText('Nenhuma POP encontrada')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.getByText('Limpeza de bancada')).toBeInTheDocument();
   });
 });

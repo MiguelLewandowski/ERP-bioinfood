@@ -34,6 +34,7 @@ import type {
   SearchResultDto,
   PopDto,
   PopDetailDto,
+  PopCategoryDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -149,14 +150,33 @@ export const milestonesApi = {
 
 export const popsApi = {
   // Catálogo global — sem escopo de projeto (docs/regras-negocio/pop.md).
-  list: (token: string) =>
-    api.get<PopDto[]>('/pops', token),
+  list: (token: string, filter: { search?: string; categoryId?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (filter.search) qs.set('search', filter.search);
+    if (filter.categoryId) qs.set('categoryId', filter.categoryId);
+    const suffix = qs.toString();
+    return api.get<PopDto[]>(`/pops${suffix ? `?${suffix}` : ''}`, token);
+  },
 
   get: (id: string, token: string) =>
     api.get<PopDetailDto>(`/pops/${id}`, token),
 
-  create: (data: { title: string; description?: string }, token: string) =>
-    api.post<PopDetailDto>('/pops', data, token),
+  create: (
+    data: { title: string; description?: string; categoryId: string; fileUrl?: string },
+    token: string,
+  ) => api.post<PopDetailDto>('/pops', data, token),
+
+  listCategories: (token: string) =>
+    api.get<PopCategoryDto[]>('/pops/categories', token),
+
+  createCategory: (name: string, token: string) =>
+    api.post<PopCategoryDto>('/pops/categories', { name }, token),
+
+  updateCategory: (id: string, data: { name?: string; isActive?: boolean }, token: string) =>
+    api.patch<PopCategoryDto>(`/pops/categories/${id}`, data, token),
+
+  removeCategory: (id: string, token: string) =>
+    api.delete<void>(`/pops/categories/${id}`, token),
 
   update: (id: string, data: Record<string, unknown>, token: string) =>
     api.patch<PopDetailDto>(`/pops/${id}`, data, token),
@@ -445,7 +465,7 @@ export const crmActivitiesApi = {
     api.delete<void>(`/crm/activities/${id}`, token),
 };
 
-// ── Usuários (ADMIN/APROVA) ────────────────────────────────────────────────────
+// ── Usuários (leitura: ADMIN/PADRAO · escrita: ADMIN) ────────────────────────────────────────────────────
 
 export const usersApi = {
   list: (token: string) =>

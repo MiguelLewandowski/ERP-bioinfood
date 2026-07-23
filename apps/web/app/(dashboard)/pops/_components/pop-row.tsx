@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronRight, History, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, History, Plus, Trash2 } from 'lucide-react';
 import type { PopDto, PopVersionDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { popsApi } from '@/lib/api-hooks';
@@ -95,6 +95,26 @@ export function PopRow({ pop, onDeleted, onVersionCreated }: PopRowProps) {
             <p className="text-xs text-muted-foreground truncate">{pop.description}</p>
           )}
         </div>
+
+        {pop.category && (
+          <span className="hidden shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
+            {pop.category.name}
+          </span>
+        )}
+
+        {/* Link externo (Drive). rel=noreferrer: o destino não recebe a URL do ERP. */}
+        {pop.latestVersion.fileUrl && (
+          <a
+            href={pop.latestVersion.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Abrir documento da POP ${pop.title}`}
+            className="shrink-0 text-muted-foreground transition-colors hover:text-primary"
+          >
+            <ExternalLink size={14} />
+          </a>
+        )}
 
         <span className="shrink-0 text-xs font-semibold text-primary bg-success/10 rounded-full px-2 py-0.5">
           v{pop.latestVersion.versionNumber}
