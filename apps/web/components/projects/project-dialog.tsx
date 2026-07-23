@@ -90,7 +90,7 @@ export default function ProjectDialog({ open, onOpenChange, onCreated }: Project
               name="clientId"
               control={control}
               render={({ field }) => (
-                <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
+                <OrganizationSelect token={token} value={field.value} onChange={field.onChange} allowCreate={false} />
               )}
             />
           </div>

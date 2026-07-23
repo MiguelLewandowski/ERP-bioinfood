@@ -12,11 +12,16 @@ interface OrganizationSelectProps {
   value: string | null | undefined;
   onChange: (organizationId: string | undefined) => void;
   disabled?: boolean;
+  /**
+   * Mostra o "+" de cadastro rápido, que cria a empresa só com o nome.
+   * Ligado nas telas do CRM, onde completar o cadastro depois é o fluxo normal.
+   * Desligado fora do CRM (ex.: novo projeto) — ali o atalho gera empresa sem
+   * CNPJ nem responsável, e o cadastro certo é em /crm/empresas.
+   */
+  allowCreate?: boolean;
 }
 
-// Seletor de Organization (cliente) com opção de cadastro rápido inline —
-// não existe ainda uma tela de CRM para cadastrar clientes fora daqui.
-export function OrganizationSelect({ token, value, onChange, disabled }: OrganizationSelectProps) {
+export function OrganizationSelect({ token, value, onChange, disabled, allowCreate = true }: OrganizationSelectProps) {
   const [organizations, setOrganizations] = useState<OrganizationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -90,7 +95,7 @@ export function OrganizationSelect({ token, value, onChange, disabled }: Organiz
           <option key={org.id} value={org.id}>{org.tradeName ?? org.legalName}</option>
         ))}
       </select>
-      {!disabled && (
+      {!disabled && allowCreate && (
         <button
           type="button"
           onClick={() => setCreating(true)}
