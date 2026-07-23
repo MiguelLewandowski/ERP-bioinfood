@@ -130,26 +130,31 @@ Cobertura atual, defeitos encontrados pelos testes e o que ficou de fora estão 
 
 Role global no `User`, sem role por projeto:
 
+São **três** papéis (desde 2026-07-23 — `APROVA`, `INSERE` e `CONSULTA` foram
+fundidos em `PADRAO`):
+
 | Role | Permissões |
 |---|---|
-| `ADMIN` | Gestão total — sempre passa no `RolesGuard` |
-| `APROVA` | Cria projetos, aprova documentos, libera acesso para clientes |
-| `INSERE` | Edita dados dos projetos |
-| `CONSULTA` | Leitura de todos os projetos internos |
-| `CLIENTE` | Somente projetos listados em `ProjectAccess` |
+| `ADMIN` | Gestão total — sempre passa no `RolesGuard`. Único que acessa usuários, CRM e exclusão definitiva. |
+| `PADRAO` | Interno: vê e edita todos os projetos, cria projeto, aprova TAP e libera acesso a cliente. Sem tela de usuários, sem CRM, e exclusão só reversível (soft delete). |
+| `CLIENTE` | Externo: somente projetos listados em `ProjectAccess`. |
 
 `JwtAuthGuard` é global; `RolesGuard` é aplicado por endpoint via decorator `@Roles()`.
+
+> `GET /users` continua aberto ao `PADRAO` porque alimenta os seletores de pessoa
+> (equipe do TAP, responsável de tarefa, dono de pacote da EAP). O que o papel não
+> acessa é a **tela** de usuários — criar, editar e resetar senha exigem `ADMIN`.
 
 ## Usuários de teste (seed)
 
 | E-mail                     | Senha       | Role    |
 | -------------------------- | ----------- | ------- |
 | admin@bioinfood.com        | admin123    | ADMIN   |
-| lider@bioinfood.com        | lider123    | APROVA  |
+| lider@bioinfood.com        | lider123    | PADRAO  |
 | cliente@bioinfood.com      | cliente123  | CLIENTE |
 
-A equipe do projeto de demonstração usa a senha `demo123`: `marina@` (APROVA),
-`rafael@`, `juliana@`, `thiago@` e `camila@` (INSERE).
+A equipe do projeto de demonstração usa a senha `demo123` e o papel `PADRAO`:
+`marina@`, `rafael@`, `juliana@`, `thiago@` e `camila@`.
 
 ## Projeto de demonstração
 

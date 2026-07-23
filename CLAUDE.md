@@ -52,9 +52,8 @@ Nunca colocar lógica de negócio no controller.
 ## Controle de acesso — RBAC via User.role
 Role global no User, sem role por projeto.
 - ADMIN    → gestão total
-- APROVA   → cria projetos, aprova docs, libera acesso para clientes
-- INSERE   → edita dados dos projetos
-- CONSULTA → leitura de todos os projetos internos
+- PADRAO   → interno: vê e edita todos os projetos (cria projeto, aprova TAP, libera acesso a cliente).
+             Não acessa a tela de usuários nem o CRM, e não faz exclusão definitiva — só soft delete.
 - CLIENTE  → somente projetos em ProjectAccess (filtra via JOIN)
 
 JwtAuthGuard global → RolesGuard por endpoint via @Roles() decorator.
