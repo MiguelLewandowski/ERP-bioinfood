@@ -148,6 +148,31 @@ Role global no `User`, sem role por projeto:
 | lider@bioinfood.com        | lider123    | APROVA  |
 | cliente@bioinfood.com      | cliente123  | CLIENTE |
 
+A equipe do projeto de demonstração usa a senha `demo123`: `marina@` (APROVA),
+`rafael@`, `juliana@`, `thiago@` e `camila@` (INSERE).
+
+## Projeto de demonstração
+
+O seed cria **"Plataforma de Ingredientes Funcionais a partir de Coprodutos"**
+(`apps/api/prisma/seeds/demo-project.ts`) — um P&D de 2 anos com o "hoje" caindo no
+meio da execução, para avaliar as telas sem cadastrar nada à mão:
+
+| Conteúdo | Volume |
+|---|---|
+| Tarefas | 45 (60% concluídas), 48 dependências, 15 itens de checklist |
+| EAP / WBS | 16 nós em 2 níveis |
+| Roadmap | 10 marcos (5 atingidos, 1 vencido) |
+| Riscos | 8 (2 críticos, 5 altos) |
+| Partes interessadas | 8 (patrocinador, responsável, equipe e externos) |
+| TAP | todas as seções preenchidas, orçamento e aprovação |
+
+O cronograma tem desvio proposital: 2 tarefas atrasadas e término previsto 11 dias
+além do planejado, para exercitar os indicadores do dashboard. As datas derivam de
+`PROJECT_START` no topo do arquivo — mudar essa constante desloca o projeto inteiro.
+
+> O seed é idempotente: o projeto tem id fixo e é recriado a cada execução
+> (usuários, contatos, cliente e POPs são upsert). Rodar `pnpm seed` de novo não duplica nada.
+
 ## Estrutura
 
 ```
