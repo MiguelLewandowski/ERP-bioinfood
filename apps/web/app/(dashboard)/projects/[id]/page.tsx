@@ -6,5 +6,5 @@ interface Props {
 
 export default async function ProjectIndexPage({ params }: Props) {
   const { id } = await params;
-  redirect(`/projects/${id}/charter`);
+  redirect(`/projects/${id}/dashboard`);
 }

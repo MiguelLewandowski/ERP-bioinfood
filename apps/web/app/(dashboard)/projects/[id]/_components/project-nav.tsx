@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, GitBranch, BarChart2, AlertTriangle,
-  List, Columns, Map, Settings, Users,
+  List, Columns, Map, Settings, Users, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
+  { label: 'Dashboard',         href: 'dashboard',     icon: LayoutDashboard },
   { label: 'Termo de Abertura', href: 'charter',       icon: FileText },
   { label: 'EAP / WBS',         href: 'wbs',           icon: GitBranch },
   { label: 'Gantt',             href: 'gantt',         icon: BarChart2 },
