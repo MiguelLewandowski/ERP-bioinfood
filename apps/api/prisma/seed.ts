@@ -11,6 +11,7 @@ import {
   StageType,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedDemoProject } from './seeds/demo-project';
 
 const prisma = new PrismaClient();
 
@@ -193,7 +194,22 @@ async function main() {
     },
   });
 
-  console.log('Seed concluído com sucesso.');
+  // Projeto de demonstração completo (TAP, EAP, 45 tarefas, roadmap, riscos e
+  // partes interessadas) — serve de vitrine para avaliar as telas sem cadastrar
+  // nada à mão. Recriado a cada execução.
+  const demo = await seedDemoProject(prisma, admin.id, lider.id);
+
+  await prisma.projectAccess.upsert({
+    where: { projectId_userId: { projectId: demo.projectId, userId: cliente.id } },
+    update: {},
+    create: {
+      projectId: demo.projectId,
+      userId: cliente.id,
+      grantedById: lider.id,
+    },
+  });
+
+  console.log(`Seed concluído com sucesso. Projeto demo: ${demo.taskCount} tarefas.`);
 }
 
 main()
