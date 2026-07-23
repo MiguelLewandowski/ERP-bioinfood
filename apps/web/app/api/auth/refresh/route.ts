@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await apiRes.json();
-  const res = NextResponse.json({ ok: true });
+  // O access token volta no corpo porque a API (:3001) autentica por header
+  // `Bearer`, não por cookie: sem ele o client não tem como refazer a chamada
+  // que acabou de tomar 401. Não amplia a exposição — o mesmo token já é
+  // injetado no AuthProvider e é legível pelo JS da página (ver S3 em
+  // docs/analise-seguranca.md). O refresh token continua só no cookie httpOnly.
+  const res = NextResponse.json({ ok: true, accessToken: data.tokens.accessToken });
 
   res.cookies.set('access_token', data.tokens.accessToken, {
     httpOnly: true,
