@@ -11,7 +11,9 @@ const postMock = vi.fn();
 const patchMock = vi.fn();
 const deleteMock = vi.fn();
 const listPopsMock = vi.fn();
+const addPopMock = vi.fn();
 const toastErrorMock = vi.fn();
+const toastWarningMock = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -25,13 +27,17 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/api-hooks', () => ({
   popsApi: { list: (...args: unknown[]) => listPopsMock(...args) },
   tasksApi: {
-    addPop: vi.fn(), removePop: vi.fn(),
+    addPop: (...args: unknown[]) => addPopMock(...args), removePop: vi.fn(),
     addChecklistItem: vi.fn(), updateChecklistItem: vi.fn(), deleteChecklistItem: vi.fn(),
   },
 }));
 
 vi.mock('sonner', () => ({
-  toast: { error: (...args: unknown[]) => toastErrorMock(...args), success: vi.fn() },
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    warning: (...args: unknown[]) => toastWarningMock(...args),
+    success: vi.fn(),
+  },
 }));
 
 const MEMBERS = [{ id: 'user-2', name: 'Igor Prado' }] as ProjectMember[];
@@ -338,6 +344,117 @@ describe('TaskFormDialog — edit mode', () => {
       expect(deleteMock).toHaveBeenCalledWith('/projects/proj-1/tasks/task-1', TEST_TOKEN);
     });
     expect(onDeleted).toHaveBeenCalledWith('task-1');
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+// Antes, checklist/dependências/POPs só existiam no modo edição: era preciso
+// criar a tarefa, reabrir e só então detalhá-la. Agora os itens ficam em memória
+// e são gravados logo depois do POST da tarefa.
+describe('TaskFormDialog — sub-recursos no modo criação', () => {
+  const OTHER_TASK = { ...EXISTING_TASK, id: 'task-9', title: 'Esterilizar vidraria' };
+  const POP = {
+    id: 'pop-1',
+    title: 'POP de esterilização',
+    latestVersion: { id: 'popver-1', versionNumber: 3 },
+  };
+
+  beforeEach(() => {
+    postMock.mockReset();
+    getMock.mockResolvedValue([OTHER_TASK]);
+    listPopsMock.mockResolvedValue([POP]);
+    addPopMock.mockReset();
+    toastWarningMock.mockReset();
+  });
+
+  it('should offer checklist, dependencies and POPs while creating', async () => {
+    setup();
+
+    expect(await screen.findByText('Checklist')).toBeInTheDocument();
+    expect(screen.getByText('Dependências')).toBeInTheDocument();
+    expect(screen.getByText('POPs utilizadas')).toBeInTheDocument();
+  });
+
+  it('should stage a checklist item without calling the API before the task exists', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(await screen.findByRole('button', { name: /Adicionar item/ }));
+    await user.type(screen.getByPlaceholderText('Descreva o item…'), 'Pesar reagentes');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByDisplayValue('Pesar reagentes')).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('should persist the staged checklist right after creating the task', async () => {
+    const user = userEvent.setup();
+    postMock.mockImplementation((path: string) =>
+      path.endsWith('/checklist')
+        ? Promise.resolve({ id: 'item-1', taskId: 'task-new', text: 'Pesar reagentes', checked: false, order: 0 })
+        : Promise.resolve({ ...EXISTING_TASK, id: 'task-new' }));
+    const { onCreated } = setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.click(await screen.findByRole('button', { name: /Adicionar item/ }));
+    await user.type(screen.getByPlaceholderText('Descreva o item…'), 'Pesar reagentes');
+    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: /^Criar$/ }));
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith(
+        '/projects/proj-1/tasks/task-new/checklist',
+        { text: 'Pesar reagentes' },
+        TEST_TOKEN,
+      );
+    });
+    // A tarefa devolvida ao chamador já leva o item com o id real do banco.
+    expect(onCreated.mock.calls[0][0].checklist).toEqual([
+      { id: 'item-1', taskId: 'task-new', text: 'Pesar reagentes', checked: false, order: 0 },
+    ]);
+  });
+
+  it('should persist a staged dependency after creating the task', async () => {
+    const user = userEvent.setup();
+    postMock.mockImplementation((path: string) =>
+      path.endsWith('/dependencies')
+        ? Promise.resolve({ id: 'dep-1', predecessorId: 'task-9', type: 'FS', lag: 0 })
+        : Promise.resolve({ ...EXISTING_TASK, id: 'task-new' }));
+    setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.click(await screen.findByRole('button', { name: 'Adicionar dependência' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Tarefa predecessora' }), 'task-9');
+    await user.click(screen.getByRole('button', { name: 'OK' }));
+    await user.click(screen.getByRole('button', { name: /^Criar$/ }));
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith(
+        '/projects/proj-1/tasks/task-new/dependencies',
+        { predecessorId: 'task-9' },
+        TEST_TOKEN,
+      );
+    });
+  });
+
+  it('should warn but still create the task when a staged item fails to save', async () => {
+    const user = userEvent.setup();
+    postMock.mockImplementation((path: string) =>
+      path.endsWith('/checklist')
+        ? Promise.reject(new ApiError(['Falha ao salvar o item'], 500))
+        : Promise.resolve({ ...EXISTING_TASK, id: 'task-new' }));
+    const { onCreated, onClose } = setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.click(await screen.findByRole('button', { name: /Adicionar item/ }));
+    await user.type(screen.getByPlaceholderText('Descreva o item…'), 'Pesar reagentes');
+    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: /^Criar$/ }));
+
+    await waitFor(() => expect(toastWarningMock).toHaveBeenCalled());
+    expect(toastWarningMock.mock.calls[0][0]).toContain('Pesar reagentes');
+    // A tarefa existe no banco — fechar e avisar é melhor que travar o usuário.
+    expect(onCreated).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 });

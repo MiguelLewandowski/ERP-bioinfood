@@ -63,6 +63,13 @@ function combineDateTime(date: string, time: string | undefined): string {
   return new Date(`${date}T${time || '00:00'}:00`).toISOString();
 }
 
+// Id local de item ainda não persistido (modo criação). Nunca vai para a API:
+// serve só de `key` no React e de alvo do remover antes do POST da tarefa.
+let tmpSeq = 0;
+function tmpId(): string {
+  return `tmp-${++tmpSeq}`;
+}
+
 interface TaskFormDialogProps {
   projectId: string;
   members: ProjectMember[];
@@ -75,7 +82,7 @@ interface TaskFormDialogProps {
 }
 
 export function TaskFormDialog({ projectId, members, mode, task, onClose, onCreated, onUpdated, onDeleted }: TaskFormDialogProps) {
-  const { token } = useAuth();
+  const { token, session } = useAuth();
   const isEdit = mode === 'edit' && !!task;
 
   const [saving, setSaving]         = useState(false);
@@ -83,20 +90,20 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   const [confirmDel, setConfirmDel] = useState(false);
   const [error, setError]           = useState('');
 
-  // Dependencies (edição apenas — depende da task já existir)
+  // Checklist, dependências e POPs existem nos dois modos. Na criação a tarefa
+  // ainda não tem id, então os itens ficam em memória com id `tmp-` e só são
+  // persistidos depois do POST da tarefa — ver `persistStaged`.
   const [allTasks, setAllTasks]         = useState<Task[]>([]);
   const [predecessors, setPredecessors] = useState(task?.predecessors ?? []);
   const [addingDep, setAddingDep]       = useState(false);
   const [selectedPred, setSelectedPred] = useState('');
   const [depLoading, setDepLoading]     = useState(false);
 
-  // Checklist (edição apenas)
   const [checklist, setChecklist]     = useState<TaskChecklistItem[]>(task?.checklist ?? []);
   const [newItemText, setNewItemText] = useState('');
   const [addingItem, setAddingItem]   = useState(false);
   const newItemRef                    = useRef<HTMLInputElement>(null);
 
-  // POPs utilizadas (edição apenas)
   const [allPops, setAllPops]       = useState<PopDto[]>([]);
   const [taskPops, setTaskPops]     = useState(task?.pops ?? []);
   const [addingPop, setAddingPop]   = useState(false);
@@ -104,16 +111,14 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   const [popLoading, setPopLoading] = useState(false);
 
   useEffect(() => {
-    if (!isEdit) return;
     api.get<Task[]>(`/projects/${projectId}/tasks`, token)
-      .then((data) => setAllTasks(data.filter((t) => t.id !== task!.id && !t.deletedAt)))
+      .then((data) => setAllTasks(data.filter((t) => t.id !== task?.id && !t.deletedAt)))
       .catch(() => {});
-  }, [isEdit, projectId, token, task]);
+  }, [projectId, token, task]);
 
   useEffect(() => {
-    if (!isEdit) return;
     popsApi.list(token).then(setAllPops).catch(() => {});
-  }, [isEdit, token]);
+  }, [token]);
 
   useEffect(() => {
     if (addingItem) newItemRef.current?.focus();
@@ -157,7 +162,16 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         onUpdated?.({ ...updated, predecessors, checklist });
       } else {
         const created = await api.post<Task>(`/projects/${projectId}/tasks`, payload, token);
-        onCreated?.(created);
+        const staged  = await persistStaged(created.id);
+        if (staged.failed.length > 0) {
+          toast.warning(`Tarefa criada, mas não foi possível salvar: ${staged.failed.join(', ')}.`);
+        }
+        onCreated?.({
+          ...created,
+          checklist:    staged.checklist,
+          predecessors: staged.predecessors,
+          pops:         staged.pops,
+        });
       }
       onClose();
     } catch (err) {
@@ -165,6 +179,49 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
     } finally {
       setSaving(false);
     }
+  }
+
+  // Grava os itens que ficaram em memória durante a criação. Cada um vai
+  // isolado: uma POP que falha não derruba o checklist já salvo, e a tarefa em
+  // si já existe neste ponto — por isso o erro é avisado, não propagado.
+  async function persistStaged(taskId: string) {
+    const saved = {
+      checklist:    [] as TaskChecklistItem[],
+      predecessors: [] as Task['predecessors'],
+      pops:         [] as Task['pops'],
+      failed:       [] as string[],
+    };
+
+    for (const item of checklist) {
+      try {
+        saved.checklist.push(await api.post<TaskChecklistItem>(
+          `/projects/${projectId}/tasks/${taskId}/checklist`, { text: item.text }, token,
+        ));
+      } catch {
+        saved.failed.push(`item "${item.text}"`);
+      }
+    }
+
+    for (const dep of predecessors) {
+      try {
+        saved.predecessors.push(await api.post<Task['predecessors'][number]>(
+          `/projects/${projectId}/tasks/${taskId}/dependencies`, { predecessorId: dep.predecessorId }, token,
+        ));
+      } catch {
+        const title = allTasks.find((t) => t.id === dep.predecessorId)?.title ?? 'tarefa';
+        saved.failed.push(`dependência de "${title}"`);
+      }
+    }
+
+    for (const link of taskPops) {
+      try {
+        saved.pops.push(await tasksApi.addPop(projectId, taskId, link.popVersionId, token));
+      } catch {
+        saved.failed.push(`POP "${link.pop.title}"`);
+      }
+    }
+
+    return saved;
   }
 
   async function handleDelete() {
@@ -184,7 +241,13 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   // ── Dependencies ────────────────────────────────────────────────────────────
 
   async function addDependency() {
-    if (!selectedPred || !isEdit) return;
+    if (!selectedPred) return;
+    if (!isEdit) {
+      setPredecessors((prev) => [...prev, { id: tmpId(), predecessorId: selectedPred, type: 'FS', lag: 0 }]);
+      setSelectedPred('');
+      setAddingDep(false);
+      return;
+    }
     setDepLoading(true);
     try {
       const dep = await api.post(
@@ -208,7 +271,10 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   }
 
   async function removeDependency(depId: string) {
-    if (!isEdit) return;
+    if (!isEdit) {
+      setPredecessors((prev) => prev.filter((d) => d.id !== depId));
+      return;
+    }
     try {
       await api.delete(`/projects/${projectId}/tasks/${task!.id}/dependencies/${depId}`, token);
       const next = predecessors.filter((d) => d.id !== depId);
@@ -223,7 +289,22 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   // ── POPs utilizadas ─────────────────────────────────────────────────────────
 
   async function addPop() {
-    if (!selectedPop || !isEdit) return;
+    if (!selectedPop) return;
+    if (!isEdit) {
+      const pop = allPops.find((p) => p.latestVersion.id === selectedPop);
+      if (!pop) return;
+      setTaskPops((prev) => [...prev, {
+        id:            tmpId(),
+        popVersionId:  pop.latestVersion.id,
+        addedBy:       { id: session.sub, name: 'você' },
+        pop:           { id: pop.id, title: pop.title },
+        versionNumber: pop.latestVersion.versionNumber,
+        createdAt:     new Date().toISOString(),
+      }]);
+      setSelectedPop('');
+      setAddingPop(false);
+      return;
+    }
     setPopLoading(true);
     try {
       const link = await tasksApi.addPop(projectId, task!.id, selectedPop, token);
@@ -241,7 +322,10 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   }
 
   async function removePop(linkId: string) {
-    if (!isEdit) return;
+    if (!isEdit) {
+      setTaskPops((prev) => prev.filter((p) => p.id !== linkId));
+      return;
+    }
     try {
       await tasksApi.removePop(projectId, task!.id, linkId, token);
       const next = taskPops.filter((p) => p.id !== linkId);
@@ -256,7 +340,14 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   // ── Checklist ───────────────────────────────────────────────────────────────
 
   async function addChecklistItem() {
-    if (!newItemText.trim() || !isEdit) return;
+    if (!newItemText.trim()) return;
+    if (!isEdit) {
+      setChecklist((prev) => [...prev, {
+        id: tmpId(), taskId: '', text: newItemText.trim(), checked: false, order: prev.length,
+      }]);
+      setNewItemText('');
+      return;
+    }
     try {
       const item = await api.post<TaskChecklistItem>(
         `/projects/${projectId}/tasks/${task!.id}/checklist`,
@@ -273,6 +364,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   async function toggleChecklistItem(item: TaskChecklistItem) {
     const updated = { ...item, checked: !item.checked };
     setChecklist((prev) => prev.map((i) => i.id === item.id ? updated : i));
+    if (!isEdit) return;
     api.patch(
       `/projects/${projectId}/tasks/${task!.id}/checklist/${item.id}`,
       { checked: updated.checked },
@@ -286,6 +378,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   async function deleteChecklistItem(itemId: string) {
     const removed = checklist.find((i) => i.id === itemId);
     setChecklist((prev) => prev.filter((i) => i.id !== itemId));
+    if (!isEdit) return;
     api.delete(`/projects/${projectId}/tasks/${task!.id}/checklist/${itemId}`, token).catch((err) => {
       if (removed) setChecklist((prev) => [...prev, removed]);
       toast.error(getErrorMessage(err));
@@ -293,7 +386,11 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
   }
 
   async function renameChecklistItem(item: TaskChecklistItem, text: string) {
-    if (!text.trim() || text === item.text || !isEdit) return;
+    if (!text.trim() || text === item.text) return;
+    if (!isEdit) {
+      setChecklist((prev) => prev.map((i) => i.id === item.id ? { ...i, text } : i));
+      return;
+    }
     try {
       await api.patch(`/projects/${projectId}/tasks/${task!.id}/checklist/${item.id}`, { text }, token);
       setChecklist((prev) => prev.map((i) => i.id === item.id ? { ...i, text } : i));
@@ -423,8 +520,6 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
             </div>
             <p className="text-[11px] text-muted-foreground -mt-3">Preencha início e prazo para aparecer no Gantt. Hora é opcional.</p>
 
-            {isEdit && (
-              <>
                 {/* ── Checklist ── */}
                 <div className="border-t border-gray-100 pt-4">
                   <div className="flex items-center justify-between mb-3">
@@ -542,6 +637,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                       <button
                         type="button"
                         onClick={() => setAddingDep(true)}
+                        aria-label="Adicionar dependência"
                         className="flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
                       >
                         <Plus size={12} /> Adicionar
@@ -576,6 +672,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                       <select
                         value={selectedPred}
                         onChange={(e) => setSelectedPred(e.target.value)}
+                        aria-label="Tarefa predecessora"
                         className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                       >
                         <option value="">Selecione a predecessora…</option>
@@ -604,6 +701,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                       <button
                         type="button"
                         onClick={() => setAddingPop(true)}
+                        aria-label="Adicionar POP"
                         className="flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
                       >
                         <Plus size={12} /> Adicionar
@@ -633,6 +731,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                       <select
                         value={selectedPop}
                         onChange={(e) => setSelectedPop(e.target.value)}
+                        aria-label="POP a vincular"
                         className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none bg-white"
                       >
                         <option value="">Selecione a POP…</option>
@@ -651,8 +750,6 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                     </div>
                   )}
                 </div>
-              </>
-            )}
 
             {error && (
               <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
