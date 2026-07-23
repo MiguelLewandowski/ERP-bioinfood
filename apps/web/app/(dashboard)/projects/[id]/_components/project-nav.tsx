@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FileText, GitBranch, BarChart2, AlertTriangle,
-  List, Columns, Map, Settings, Users, LayoutDashboard,
+  List, Columns, Map, Settings, Users, LayoutDashboard, FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ const TABS = [
   { label: 'Dashboard',         href: 'dashboard',     icon: LayoutDashboard },
   { label: 'Termo de Abertura', href: 'charter',       icon: FileText },
   { label: 'EAP / WBS',         href: 'wbs',           icon: GitBranch },
+  { label: 'Metodologia',       href: 'metodologia',   icon: FlaskConical },
   { label: 'Gantt',             href: 'gantt',         icon: BarChart2 },
   { label: 'Riscos',            href: 'risks',         icon: AlertTriangle },
   { label: 'Stakeholders',      href: 'stakeholders',  icon: Users },
