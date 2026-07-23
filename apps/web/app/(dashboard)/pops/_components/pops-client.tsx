@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, FileCheck, Search, X } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, FileCheck, Search, X, SlidersHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -34,7 +35,8 @@ interface PopsClientProps {
 }
 
 export function PopsClient({ initialPops, categories }: PopsClientProps) {
-  const { token } = useAuth();
+  const { token, session } = useAuth();
+  const isAdmin = session.role === 'ADMIN';
   const [pops, setPops] = useState<PopDto[]>(initialPops);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -123,13 +125,22 @@ export function PopsClient({ initialPops, categories }: PopsClientProps) {
             {pops.length} POP{pops.length === 1 ? '' : 's'} no catálogo global, usado por qualquer projeto
           </p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'hsl(var(--primary))' }}
-        >
-          <Plus size={16} /> Nova POP
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/pops/config"
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <SlidersHorizontal size={15} /> Categorias
+            </Link>
+          )}
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus size={16} /> Nova POP
+          </button>
+        </div>
       </div>
 
       {/* ── Busca e filtros ── */}
