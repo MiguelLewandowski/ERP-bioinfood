@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api, __resetApiAuthState } from './api';
 import { ApiError } from './errors';
 
-const API = 'http://localhost:3001';
-
 function jsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -22,8 +20,12 @@ function unauthorized(): Response {
   } as unknown as Response;
 }
 
-function authHeaderOf(call: unknown[]): string | undefined {
-  return (call[1] as { headers: Record<string, string> }).headers.Authorization;
+function initOf(call: unknown[]): RequestInit & { headers: Record<string, string> } {
+  return call[1] as RequestInit & { headers: Record<string, string> };
+}
+
+function isRefresh(call: unknown[]): boolean {
+  return String(call[0]).includes('/api/auth/refresh');
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -38,71 +40,77 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('api — renovação de sessão', () => {
-  it('should send the token it was given while it still works', async () => {
+// O ponto da mudança: no navegador o access token não circula mais. A chamada
+// vai para a mesma origem levando só o cookie httpOnly, e /api/proxy converte
+// em `Bearer` no servidor — um XSS não tem token para roubar.
+describe('api — no navegador', () => {
+  it('should call the same-origin proxy instead of the API host', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: 'p1' }));
 
-    await api.get('/projects/p1', 'token-bom');
+    await api.get('/projects/p1', 'token-que-deve-ser-ignorado');
 
-    expect(authHeaderOf(fetchMock.mock.calls[0])).toBe('Bearer token-bom');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/proxy/projects/p1');
   });
 
-  // O bug: a repetição reenviava o header antigo, então tomava 401 de novo.
-  // A API autentica por `Bearer`, e o cookie renovado é de outra origem (:3000).
-  it('should retry with the refreshed token, not the expired one', async () => {
+  it('should never put the token in the Authorization header', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: 'p1' }));
+
+    await api.get('/projects/p1', 'token-que-deve-ser-ignorado');
+
+    expect(initOf(fetchMock.mock.calls[0]).headers.Authorization).toBeUndefined();
+  });
+
+  it('should send the session cookie with the request', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: 'p1' }));
+
+    await api.get('/projects/p1');
+
+    expect(initOf(fetchMock.mock.calls[0]).credentials).toBe('same-origin');
+  });
+
+  it('should forward the method and body untouched', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+
+    await api.post('/pops', { title: 'Nova' });
+
+    const init = initOf(fetchMock.mock.calls[0]);
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ title: 'Nova' }));
+  });
+});
+
+describe('api — renovação de sessão', () => {
+  it('should refresh and retry once when the cookie has expired', async () => {
     fetchMock
       .mockResolvedValueOnce(unauthorized())
-      .mockResolvedValueOnce(jsonResponse({ ok: true, accessToken: 'token-novo' }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(jsonResponse({ id: 'p1' }));
 
-    const result = await api.get('/projects/p1', 'token-velho');
+    const result = await api.get('/projects/p1');
 
     expect(result).toEqual({ id: 'p1' });
-    expect(authHeaderOf(fetchMock.mock.calls[0])).toBe('Bearer token-velho');
-    expect(fetchMock.mock.calls[1][0]).toContain('/api/auth/refresh');
-    expect(authHeaderOf(fetchMock.mock.calls[2])).toBe('Bearer token-novo');
+    expect(isRefresh(fetchMock.mock.calls[1])).toBe(true);
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/proxy/projects/p1');
   });
 
-  // O AuthProvider entrega o token congelado no render; depois de renovar, o
-  // valor novo tem que valer para as chamadas seguintes.
-  it('should keep using the refreshed token on later calls', async () => {
-    fetchMock
-      .mockResolvedValueOnce(unauthorized())
-      .mockResolvedValueOnce(jsonResponse({ ok: true, accessToken: 'token-novo' }))
-      .mockResolvedValueOnce(jsonResponse({ id: 'p1' }))
-      .mockResolvedValueOnce(jsonResponse({ id: 't1' }));
-
-    await api.get('/projects/p1', 'token-velho');
-    await api.get('/tasks/t1', 'token-velho');
-
-    expect(authHeaderOf(fetchMock.mock.calls[3])).toBe('Bearer token-novo');
-  });
-
-  // O refresh do backend é de uso único: a segunda chamada com o mesmo jti
-  // recebe "token revogado" e derruba a sessão. Uma renovação só para todas.
+  // O refresh do backend é de uso único E agora trata reuso como roubo,
+  // derrubando todas as sessões. Duas renovações concorrentes seriam um falso
+  // positivo que desloga o usuário de tudo — o single-flight é o que impede.
   it('should refresh only once when several calls expire together', async () => {
+    let refreshed = false;
     fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/auth/refresh')) {
-        return Promise.resolve(jsonResponse({ ok: true, accessToken: 'token-novo' }));
+      if (String(url).includes('/api/auth/refresh')) {
+        refreshed = true;
+        return Promise.resolve(jsonResponse({ ok: true }));
       }
-      const header = 'Bearer token-velho';
-      const calls = fetchMock.mock.calls;
-      const current = calls[calls.length - 1];
-      return Promise.resolve(
-        authHeaderOf(current) === header ? unauthorized() : jsonResponse({ ok: true }),
-      );
+      return Promise.resolve(refreshed ? jsonResponse({ ok: true }) : unauthorized());
     });
 
     await Promise.all([
-      api.get('/a', 'token-velho'),
-      api.get('/b', 'token-velho'),
-      api.get('/c', 'token-velho'),
-      api.get('/d', 'token-velho'),
-      api.get('/e', 'token-velho'),
+      api.get('/a'), api.get('/b'), api.get('/c'), api.get('/d'), api.get('/e'),
     ]);
 
-    const refreshCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/auth/refresh'));
-    expect(refreshCalls).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(isRefresh)).toHaveLength(1);
   });
 
   it('should send the user to the login screen when the refresh is rejected', async () => {
@@ -110,27 +118,23 @@ describe('api — renovação de sessão', () => {
       .mockResolvedValueOnce(unauthorized())
       .mockResolvedValueOnce(unauthorized());
 
-    await expect(api.get('/projects/p1', 'token-velho')).rejects.toThrow(ApiError);
+    await expect(api.get('/projects/p1')).rejects.toThrow(ApiError);
     expect(window.location.href).toBe('/');
   });
 
   it('should not retry more than once', async () => {
     fetchMock
       .mockResolvedValueOnce(unauthorized())
-      .mockResolvedValueOnce(jsonResponse({ ok: true, accessToken: 'token-novo' }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
       .mockResolvedValueOnce(unauthorized());
 
-    await expect(api.get('/projects/p1', 'token-velho')).rejects.toThrow(ApiError);
-    const refreshCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/api/auth/refresh'));
-    expect(refreshCalls).toHaveLength(1);
+    await expect(api.get('/projects/p1')).rejects.toThrow(ApiError);
+    expect(fetchMock.mock.calls.filter(isRefresh)).toHaveLength(1);
   });
 
-  it('should not attach an Authorization header when there is no token', async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+  it('should surface the validation messages the API returned', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ message: ['Título é obrigatório'] }, 400));
 
-    await api.post('/auth/login', { email: 'a@b.com' });
-
-    expect(authHeaderOf(fetchMock.mock.calls[0])).toBeUndefined();
-    expect(fetchMock.mock.calls[0][0]).toBe(`${API}/auth/login`);
+    await expect(api.post('/pops', {})).rejects.toThrow('Título é obrigatório');
   });
 });

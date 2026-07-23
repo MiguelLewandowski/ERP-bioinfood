@@ -1,25 +1,18 @@
 import { ApiError } from './errors';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-const BFF_URL =
-  typeof window !== 'undefined'
-    ? ''
-    : (process.env.NEXT_PUBLIC_API_URL?.replace('3001', '3000') ?? 'http://localhost:3000');
 
 const isBrowser = () => typeof window !== 'undefined';
 
 /**
- * Token renovado durante a vida desta página.
- *
- * O `token` que os componentes passam vem do `AuthProvider`, congelado no render
- * do servidor. Passados os 15min de validade, TODO componente continua entregando
- * o valor velho — por isso o token renovado precisa ficar guardado aqui e ter
- * precedência.
- *
- * Só no browser: no servidor o escopo de módulo é compartilhado entre requisições
- * e guardar token aqui vazaria a sessão de um usuário para outro.
+ * No navegador, tudo passa pelo proxy da própria origem (`/api/proxy/...`), que
+ * lê o cookie httpOnly no servidor e anexa o `Bearer`. O token NUNCA chega ao
+ * JS da página. No servidor (RSC), a chamada vai direta à API com o token que a
+ * página leu do cookie.
  */
-let browserToken: string | null = null;
+function baseUrl(): string {
+  return isBrowser() ? '/api/proxy' : API_URL;
+}
 
 /**
  * Uma renovação por vez.
@@ -28,24 +21,26 @@ let browserToken: string | null = null;
  * e emite outro. Com N chamadas paralelas expirando juntas (o dashboard dispara
  * 5), a primeira renova e as outras chegam com o jti já revogado, recebem 401 e
  * mandam o usuário para o login. Compartilhar a mesma promise mata a corrida.
+ *
+ * Desde a detecção de reuso no backend, essa corrida deixou de ser só um
+ * incômodo: o segundo uso do mesmo jti é tratado como roubo e derruba TODAS as
+ * sessões do usuário. O single-flight é o que impede o falso positivo.
  */
-let inFlightRefresh: Promise<string | null> | null = null;
+let inFlightRefresh: Promise<boolean> | null = null;
 
-async function doRefresh(): Promise<string | null> {
+async function doRefresh(): Promise<boolean> {
   try {
-    const res = await fetch(`${BFF_URL}/api/auth/refresh`, {
+    const res = await fetch('/api/auth/refresh', {
       method: 'POST',
       credentials: 'include',
     });
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => null);
-    return data?.accessToken ?? null;
+    return res.ok;
   } catch {
-    return null;
+    return false;
   }
 }
 
-function refreshOnce(): Promise<string | null> {
+function refreshOnce(): Promise<boolean> {
   inFlightRefresh ??= doRefresh().finally(() => { inFlightRefresh = null; });
   return inFlightRefresh;
 }
@@ -56,29 +51,30 @@ async function request<T>(
   options: RequestInit = {},
   retried = false,
 ): Promise<T> {
-  const effectiveToken = (isBrowser() && browserToken) || token;
+  const browser = isBrowser();
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${baseUrl()}${path}`, {
     ...options,
+    // Mesma origem no browser: o cookie httpOnly vai sozinho e o proxy converte
+    // em `Bearer`. O token só entra no header no caminho servidor (RSC).
+    ...(browser ? { credentials: 'same-origin' as const } : {}),
     headers: {
       'Content-Type': 'application/json',
-      ...(effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}),
+      ...(!browser && token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
 
-  // No servidor não há o que renovar: o proxy já trocou os cookies antes do
-  // render, e `credentials: 'include'` não manda cookie nenhum a partir daqui.
-  if (res.status === 401 && !retried && isBrowser()) {
-    const newToken = await refreshOnce();
-    if (!newToken) {
+  // No servidor não há o que renovar: o proxy de navegação já trocou os cookies
+  // antes do render, e daqui não sai cookie nenhum.
+  if (res.status === 401 && !retried && browser) {
+    const refreshed = await refreshOnce();
+    if (!refreshed) {
       window.location.href = '/';
       throw new ApiError(['Sessão expirada'], 401);
     }
-    browserToken = newToken;
-    // Refaz com o token NOVO no header. Repetir com o header antigo — como
-    // acontecia antes — só rendia outro 401.
-    return request<T>(path, newToken, options, true);
+    // Refaz a chamada: o cookie já foi trocado, então o proxy pega o token novo.
+    return request<T>(path, token, options, true);
   }
 
   if (!res.ok) {
@@ -110,6 +106,5 @@ export const api = {
 
 /** Só para teste: zera o token renovado e a renovação em voo entre casos. */
 export function __resetApiAuthState() {
-  browserToken = null;
   inFlightRefresh = null;
 }
