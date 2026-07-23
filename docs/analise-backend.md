@@ -18,7 +18,9 @@
 
 ## 2. Achados desta passagem (6ª)
 
-### 🟠 A10 — `passwordHash` vaza para `AuditLog.before` (regressão introduzida pela A6)
+### 🟠 A10 — `passwordHash` vaza para `AuditLog.before` (regressão introduzida pela A6) — **RESOLVIDO em 2026-07-23**
+> **Correção aplicada:** a redação passou a viver no `AuditService` (`audit.service.ts`), não no interceptor — é o ponto único de escrita na trilha, então cobre também chamadas diretas de `log()` fora do interceptor. `redactSensitive()` remove em profundidade as chaves de `SENSITIVE_KEYS` (`passwordHash`, `password`, `refreshToken`, `refreshTokenHash`, `accessToken`, `secret`, case-insensitive) de `before` **e** de `after`. A recursão entra apenas em objeto literal e array: `Date` e `Prisma.Decimal` (`Project.budget`, `Opportunity.amount`, `Organization.creditLimit`) passam intactos, senão o JSON arquivaria os campos internos no lugar do valor. O `logger.error` do catch também recebe o objeto já redigido — antes, uma falha de escrita mandava o hash para o log da aplicação (Railway). Coberto por `audit.service.spec.ts` (9 testes).
+
 `common/audit/audit.interceptor.ts:58-68` · `captureBefore` resolve o delegate do Prisma pelo `ENTITY_MODEL` e faz `delegate.findUnique({ where: { id } })` **sem `select`**, devolvendo a linha inteira. Para `users` (`ENTITY_MODEL.users = 'user'`, linha 33) isso inclui `passwordHash`. Em `PATCH /users/:id` e `PATCH /users/:id/reset-password`, esse row cru é gravado em `AuditLog.before` (JSON) via `audit.service.ts:19`.
 - **Contraste que confirma a intenção:** o próprio módulo de usuários nunca expõe o hash — `users.prisma.repository.ts:6` define `USER_SELECT` sem `passwordHash`, e todo endpoint de `users` passa por ele. O interceptor de auditoria é o **único** caminho que fura essa barreira.
 - **Impacto (segurança/dado mínimo):** credencial (hash) duplicada numa tabela com ciclo de vida diferente — auditoria não é apagada, acumula hashes históricos e é candidata natural a um "audit viewer" administrativo (o próprio doc cita trilha de auditoria como requisito biotech). Um dump/backup do banco entrega uma pilha de hashes para quebra offline. Não é 🔴 porque hoje não há endpoint de leitura de `AuditLog` e o hash não é texto puro — mas é uma exposição latente que o resto do código foi cuidadoso em evitar. O mesmo `findUnique` cru vazará qualquer coluna sensível futura de qualquer modelo mapeado.
@@ -88,7 +90,7 @@ Efeito colateral corrigido de quebra: `charter` tinha uma inconsistência de sha
 | Desacoplamento (porta/DI) | ✅ nenhum use-case usa `PrismaService`; nenhum controller toca Prisma |
 | Mapper de saída | ✅ CRM + núcleo antigo — nenhum endpoint vaza entidade Prisma crua |
 | Auditoria — `entityId`/`after` | ✅ `entityId` cuid correto; `after` = DTO pós-mapper (limpo) |
-| Auditoria — `before` | 🟠 **A10**: `findUnique` cru grava `passwordHash` de `User` em `AuditLog.before` |
+| Auditoria — `before` | ✅ **A10 resolvido**: `AuditService.redactSensitive()` limpa `before`/`after` antes de gravar |
 | Autorização `CLIENTE` fora de `:projectId` | 🟡 **A11**: só filtro manual no use-case; sem guard de fecho-por-padrão |
 | Kernel de auditoria vs. módulos | 🟡 **A12**: `ENTITY_MODEL` central acopla o shared kernel a 14 modelos |
 | `take` em toda listagem | ✅ verificado em todos os `findMany` (50–5000 conforme o caso) |
@@ -102,16 +104,16 @@ Efeito colateral corrigido de quebra: `charter` tinha uma inconsistência de sha
 
 ## 6. Achados remanescentes de baixa prioridade (carryover)
 
-> Os achados **novos** da 6ª passagem estão na seção 2 (A10–A14). O 🟠 A10 é o único item de alta severidade em aberto. Abaixo, dívidas de baixa prioridade herdadas que continuam válidas:
+> Os achados **novos** da 6ª passagem estão na seção 2 (A10–A14). O 🟠 A10 foi **resolvido em 2026-07-23** — não há mais item de alta severidade em aberto. Abaixo, dívidas de baixa prioridade herdadas que continuam válidas:
 
 - **Sub-recursos de task fora do escopo do mapper** (`dependencies`, `checklist` add/update) retornam a entidade Prisma da linha específica (não `TaskWithRelations` completa) — baixo risco, shape pequeno e já sem relations pesadas.
 - **Charter**: `toEntity` de conversão `Decimal → number` e achatamento de `team` continua dentro do repositório Prisma (não no mapper de infra) — funcional, mas quem revisar o módulo deve saber que a "primeira camada" de shape já acontece ali antes do `charter.mapper.ts`.
 - **`taxonomies`**: múltiplos sub-recursos (sector, category, engagementStage, organizationSource, productService) — não entraram no mapa `ENTITY_MODEL` do audit por ambiguidade de modelo; `before` fica `null` nesses casos (nunca bloqueia, só reduz a trilha).
 
-> **Leitura de tendência (6ª):** o backend está maduro — desacoplamento e RBAC bem executados e estáveis entre passagens. O único item de alta severidade em aberto (A10) é uma regressão pontual da correção A6, com fix trivial. Os 🟡 A11/A12 são dívidas de *escala* (defesa-em-profundidade e inversão de dependência do kernel de auditoria), não bugs. **Top 3 desta passagem:** (1) redigir `passwordHash`/campos sensíveis no `captureBefore` — A10; (2) firmar a convenção de fecho-por-padrão para `CLIENTE` fora de `:projectId` — A11; (3) remover `@UseGuards(RolesGuard)` redundante dos 2 controllers — A13.
+> **Leitura de tendência (6ª):** o backend está maduro — desacoplamento e RBAC bem executados e estáveis entre passagens. O A10, único item de alta severidade da passagem, já foi fechado. Os 🟡 A11/A12 são dívidas de *escala* (defesa-em-profundidade e inversão de dependência do kernel de auditoria), não bugs.
 
 ## Top 3 ações priorizadas
 
-1. **🟠 A10** — `captureBefore` (`audit.interceptor.ts:58-68`): remover campos sensíveis (mínimo `delete row.passwordHash`; ideal `SENSITIVE_KEYS` genérica ou `select` por modelo) antes de gravar `before`. Impede vazamento de hash de credencial na trilha de auditoria.
+1. ~~**🟠 A10** — redigir campos sensíveis antes de gravar `before`.~~ **RESOLVIDO em 2026-07-23** (`AuditService.redactSensitive`, ver seção 2).
 2. **🟡 A11** — tornar explícita e testada a autorização de `CLIENTE` nas rotas sem `:projectId` (`activities`, `search` e futuras): comentário-regra + teste de RBAC por rota nova, ou guard de fecho-por-padrão.
 3. **🔵 A13** — remover `@UseGuards(RolesGuard)` redundante de `projects.controller.ts:22` e `tasks.controller.ts:39` (já é `APP_GUARD` global). Consistência com os controllers CRM.
