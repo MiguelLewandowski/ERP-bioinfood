@@ -11,6 +11,7 @@ import type {
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { Button } from '@/components/ui/button';
 import { MaskedInput } from '@/components/ui/masked-input';
 import {
   maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput, maskPhone, maskDocument, maskCEP, maskCNAE,
@@ -33,7 +34,7 @@ const STAGE_OPTIONS = [
 ];
 
 const inputCls =
-  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed';
+  'w-full text-sm px-3 py-2.5 border border-border rounded-lg focus:border-ring focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed';
 
 interface DadosTabProps {
   organizationId: string;
@@ -128,8 +129,8 @@ export function DadosTab(props: DadosTabProps) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Identificação</h2>
+        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Identificação</h2>
 
           <Field label="Razão Social *">
             <input {...register('legalName')} disabled={!canEdit} className={inputCls} />
@@ -207,8 +208,8 @@ export function DadosTab(props: DadosTabProps) {
           )}
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Contato</h2>
+        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Contato</h2>
           <div className="grid grid-cols-2 gap-3">
             <Field label="E-mail">
               <input {...register('email')} disabled={!canEdit} className={inputCls} />
@@ -235,8 +236,8 @@ export function DadosTab(props: DadosTabProps) {
           </div>
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Redes sociais</h2>
+        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
+          <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Redes sociais</h2>
           <div className="grid grid-cols-2 gap-3">
             <Field label="LinkedIn">
               <input {...register('linkedin')} disabled={!canEdit} className={inputCls} />
@@ -259,14 +260,9 @@ export function DadosTab(props: DadosTabProps) {
 
           {canEdit && (
             <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving || !isDirty}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
-              >
+              <Button type="submit" disabled={saving || !isDirty}>
                 <Save size={15} /> {saving ? 'Salvando…' : 'Salvar'}
-              </button>
+              </Button>
             </div>
           )}
         </section>
@@ -338,8 +334,8 @@ function RolesSection({
   }
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5">
-      <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2 mb-3">Papéis</h2>
+    <section className="bg-card rounded-xl border border-border p-5">
+      <h2 className="text-sm font-bold text-foreground border-b border-border pb-2 mb-3">Papéis</h2>
       <div className="flex flex-wrap items-center gap-2">
         {roles.length === 0 && <span className="text-xs text-muted-foreground">Nenhum papel atribuído.</span>}
         {roles.map((r) => (
@@ -360,7 +356,7 @@ function RolesSection({
             <select
               value={adding}
               onChange={(e) => setAdding(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:border-ring focus:outline-none"
+              className="text-xs border border-border rounded-lg px-2 py-1 focus:border-ring focus:outline-none"
             >
               <option value="">+ papel…</option>
               {available.map((t) => <option key={t} value={t}>{ROLE_LABELS[t]}</option>)}
@@ -368,8 +364,7 @@ function RolesSection({
             {adding && (
               <button
                 onClick={() => { add(adding); setAdding(''); }}
-                className="rounded-lg p-1 text-white"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
+                className="rounded-lg bg-primary p-1 text-primary-foreground transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Adicionar papel"
               >
                 <Plus size={13} />
@@ -421,8 +416,8 @@ function CustomerProfileSection({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-      <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2">Perfil comercial</h2>
+    <form onSubmit={handleSubmit(onSubmit)} className="bg-card rounded-xl border border-border p-5 space-y-4">
+      <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Perfil comercial</h2>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Estágio">
           <select {...register('stage')} disabled={!canEdit} className={inputCls}>
@@ -446,14 +441,9 @@ function CustomerProfileSection({
       </div>
       {canEdit && (
         <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving || !isDirty}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: 'hsl(var(--primary))' }}
-          >
+          <Button type="submit" disabled={saving || !isDirty}>
             <Save size={15} /> {saving ? 'Salvando…' : 'Salvar'}
-          </button>
+          </Button>
         </div>
       )}
     </form>
@@ -493,8 +483,8 @@ function ProductServicesSection({
   }
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5">
-      <h2 className="text-sm font-bold text-foreground border-b border-gray-100 pb-2 mb-3">Produtos e serviços</h2>
+    <section className="bg-card rounded-xl border border-border p-5">
+      <h2 className="text-sm font-bold text-foreground border-b border-border pb-2 mb-3">Produtos e serviços</h2>
       <div className="flex flex-wrap items-center gap-2">
         {selected.length === 0 && <span className="text-xs text-muted-foreground">Nenhum produto/serviço vinculado.</span>}
         {selected.map((ps) => (
@@ -515,7 +505,7 @@ function ProductServicesSection({
             <select
               value={adding}
               onChange={(e) => setAdding(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:border-ring focus:outline-none"
+              className="text-xs border border-border rounded-lg px-2 py-1 focus:border-ring focus:outline-none"
             >
               <option value="">+ produto/serviço…</option>
               {available.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -523,8 +513,7 @@ function ProductServicesSection({
             {adding && (
               <button
                 onClick={() => { add(adding); setAdding(''); }}
-                className="rounded-lg p-1 text-white"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
+                className="rounded-lg bg-primary p-1 text-primary-foreground transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Adicionar produto/serviço"
               >
                 <Plus size={13} />
@@ -572,8 +561,8 @@ function AddressesSection({
   }
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-3">
+    <section className="bg-card rounded-xl border border-border p-5">
+      <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
         <h2 className="text-sm font-bold text-foreground">Endereços</h2>
         {canEdit && !showForm && (
           <button
@@ -591,7 +580,7 @@ function AddressesSection({
 
       <ul className="space-y-2">
         {addresses.map((a) => (
-          <li key={a.id} className="flex items-start justify-between rounded-lg border border-gray-100 px-3 py-2">
+          <li key={a.id} className="flex items-start justify-between rounded-lg border border-border px-3 py-2">
             <div className="text-sm text-muted-foreground">
               <span className="text-[11px] font-semibold uppercase text-muted-foreground">{ADDRESS_TYPE_LABELS[a.type] ?? a.type}</span>
               <p>{[a.street, a.number, a.district, a.city, a.state].filter(Boolean).join(', ') || '—'}</p>
@@ -606,7 +595,7 @@ function AddressesSection({
       </ul>
 
       {showForm && (
-        <form onSubmit={handleSubmit(onAdd)} className="mt-3 space-y-2 rounded-lg bg-gray-50 p-3">
+        <form onSubmit={handleSubmit(onAdd)} className="mt-3 space-y-2 rounded-lg bg-muted p-3">
           <div className="grid grid-cols-2 gap-2">
             <select {...register('type')} className={inputCls}>
               {Object.entries(ADDRESS_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -623,8 +612,8 @@ function AddressesSection({
             <input {...register('state')} placeholder="UF" maxLength={2} className={inputCls} />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { reset(); setShowForm(false); }} className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Cancelar</button>
-            <button type="submit" className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'hsl(var(--primary))' }}>Adicionar</button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => { reset(); setShowForm(false); }}>Cancelar</Button>
+            <Button type="submit" size="sm">Adicionar</Button>
           </div>
         </form>
       )}

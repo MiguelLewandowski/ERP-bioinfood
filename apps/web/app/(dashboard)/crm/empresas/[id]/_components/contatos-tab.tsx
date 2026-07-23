@@ -9,11 +9,12 @@ import type { ContactListItemDto, TaxonomyDto } from '@bioinfood/shared';
 import { contactsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
+import { Button } from '@/components/ui/button';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskCPF, maskPhone } from '@/lib/masks';
 
 const inputCls =
-  'w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none';
+  'w-full text-sm px-3 py-2.5 border border-border rounded-lg focus:border-ring focus:outline-none';
 
 interface ContatosTabProps {
   organizationId: string;
@@ -176,31 +177,27 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         {canEdit && !showForm && (
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ backgroundColor: 'hsl(var(--primary))' }}
-          >
+          <Button onClick={openCreate}>
             <Plus size={15} /> Novo contato
-          </button>
+          </Button>
         )}
       </div>
 
       {initialContacts.length === 0 && !showForm && (
-        <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
+        <div className="rounded-xl border border-dashed border-border py-12 text-center">
           <p className="text-sm text-muted-foreground">Nenhum contato vinculado a este cliente.</p>
         </div>
       )}
 
       <ul className="space-y-2">
         {initialContacts.map((c) => (
-          <li key={c.id} className="flex items-start justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <li key={c.id} className="flex items-start justify-between rounded-xl border border-border bg-card px-4 py-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">{c.name}</span>
                 {c.link?.isPrimary && (
                   <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-accent">
-                    <Star size={11} fill="#DD8005" /> Principal
+                    <Star size={11} fill="currentColor" /> Principal
                   </span>
                 )}
                 {c.link?.jobTitle && <span className="text-xs text-muted-foreground">· {c.link.jobTitle}</span>}
@@ -240,7 +237,7 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
       </ul>
 
       {showForm && (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 rounded-xl border border-border bg-muted p-4">
           <h3 className="text-xs font-bold text-foreground">{mode.kind === 'edit' ? 'Editar contato' : 'Novo contato'}</h3>
 
           <div className="grid grid-cols-2 gap-2">
@@ -284,10 +281,10 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
             <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isTechnical')} className="accent-[hsl(var(--primary))]" /> Técnico</label>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={closeForm} className="px-3 py-1.5 text-xs font-medium text-muted-foreground">Cancelar</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'hsl(var(--primary))' }}>
+            <Button type="button" variant="ghost" size="sm" onClick={closeForm}>Cancelar</Button>
+            <Button type="submit" size="sm" disabled={saving}>
               {saving ? 'Salvando…' : mode.kind === 'edit' ? 'Salvar' : 'Adicionar'}
-            </button>
+            </Button>
           </div>
         </form>
       )}

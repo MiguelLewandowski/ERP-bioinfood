@@ -89,7 +89,7 @@ export function FichaClient(props: FichaClientProps) {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">{organization.legalName}</h1>
             {organization.status === 'ARCHIVED' && (
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Arquivado</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Arquivado</span>
             )}
           </div>
           {organization.tradeName && (
@@ -100,7 +100,7 @@ export function FichaClient(props: FichaClientProps) {
           <button
             onClick={toggleArchive}
             disabled={archiving}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground border border-border hover:bg-muted disabled:opacity-50"
           >
             {organization.status === 'ARCHIVED' ? <ArchiveRestore size={14} /> : <Archive size={14} />}
             {organization.status === 'ARCHIVED' ? 'Reativar cliente' : 'Arquivar cliente'}
@@ -108,7 +108,7 @@ export function FichaClient(props: FichaClientProps) {
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 mb-6">
+      <div className="flex gap-1 border-b border-border mb-6">
         {TABS.map(({ id, label, icon: Icon }) => {
           const count = id === 'contatos'
             ? contacts.length
@@ -127,7 +127,7 @@ export function FichaClient(props: FichaClientProps) {
               <Icon size={15} />
               {label}
               {count !== undefined && count > 0 && (
-                <span className="ml-1 rounded-full bg-gray-100 px-1.5 text-[11px] text-muted-foreground">{count}</span>
+                <span className="ml-1 rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground">{count}</span>
               )}
             </button>
           );

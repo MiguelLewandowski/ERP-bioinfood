@@ -93,13 +93,13 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
   }
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-4">
+    <section className="rounded-xl border border-border bg-card p-4">
       <h2 className="text-sm font-bold text-foreground mb-3">{title}</h2>
 
       <ul className="space-y-1 mb-3">
         {items.length === 0 && <li className="text-xs text-muted-foreground py-2">Nenhum item.</li>}
         {items.map((item, i) => (
-          <li key={item.id} className="flex items-center gap-1 rounded-lg border border-gray-100 px-2 py-1.5">
+          <li key={item.id} className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5">
             <div className="flex flex-col">
               <button onClick={() => move(i, -1)} disabled={busy || i === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30" aria-label="Mover para cima">
                 <ChevronUp size={12} />
@@ -116,7 +116,7 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && saveRename(item.id)}
                   autoFocus
-                  className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded focus:border-ring focus:outline-none"
+                  className="flex-1 text-sm px-2 py-1 border border-border rounded focus:border-ring focus:outline-none"
                 />
                 <button onClick={() => saveRename(item.id)} className="text-primary" aria-label="Salvar"><Check size={15} /></button>
                 <button onClick={() => setEditingId(null)} className="text-muted-foreground" aria-label="Cancelar"><X size={15} /></button>
@@ -136,7 +136,7 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
                 <button
                   onClick={() => toggleActive(item)}
                   disabled={busy}
-                  className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.isActive ? 'bg-success/20 text-primary-dark' : 'bg-gray-100 text-muted-foreground'}`}
+                  className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${item.isActive ? 'bg-success/20 text-primary-dark' : 'bg-muted text-muted-foreground'}`}
                 >
                   {item.isActive ? 'Ativo' : 'Inativo'}
                 </button>
@@ -160,7 +160,7 @@ function TaxonomyList({ kind, title, items }: { kind: TaxonomyKind; title: strin
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Novo item…"
-          className="flex-1 text-sm px-2.5 py-1.5 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
+          className="flex-1 text-sm px-2.5 py-1.5 border border-border rounded-lg focus:border-ring focus:outline-none"
         />
         <button
           onClick={add}

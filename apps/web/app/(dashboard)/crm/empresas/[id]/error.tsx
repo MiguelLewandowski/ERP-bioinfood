@@ -21,7 +21,7 @@ export default function Error({ reset }: { error: Error; reset: () => void }) {
         </button>
         <Link
           href="/crm?tab=empresas"
-          className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-gray-200 hover:bg-gray-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-border hover:bg-muted"
         >
           Voltar para Empresas
         </Link>
