@@ -16,6 +16,8 @@ export interface ProjectResponseDto {
   objective: string | null;
   createdBy: { id: string; name: string };
   accesses: Array<{ user: { id: string; name: string } }>;
+  /** Equipe declarada no TAP — quem trabalha no projeto sem depender de ProjectAccess. */
+  team: Array<{ id: string; name: string }>;
   createdAt: string;
 }
 
@@ -34,6 +36,7 @@ export function toProjectDto(p: ProjectWithRelations): ProjectResponseDto {
     objective: p.objective,
     createdBy: p.createdBy,
     accesses: p.accesses.map((a) => ({ user: a.user })),
+    team: p.charter?.team.map((t) => t.user) ?? [],
     createdAt: p.createdAt.toISOString(),
   };
 }

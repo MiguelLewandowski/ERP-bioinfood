@@ -14,6 +14,10 @@ const WITH_RELATIONS = {
   baselineSetBy: { select: { id: true, name: true } },
   client: { select: { id: true, legalName: true, tradeName: true } },
   accesses: { include: { user: { select: { id: true, name: true } } } },
+  // Equipe declarada no TAP. É o vínculo com o projeto para quem é interno e
+  // portanto não precisa de ProjectAccess — sem isso o seletor de responsável
+  // de tarefa só oferecia o criador do projeto.
+  charter: { select: { team: { select: { user: { select: { id: true, name: true } } } } } },
   // Prazos das atividades para calcular o término dinâmico (maior dueDate).
   tasks: { where: { deletedAt: null }, select: { dueDate: true } },
 } as const;

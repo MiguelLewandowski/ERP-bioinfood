@@ -328,6 +328,8 @@ export interface ProjectDto {
   objective: string | null;
   createdBy: { id: string; name: string };
   accesses: Array<{ user: { id: string; name: string } }>;
+  /** Equipe declarada no TAP — quem trabalha no projeto sem depender de ProjectAccess. */
+  team: Array<{ id: string; name: string }>;
   createdAt: string;
 }
 

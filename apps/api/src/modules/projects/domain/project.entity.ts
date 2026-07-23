@@ -28,6 +28,7 @@ export interface ProjectWithRelations extends ProjectEntity {
     grantedAt: Date;
     user: { id: string; name: string };
   }>;
+  charter: { team: Array<{ user: { id: string; name: string } }> } | null;
   tasks: Array<{ dueDate: Date | null }>;
 }
 
