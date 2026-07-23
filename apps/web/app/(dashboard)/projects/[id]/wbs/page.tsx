@@ -16,10 +16,11 @@ export default async function WbsPage({ params }: Props) {
     projectsApi.get(id, token),
   ]);
 
+  // Sem `token`: as chamadas do client vão por /api/proxy (cookie httpOnly).
+  // Passar o token o colocaria no payload RSC, legível pelo JS da página.
   return (
     <WbsClient
       projectId={id}
-      token={token}
       initialNodes={nodes}
       members={extractMembers(project)}
     />

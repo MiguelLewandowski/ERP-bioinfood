@@ -24,7 +24,6 @@ import { ganttLocalePt } from './gantt-locale-pt';
 
 interface GanttClientProps {
   projectId: string;
-  token: string;
   tasks: Task[];
   milestones: Milestone[];
   members: ProjectMember[];
@@ -37,7 +36,7 @@ interface GanttClientProps {
 // ─── wrapper: RBAC + barra de baseline + reversão automática em caso de falha ───
 
 export function GanttClient(props: GanttClientProps) {
-  const { session } = useAuth();
+  const { session, token } = useAuth();
   const router = useRouter();
   const confirm = useConfirm();
   const editable = EDITABLE_ROLES.includes(session.role);
@@ -77,7 +76,7 @@ export function GanttClient(props: GanttClientProps) {
     if (!confirmed) return;
     setBaselineBusy(true);
     try {
-      await projectsApi.setBaseline(props.projectId, props.token);
+      await projectsApi.setBaseline(props.projectId, token);
       setReloadKey((k) => k + 1);
       router.refresh();
     } finally {
@@ -191,8 +190,9 @@ interface GanttBoardProps extends GanttClientProps {
 }
 
 function GanttBoard({
-  projectId, token, tasks, milestones, projectEnd, editable, onSaveError, onEditTask,
+  projectId, tasks, milestones, projectEnd, editable, onSaveError, onEditTask,
 }: GanttBoardProps) {
+  const { token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [api, setApi] = useState<any>(undefined);
 

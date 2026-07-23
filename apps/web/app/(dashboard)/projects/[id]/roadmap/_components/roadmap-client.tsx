@@ -12,6 +12,7 @@ import type { MilestoneDto } from '@bioinfood/shared';
 import { format, differenceInDays, startOfMonth, endOfMonth, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { api } from '@/lib/api';
+import { useAuth } from '@/components/providers/auth-provider';
 import { getErrorMessage } from '@/lib/errors';
 import { parseCalendarDate } from '@/lib/dates';
 
@@ -24,11 +25,11 @@ type FormValues = z.infer<typeof schema>;
 
 interface RoadmapClientProps {
   projectId: string;
-  token: string;
   initialMilestones: MilestoneDto[];
 }
 
-export function RoadmapClient({ projectId, token, initialMilestones }: RoadmapClientProps) {
+export function RoadmapClient({ projectId, initialMilestones }: RoadmapClientProps) {
+  const { token } = useAuth();
   const [milestones, setMilestones] = useState<MilestoneDto[]>(
     [...initialMilestones].sort((a, b) => parseCalendarDate(a.date).getTime() - parseCalendarDate(b.date).getTime()),
   );

@@ -41,7 +41,6 @@ type FormValues = z.infer<typeof schema>;
 
 interface ProjectSettingsClientProps {
   projectId: string;
-  token: string;
   project: ProjectDto | null;
 }
 
@@ -50,9 +49,9 @@ function toDateInput(d: string | null | undefined): string {
   return d.split('T')[0];
 }
 
-export function ProjectSettingsClient({ projectId, token, project }: ProjectSettingsClientProps) {
+export function ProjectSettingsClient({ projectId, project }: ProjectSettingsClientProps) {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, token } = useAuth();
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);

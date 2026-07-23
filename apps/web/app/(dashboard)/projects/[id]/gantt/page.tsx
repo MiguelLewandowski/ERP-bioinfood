@@ -21,7 +21,6 @@ export default async function GanttPage({ params }: Props) {
   return (
     <GanttClient
       projectId={id}
-      token={token}
       tasks={tasks}
       milestones={milestones}
       members={extractMembers(project)}

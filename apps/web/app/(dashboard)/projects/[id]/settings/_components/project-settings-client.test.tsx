@@ -43,7 +43,7 @@ const PROJECT = {
 
 function setup(role: SystemRole = 'ADMIN', project: ProjectDto | null = PROJECT) {
   renderWithProviders(
-    <ProjectSettingsClient projectId="proj-1" token={TEST_TOKEN} project={project} />,
+    <ProjectSettingsClient projectId="proj-1" project={project} />,
     { session: { ...TEST_SESSION, role } },
   );
 }

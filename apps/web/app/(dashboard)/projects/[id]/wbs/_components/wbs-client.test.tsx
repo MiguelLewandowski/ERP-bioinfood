@@ -44,7 +44,7 @@ const MEMBERS = [
 
 function setup(nodes: WbsNodeDto[] = [PARENT, LEAF], members = MEMBERS) {
   return renderWithProviders(
-    <WbsClient projectId="proj-1" token="t" initialNodes={nodes} members={members} />,
+    <WbsClient projectId="proj-1" initialNodes={nodes} members={members} />,
   );
 }
 

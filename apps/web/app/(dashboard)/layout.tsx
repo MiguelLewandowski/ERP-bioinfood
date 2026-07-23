@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
@@ -11,11 +10,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getSession();
   if (!session) redirect('/');
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get('access_token')?.value ?? '';
-
+  // O access token NÃO é injetado aqui de propósito: no navegador as chamadas
+  // vão por /api/proxy, que lê o cookie httpOnly no servidor. Passar o token
+  // para o provider o colocaria no payload RSC, legível por qualquer JS da
+  // página — era exatamente o achado S3 de docs/analise-seguranca.md.
   return (
-    <AuthProvider session={session} token={token}>
+    <AuthProvider session={session}>
       <ConfirmProvider>
         <BreadcrumbProvider>
           <div className="flex h-screen overflow-hidden">

@@ -12,5 +12,6 @@ export default async function RoadmapPage({ params }: Props) {
   const token = cookieStore.get('access_token')?.value ?? '';
   const milestones = await milestonesApi.list(id, token);
 
-  return <RoadmapClient projectId={id} token={token} initialMilestones={milestones} />;
+  // Sem token: chamadas do client vao por /api/proxy (cookie httpOnly), fora do RSC.
+  return <RoadmapClient projectId={id} initialMilestones={milestones} />;
 }

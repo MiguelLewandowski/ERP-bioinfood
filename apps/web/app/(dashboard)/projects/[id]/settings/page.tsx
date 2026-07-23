@@ -12,5 +12,6 @@ export default async function ProjectSettingsPage({ params }: Props) {
   const token = cookieStore.get('access_token')?.value ?? '';
   const project = await projectsApi.get(id, token);
 
-  return <ProjectSettingsClient projectId={id} token={token} project={project} />;
+  // Sem token: chamadas do client vao por /api/proxy (cookie httpOnly), fora do RSC.
+  return <ProjectSettingsClient projectId={id} project={project} />;
 }

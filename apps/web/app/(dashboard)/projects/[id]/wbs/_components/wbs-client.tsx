@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import type { WbsNodeDto } from '@bioinfood/shared';
 import type { ProjectMember } from '@/lib/project-members';
+import { useAuth } from '@/components/providers/auth-provider';
 import { wbsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, dialogDrawerRightClass } from '@/components/ui/dialog';
@@ -35,7 +36,6 @@ function buildTree(nodes: WbsNode[]): WbsNodeTree[] {
 
 interface WbsClientProps {
   projectId: string;
-  token: string;
   initialNodes: WbsNode[];
   /** Equipe do TAP + acessos do projeto — as opções de dono do pacote. */
   members: ProjectMember[];
@@ -53,7 +53,8 @@ interface EditingNode {
   outputs: string;
 }
 
-export function WbsClient({ projectId, token, initialNodes, members }: WbsClientProps) {
+export function WbsClient({ projectId, initialNodes, members }: WbsClientProps) {
+  const { token } = useAuth();
   const [nodes, setNodes] = useState<WbsNode[]>(initialNodes);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // Pacotes de trabalho com o painel de detalhes aberto. Começa vazio: o resumo

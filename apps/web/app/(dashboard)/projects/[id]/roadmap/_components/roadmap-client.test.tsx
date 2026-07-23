@@ -29,7 +29,7 @@ const EXISTING_MILESTONE = {
 
 function setup(initialMilestones: MilestoneDto[] = []) {
   renderWithProviders(
-    <RoadmapClient projectId="proj-1" token={TEST_TOKEN} initialMilestones={initialMilestones} />,
+    <RoadmapClient projectId="proj-1" initialMilestones={initialMilestones} />,
   );
 }
 
