@@ -17,7 +17,7 @@ import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
-import { charterApi, contactsApi } from '@/lib/api-hooks';
+import { charterApi, contactsApi, usersApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
 import { MaskedInput } from '@/components/ui/masked-input';
@@ -180,7 +180,7 @@ const SECTIONS: Array<{
 ];
 
 export function CharterClient({ projectId, initialData, project }: CharterClientProps) {
-  const { token } = useAuth();
+  const { token, session } = useAuth();
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -189,6 +189,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
   const [contacts, setContacts] = useState<ContactListItemDto[] | null>(null);
+  const [allUsers, setAllUsers] = useState<ProjectMember[] | null>(null);
   const [lastEdit, setLastEdit] = useState(
     initialData?.lastEditedAt
       ? { name: initialData.lastEditedBy?.name ?? 'Alguém', at: initialData.lastEditedAt }
@@ -198,7 +199,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const members = useMemo(() => extractMembers(project), [project]);
 
   const {
-    register, handleSubmit, getValues, watch, reset, formState: { isDirty },
+    register, handleSubmit, getValues, setValue, watch, reset, formState: { isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -233,6 +234,34 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       .catch(() => { if (!cancelled) setContacts([]); });
     return () => { cancelled = true; };
   }, [project?.client, token]);
+
+  // A equipe do TAP é documentação de quem toca o projeto, não controle de acesso:
+  // usuário interno enxerga todos os projetos sem precisar de ProjectAccess, então
+  // limitar a lista a `project.accesses` deixava quase todo mundo de fora.
+  // `GET /users` é ADMIN/APROVA — nos demais papéis cai nos membros do projeto.
+  const canListUsers = session.role === 'ADMIN' || session.role === 'APROVA';
+
+  useEffect(() => {
+    if (!canListUsers) return;
+    let cancelled = false;
+    usersApi.list(token)
+      .then((users) => {
+        if (cancelled) return;
+        setAllUsers(users.filter((u) => u.isActive).map((u) => ({ id: u.id, name: u.name })));
+      })
+      .catch(() => { if (!cancelled) setAllUsers(null); });
+    return () => { cancelled = true; };
+  }, [canListUsers, token]);
+
+  // Membros do projeto + todos os usuários ativos + quem já está no TAP (mesmo
+  // que tenha sido desativado depois — senão salvar apagaria a pessoa da lista).
+  const teamCandidates = useMemo(() => {
+    const map = new Map<string, ProjectMember>();
+    for (const m of members) map.set(m.id, m);
+    for (const u of allUsers ?? []) map.set(u.id, u);
+    for (const t of initialData?.team ?? []) if (!map.has(t.id)) map.set(t.id, t);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, allUsers, initialData?.team]);
 
   // Seções com pelo menos um campo preenchido — alimenta o dot de progresso no nav.
   const sectionHasContent = useMemo(() => {
@@ -289,6 +318,16 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   // com alteração pendente → salva sozinho, sem esperar o botão Salvar.
   function handleFieldBlur() {
     if (isDirty) persist(getValues());
+  }
+
+  // Checkbox não dispara blur de forma confiável — salva no próprio clique.
+  function toggleTeamMember(userId: string) {
+    const current = getValues('teamUserIds') ?? [];
+    const next = current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId];
+    setValue('teamUserIds', next, { shouldDirty: true });
+    persist({ ...getValues(), teamUserIds: next });
   }
 
   async function handleApprove() {
@@ -490,17 +529,43 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
             {activeSection === 'recursos' && (
               <>
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-1.5">Equipe</label>
-                  <select
-                    multiple
-                    {...register('teamUserIds', { onBlur: handleFieldBlur })}
-                    className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                    size={Math.min(Math.max(members.length, 3), 6)}
-                  >
-                    {members.length === 0 && <option disabled>Nenhum membro com acesso ao projeto ainda</option>}
-                    {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Ctrl/Cmd + clique para selecionar mais de um responsável.</p>
+                  <div className="mb-1.5 flex items-baseline justify-between">
+                    <label className="block text-sm font-semibold text-foreground">Equipe</label>
+                    <span className="text-xs text-muted-foreground">
+                      {(values.teamUserIds?.length ?? 0)} de {teamCandidates.length} selecionados
+                    </span>
+                  </div>
+                  {teamCandidates.length === 0 ? (
+                    <p className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs text-muted-foreground">
+                      Nenhum usuário disponível para montar a equipe.
+                    </p>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white divide-y divide-gray-100">
+                      {teamCandidates.map((m) => {
+                        const checked = values.teamUserIds?.includes(m.id) ?? false;
+                        return (
+                          <label
+                            key={m.id}
+                            className="flex cursor-pointer items-center gap-2.5 px-3 py-2 hover:bg-gray-50"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTeamMember(m.id)}
+                              className="h-4 w-4 rounded border-gray-300 accent-[hsl(var(--primary))]"
+                            />
+                            <span className={cn('text-sm', checked ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+                              {m.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Marque quem faz parte da equipe. Salva sozinho a cada mudança.
+                    {!canListUsers && ' Seu perfil só enxerga quem já tem acesso ao projeto.'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-1.5">Infraestrutura</label>
