@@ -238,8 +238,8 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   // A equipe do TAP é documentação de quem toca o projeto, não controle de acesso:
   // usuário interno enxerga todos os projetos sem precisar de ProjectAccess, então
   // limitar a lista a `project.accesses` deixava quase todo mundo de fora.
-  // `GET /users` é ADMIN/APROVA — nos demais papéis cai nos membros do projeto.
-  const canListUsers = session.role === 'ADMIN' || session.role === 'APROVA';
+  // `GET /users` exige ADMIN ou PADRAO — CLIENTE cai nos membros do projeto.
+  const canListUsers = session.role === 'ADMIN' || session.role === 'PADRAO';
 
   useEffect(() => {
     if (!canListUsers) return;

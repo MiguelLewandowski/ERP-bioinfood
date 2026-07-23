@@ -22,7 +22,7 @@ const TARGET_USER = {
   id: 'user-42',
   name: 'Ana Souza',
   email: 'ana@bioinfood.com',
-  role: 'INSERE',
+  role: 'PADRAO',
   isActive: true,
 } as UserDto;
 

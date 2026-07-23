@@ -161,31 +161,31 @@ describe('StakeholdersClient form', () => {
     expect(screen.getByLabelText('Papel')).toBeInTheDocument();
   });
 
-  // RBAC: writing needs INSERE and up; deleting needs APROVA and up.
-  it('should hide the create action from a read-only role', () => {
-    setup('CONSULTA');
+  // RBAC de 3 papéis: PADRAO escreve e exclui; CLIENTE é só leitura.
+  it('should hide the create action from the client role', () => {
+    setup('CLIENTE');
 
     expect(
       screen.queryByRole('button', { name: /Nova Parte Interessada/ }),
     ).not.toBeInTheDocument();
   });
 
-  it('should offer the create action to a writer role', () => {
-    setup('INSERE');
+  it('should offer the create action to the standard role', () => {
+    setup('PADRAO');
 
     expect(
       screen.getAllByRole('button', { name: /Nova Parte Interessada/ }).length,
     ).toBeGreaterThan(0);
   });
 
-  it('should not offer deletion to a writer role that cannot delete', () => {
-    setup('INSERE', [EXISTING]);
+  it('should not offer deletion to the client role', () => {
+    setup('CLIENTE', [EXISTING]);
 
     expect(screen.queryByRole('button', { name: /Remover/ })).not.toBeInTheDocument();
   });
 
-  it('should offer deletion to an approver role', () => {
-    setup('APROVA', [EXISTING]);
+  it('should offer deletion to the standard role', () => {
+    setup('PADRAO', [EXISTING]);
 
     expect(screen.getByRole('button', { name: /Remover/ })).toBeInTheDocument();
   });

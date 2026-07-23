@@ -148,7 +148,7 @@ describe('ProjectSettingsClient', () => {
   });
 
   it('should hide the danger zone from non-admin roles', () => {
-    setup('APROVA');
+    setup('PADRAO');
 
     expect(screen.queryByRole('button', { name: /Excluir projeto/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Zona de perigo')).not.toBeInTheDocument();

@@ -17,24 +17,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-const ROLE_OPTIONS: Array<{ value: UserDto['role']; label: string }> = [
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'APROVA', label: 'Aprova' },
-  { value: 'INSERE', label: 'Insere' },
-  { value: 'CONSULTA', label: 'Consulta' },
-  { value: 'CLIENTE', label: 'Cliente (portal)' },
+const ROLE_OPTIONS: Array<{ value: UserDto['role']; label: string; hint: string }> = [
+  { value: 'ADMIN',   label: 'Administrador', hint: 'Faz e vê tudo, inclusive usuários, CRM e exclusão definitiva.' },
+  { value: 'PADRAO',  label: 'Usuário padrão', hint: 'Vê e edita todos os projetos. Sem usuários, sem CRM, sem exclusão definitiva.' },
+  { value: 'CLIENTE', label: 'Cliente (portal)', hint: 'Externo: só os projetos liberados para ele.' },
 ];
 
 const createSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(200),
   email: z.string().min(1, 'E-mail é obrigatório').email('E-mail inválido'),
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
-  role: z.enum(['ADMIN', 'APROVA', 'INSERE', 'CONSULTA', 'CLIENTE']),
+  role: z.enum(['ADMIN', 'PADRAO', 'CLIENTE']),
 });
 
 const editSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(200),
-  role: z.enum(['ADMIN', 'APROVA', 'INSERE', 'CONSULTA', 'CLIENTE']),
+  role: z.enum(['ADMIN', 'PADRAO', 'CLIENTE']),
   isActive: z.boolean(),
 });
 
@@ -55,13 +53,13 @@ export default function UserDialog({ open, onOpenChange, user, onSaved }: UserDi
 
   const createForm = useForm<CreateFormData>({
     resolver: zodResolver(createSchema),
-    defaultValues: { role: 'CONSULTA' },
+    defaultValues: { role: 'PADRAO' },
   });
   const editForm = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
     defaultValues: user
       ? { name: user.name, role: user.role, isActive: user.isActive }
-      : { name: '', role: 'CONSULTA', isActive: true },
+      : { name: '', role: 'PADRAO', isActive: true },
   });
 
   // O dialog fica montado e reusado entre usuários — recarrega os campos do
@@ -133,6 +131,9 @@ export default function UserDialog({ open, onOpenChange, user, onSaved }: UserDi
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {ROLE_OPTIONS.find((o) => o.value === editForm.watch('role'))?.hint}
+              </p>
             </div>
 
             <label className="flex cursor-pointer items-center gap-2">
@@ -201,6 +202,9 @@ export default function UserDialog({ open, onOpenChange, user, onSaved }: UserDi
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {ROLE_OPTIONS.find((o) => o.value === createForm.watch('role'))?.hint}
+              </p>
             </div>
 
             {serverError && <p className="text-xs text-destructive">{serverError}</p>}

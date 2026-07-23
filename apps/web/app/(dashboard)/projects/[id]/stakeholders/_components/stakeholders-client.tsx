@@ -40,8 +40,8 @@ const QUADRANT_ORDER: PowerInterestQuadrant[] = [
   'MANAGE_CLOSELY', 'KEEP_SATISFIED', 'KEEP_INFORMED', 'MONITOR',
 ];
 
-const RBAC_CAN_WRITE = ['INSERE', 'APROVA', 'ADMIN'];
-const RBAC_CAN_DELETE = ['APROVA', 'ADMIN'];
+const RBAC_CAN_WRITE = ['PADRAO', 'ADMIN'];
+const RBAC_CAN_DELETE = ['PADRAO', 'ADMIN'];
 
 const schema = z.object({
   contactId: z.string().min(1, 'Selecione um contato'),

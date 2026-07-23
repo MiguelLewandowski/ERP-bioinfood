@@ -7,7 +7,7 @@ import UsersClient from '@/components/users/users-client';
 
 export default async function UsersPage() {
   const session = await getSession();
-  if (!session || !['ADMIN', 'APROVA'].includes(session.role)) redirect('/projects');
+  if (!session || session.role !== 'ADMIN') redirect('/projects');
 
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';

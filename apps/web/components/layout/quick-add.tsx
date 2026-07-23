@@ -19,8 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-const TASK_ROLES = ['INSERE', 'APROVA', 'ADMIN'];
-const PROJECT_ROLES = ['APROVA', 'ADMIN'];
+const TASK_ROLES = ['PADRAO', 'ADMIN'];
+const PROJECT_ROLES = ['PADRAO', 'ADMIN'];
 const CRM_ROLES = ['ADMIN'];
 
 export function QuickAdd() {

@@ -19,7 +19,7 @@ const EXISTING_USER = {
   id: 'user-7',
   name: 'Bruno Lima',
   email: 'bruno@bioinfood.com',
-  role: 'APROVA',
+  role: 'PADRAO',
   isActive: true,
 } as UserDto;
 
@@ -69,10 +69,10 @@ describe('UserDialog — create mode', () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it('should default the role to CONSULTA, the least privileged internal profile', () => {
+  it('should default the role to PADRAO, the standard internal profile', () => {
     setup();
 
-    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('CONSULTA');
+    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('PADRAO');
   });
 
   it('should create the user with the selected role and the auth token', async () => {
@@ -124,7 +124,7 @@ describe('UserDialog — edit mode', () => {
 
     expect(screen.getByText('Editar Usuário')).toBeInTheDocument();
     expect(screen.getByLabelText('Nome *')).toHaveValue('Bruno Lima');
-    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('APROVA');
+    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('PADRAO');
   });
 
   it('should not offer a password field when editing', () => {
@@ -147,28 +147,28 @@ describe('UserDialog — edit mode', () => {
 
     const otherUser = {
       id: 'user-9', name: 'Diana Reis', email: 'diana@bioinfood.com',
-      role: 'CONSULTA', isActive: false,
+      role: 'PADRAO', isActive: false,
     } as UserDto;
     rerender(
       <UserDialog open onOpenChange={vi.fn()} onSaved={vi.fn()} user={otherUser} />,
     );
 
     expect(screen.getByLabelText('Nome *')).toHaveValue('Diana Reis');
-    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('CONSULTA');
+    expect(screen.getByLabelText('Perfil de acesso')).toHaveValue('PADRAO');
   });
 
   it('should update the user with the changed role and active flag', async () => {
     const user = userEvent.setup();
     const { onSaved } = setup({ user: EXISTING_USER });
 
-    await user.selectOptions(screen.getByLabelText('Perfil de acesso'), 'CONSULTA');
+    await user.selectOptions(screen.getByLabelText('Perfil de acesso'), 'PADRAO');
     await user.click(screen.getByLabelText('Usuário ativo'));
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => {
       expect(updateMock).toHaveBeenCalledWith(
         'user-7',
-        { name: 'Bruno Lima', role: 'CONSULTA', isActive: false },
+        { name: 'Bruno Lima', role: 'PADRAO', isActive: false },
         TEST_TOKEN,
       );
     });

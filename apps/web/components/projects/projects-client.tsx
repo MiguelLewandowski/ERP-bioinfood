@@ -28,7 +28,7 @@ interface ProjectsClientProps {
 
 type ViewMode = 'grid' | 'table';
 
-const canCreate = (role: SystemRole) => role === 'ADMIN' || role === 'APROVA';
+const canCreate = (role: SystemRole) => role === 'ADMIN' || role === 'PADRAO';
 const STATUS_ORDER: ProjectStatus[] = [
   'PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED',
 ];

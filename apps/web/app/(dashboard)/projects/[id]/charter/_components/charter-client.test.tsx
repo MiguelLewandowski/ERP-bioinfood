@@ -119,10 +119,10 @@ describe('CharterClient — equipe do TAP', () => {
     });
   });
 
-  // GET /users é ADMIN/APROVA — quem não pode listar cai nos membros do projeto
-  // em vez de ver a seção vazia.
+  // GET /users exige ADMIN ou PADRAO — CLIENTE cai nos membros do projeto em vez
+  // de ver a seção vazia.
   it('should fall back to project members when the role cannot list users', async () => {
-    await setupRecursos({ sub: 'user-9', email: 'insere@bioinfood.com', role: 'INSERE' as SystemRole });
+    await setupRecursos({ sub: 'user-9', email: 'externo@cliente.com', role: 'CLIENTE' as SystemRole });
 
     expect(await screen.findByLabelText('Miguel')).toBeInTheDocument();
     expect(screen.getByLabelText('Marina')).toBeInTheDocument();

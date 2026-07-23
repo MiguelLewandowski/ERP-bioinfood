@@ -25,10 +25,8 @@ interface UsersClientProps {
 }
 
 const ROLE_LABELS: Record<UserDto['role'], string> = {
-  ADMIN: 'Admin',
-  APROVA: 'Aprova',
-  INSERE: 'Insere',
-  CONSULTA: 'Consulta',
+  ADMIN: 'Administrador',
+  PADRAO: 'Usuário padrão',
   CLIENTE: 'Cliente',
 };
 

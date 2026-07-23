@@ -48,26 +48,16 @@ describe('QuickAdd menu — RBAC', () => {
     createTaskMock.mockResolvedValue({ id: 'task-new' });
   });
 
+  // CLIENTE é externo: não cria nada, nem tarefa.
   it('should render nothing for a role that cannot create anything', () => {
-    setup('CONSULTA');
+    setup('CLIENTE');
 
     expect(screen.queryByRole('button', { name: /Novo/ })).not.toBeInTheDocument();
   });
 
-  it('should offer only the task entry to a writer role', async () => {
+  it('should offer task and project to the standard role but not the CRM entries', async () => {
     const user = userEvent.setup();
-    setup('INSERE');
-
-    await user.click(screen.getByRole('button', { name: /Novo/ }));
-
-    expect(await screen.findByRole('menuitem', { name: /Tarefa/ })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Projeto/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Empresa/ })).not.toBeInTheDocument();
-  });
-
-  it('should offer task and project to an approver but not the CRM entries', async () => {
-    const user = userEvent.setup();
-    setup('APROVA');
+    setup('PADRAO');
 
     await user.click(screen.getByRole('button', { name: /Novo/ }));
 

@@ -29,7 +29,7 @@ export default async function DashboardPage() {
 
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
-  const canCrm = ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'].includes(session.role);
+  const canCrm = ['ADMIN'].includes(session.role);
 
   const now = new Date();
   const todayIso = iso(now);

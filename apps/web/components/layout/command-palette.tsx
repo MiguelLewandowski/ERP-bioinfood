@@ -16,8 +16,8 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projetos', icon: FolderKanban },
   { href: '/activities', label: 'Atividades', icon: CalendarDays },
-  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN', 'APROVA', 'INSERE', 'CONSULTA'] },
-  { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN', 'APROVA'] },
+  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN'] },
+  { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
   { href: '/settings', label: 'Configurações', icon: Settings },
 ];
 

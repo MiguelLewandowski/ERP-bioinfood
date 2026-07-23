@@ -10,8 +10,8 @@ import {
   type TaskDependencyType,
 } from '@bioinfood/shared';
 
-export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'APROVA', 'INSERE'];
-export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'APROVA'];
+export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
+export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 
 export const isMilestoneId = (id: unknown) => String(id).startsWith('ms-');
 export const stripMs = (id: unknown) => String(id).slice(3);
