@@ -127,7 +127,8 @@ Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
 
 ## Segurança — decisões conscientes
 - **Falha fechada de config**: `ConfigModule` valida `JWT_SECRET`, `JWT_REFRESH_SECRET`, `DATABASE_URL` (Joi) no startup. App sem env crítica **não sobe** — nunca adicionar fallback literal de segredo (`?? 'secret'`).
-- **Token no client (tradeoff aceito)**: o access token é injetado no `AuthProvider` para o client chamar a API direto com `Bearer`; isso o torna legível pelo JS da página (o `httpOnly` do cookie não protege desse caminho). Aceito por ser app interno — não colocar dado sensível de cliente externo confiando só nisso. Detalhe em `docs/analise-seguranca.md` (S3).
+- **Token nunca no client (proxy BFF)**: o access token não chega ao navegador. As chamadas do client vão para `/api/proxy/[...path]` (mesma origem), que lê o cookie `httpOnly` no servidor e anexa o `Bearer` ao encaminhar para a API. O `AuthProvider` não recebe token — `useAuth().token` é `''` no browser e é ignorado pelo `api` client. Server Components (RSC) chamam a API direto com o token do cookie; **nunca** passar esse token como prop de Client Component (voltaria a vazar no payload RSC). Detalhe em `docs/analise-seguranca.md` (S3, resolvido).
+- **Sessão**: access token 15min, refresh 7d rotativo (uso único). Logout revoga o refresh no banco (`POST /auth/logout`), não só apaga o cookie. Reuso de um refresh já revogado é tratado como roubo → revoga todas as sessões do usuário e força login.
 - **Rate limit**: `@nestjs/throttler` global (120/min/IP); auth (`login`/`refresh`/`change-password`) com limite agressivo (5-10/min). Requer `trust proxy` no `main.ts` para ver o IP real atrás do Railway.
 
 ## Variáveis de ambiente

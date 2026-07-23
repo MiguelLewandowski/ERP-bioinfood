@@ -13,7 +13,7 @@
 > - **I2** ✅ `Math.min` nas listagens com take do cliente (crm-activities, interactions).
 > - **I3** ✅ `helmet` + `x-powered-by` off + body limit 1mb. **Verificado:** headers HSTS/nosniff/SAMEORIGIN presentes, sem `X-Powered-By`.
 > - **I4** ✅ `AllExceptionsFilter` global (shape fixo, não vaza stack).
-> - **S3** ✅ tradeoff do token documentado em `auth-provider.tsx` + `CLAUDE.md`.
+> - **S3** ✅ **fechado de verdade em 2026-07-23**: token não circula mais no client (proxy BFF `/api/proxy`). Também: logout revoga o refresh no banco, e refresh rotativo detecta reuso (revoga a família toda).
 > - **SC1** ✅ `pnpm.overrides` fixou multer/tar/file-type/postcss patched — audit caiu de **17 (10 high) → 2 moderate** (só `@nestjs/core` e `qs` transitivos, ver SC2).
 > - **A9** ✅ imports mortos (`Reflector`, `JwtModule`) removidos como efeito colateral.
 >
@@ -75,10 +75,10 @@ Nenhum `@nestjs/throttler` no projeto (`grep` = 0). `login.use-case.ts` não tem
 Zero `ExceptionFilter`/`APP_FILTER` no projeto. Erros não tratados viram 500 sem shape padronizado; risco de vazar detalhe interno em produção se `NODE_ENV` não estiver setado.
 **Correção:** `AllExceptionsFilter` global com shape fixo `{message, statusCode}`. *(Cross-ref: `analise-backend.md` A8.)*
 
-**S3 · [Segredos] Access token exposto ao JS do client — tradeoff não documentado**
-`apps/web/app/(dashboard)/layout.tsx:15-18` injeta o token no `<AuthProvider token>`; ele viaja no payload RSC e é legível por qualquer script (o `httpOnly` do cookie fica anulado na prática). É tradeoff deliberado (client chama a API `:3001` com Bearer), mas **nada no código ou no CLAUDE.md registra isso** — grep por "tradeoff/XSS/httpOnly" no `auth-provider.tsx` = 0.
-**Cenário:** um XSS neste app rouba a sessão pelo contexto/DOM, não precisa do cookie. Aceitável para app interno, mas invisível para quem for mexer.
-**Correção:** documentar como decisão consciente (comentário + CLAUDE.md). *(Cross-ref: `analise-frontend.md` A2.)*
+**S3 · [Segredos] Access token exposto ao JS do client — RESOLVIDO em 2026-07-23**
+> **Correção aplicada (não é mais tradeoff):** o token deixou de circular no navegador. As chamadas do client passam por um proxy BFF de mesma origem (`apps/web/app/api/proxy/[...path]/route.ts`) que lê o cookie `httpOnly` no servidor e anexa o `Bearer` — o `AuthProvider` não recebe mais o token (`layout.tsx`), então ele não aparece no payload RSC. Verificado renderizado: grep do token no HTML de `/users`, `/wbs`, `/roadmap`, `/settings`, `/gantt` = 0 ocorrências. Um XSS ainda consegue *fazer* requisições (o cookie viaja sozinho), mas não consegue mais **extrair** um token para uso fora do navegador ou depois — que era o pior do S3.
+>
+> Histórico do achado: `layout.tsx` injetava o token no `<AuthProvider token>`, viajando no RSC e legível por qualquer script. Era tradeoff deliberado (client chamava a API `:3001` com Bearer) mas não documentado.
 
 ### 🔵 Baixo
 
