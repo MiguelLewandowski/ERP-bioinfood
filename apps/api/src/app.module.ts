@@ -28,6 +28,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { ProjectAccessGuard } from './common/guards/project-access.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuditModule } from './common/audit/audit.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { AuditModule } from './common/audit/audit.module';
     CrmActivitiesModule,
     SearchModule,
   ],
+  controllers: [HealthController],
   providers: [
     // ThrottlerGuard primeiro: rejeita excesso antes de gastar trabalho de auth/DB.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
