@@ -1,14 +1,19 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSessionState } from '@/lib/auth';
 import Sidebar from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { BreadcrumbProvider } from '@/components/layout/breadcrumb-context';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ConfirmProvider } from '@/components/providers/confirm-provider';
+import { SessionRefreshGate } from '@/components/providers/session-refresh-gate';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSession();
-  if (!session) redirect('/');
+  const state = await getSessionState();
+  // Sem sessão nenhuma → login. Access token expirado mas refresh válido →
+  // renova no cliente e re-renderiza, em vez de derrubar pro login.
+  if (state.status === 'anonymous') redirect('/');
+  if (state.status === 'refreshable') return <SessionRefreshGate />;
+  const { session } = state;
 
   // O access token NÃO é injetado aqui de propósito: no navegador as chamadas
   // vão por /api/proxy, que lê o cookie httpOnly no servidor. Passar o token

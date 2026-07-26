@@ -45,6 +45,16 @@ function refreshOnce(): Promise<boolean> {
   return inFlightRefresh;
 }
 
+/**
+ * Renova a sessão pelo mesmo caminho single-flight do retry de 401. Exposto para
+ * o gate de sessão (navegação RSC) renovar sem abrir uma segunda corrida — dois
+ * refresh concorrentes com o token rotativo de uso único disparam a detecção de
+ * reuso e derrubam todas as sessões.
+ */
+export function refreshSession(): Promise<boolean> {
+  return refreshOnce();
+}
+
 async function request<T>(
   path: string,
   token?: string,
