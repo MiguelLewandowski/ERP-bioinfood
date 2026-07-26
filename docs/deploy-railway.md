@@ -8,6 +8,11 @@ de teste e a limpeza dos dados de teste no fim.
 > URL alcança a tela de login. Tudo que estiver no banco está exposto a quem tiver
 > uma senha válida — não coloque dado real de cliente aqui sem decidir isso
 > conscientemente.
+>
+> **E o repositório é público.** Os e-mails dos usuários semeados e as senhas
+> padrão estão no código, legíveis por qualquer um — inclusive no histórico do
+> git, que não some ao trocar o valor. Nenhum ambiente exposto pode subir com
+> senha padrão: é credencial publicada, não senha fraca. Ver §6.
 
 ---
 
@@ -218,20 +223,32 @@ DATABASE_URL="<DATABASE_PUBLIC_URL>" \
 SEED_ADMIN_PASSWORD="<senha forte>" \
 SEED_LIDER_PASSWORD="<senha forte>" \
 SEED_CLIENTE_PASSWORD="<senha forte>" \
+SEED_DEMO_PASSWORD="<senha forte>" \
 pnpm seed
 ```
 
+São **quatro** senhas, não três. `SEED_DEMO_PASSWORD` cobre os cinco integrantes
+da equipe do projeto de demonstração — que são `PADRAO`, papel que vê e edita
+todos os projetos. Esquecer essa é o mesmo que deixar cinco contas internas
+abertas.
+
 O seed **aborta** se detectar banco remoto sem essas variáveis. Isso é intencional:
-os defaults `admin123`/`lider123`/`cliente123` só valem contra `localhost`, e num
-deploy público seriam uma porta destrancada.
+os defaults (`admin123` e afins) só valem contra `localhost`. **Este repositório é
+público**, então os defaults e os e-mails dos usuários semeados são conhecidos por
+qualquer pessoa — num deploy exposto eles seriam credencial publicada, não senha
+fraca.
 
 O que o seed cria: taxonomias e funil do CRM, três usuários (ADMIN / PADRAO /
-CLIENTE), duas organizações, dois projetos e um projeto de demonstração completo
-(TAP, EAP, 45 tarefas, roadmap, riscos, partes interessadas).
+CLIENTE), a equipe do projeto demo (5 `PADRAO`), organizações, projetos, um
+projeto de demonstração completo (TAP, EAP, 45 tarefas, roadmap, riscos, partes
+interessadas) e os vínculos pessoa↔empresa que alimentam a coluna Empresa da
+tabela de Pessoas.
 
 > **Rodar o seed duas vezes não troca a senha de ninguém.** Os `upsert` usam
 > `update: {}`, então usuário existente fica como está. Para trocar senha, use a
-> tela de usuários ou limpe os dados antes (§9).
+> tela de usuários ou limpe os dados antes (§9). Consequência prática: se um
+> ambiente já foi semeado com as senhas padrão, **re-semear não fecha o buraco** —
+> só o reset dos dados fecha.
 
 ---
 
@@ -265,6 +282,16 @@ raiz (fixado em `22`) é o que resolve — e só chega ao builder porque
 aplica nada: fica tudo numa fila até você clicar em **Deploy** no topo do
 projeto. Serviço que aparece na lista mas responde `ServiceInstance not found`
 na CLI está nesse estado.
+
+**`railway redeploy` reconstrói o MESMO commit.** Ele não busca código novo — se
+o build falhou por um bug já corrigido no `main`, redeployar repete o erro
+idêntico e parece que a correção não funcionou. Para subir código novo: `git
+push` (com watch paths vazios) ou o botão de deploy da UI.
+
+**Segredo não entra em doc, e este repositório é público.** URLs dos serviços,
+host do banco e afins ficam fora daqui de propósito — busque com
+`railway variables list --service <nome> --kv` ou `railway status`. O mesmo vale
+para dump de banco (§10): nunca no repo.
 
 **Migration destrutiva não tem volta neste ambiente.** Não há backup automático no
 Hobby. Antes de qualquer migration que dropa coluna, tire um dump (§10).
@@ -319,9 +346,10 @@ tabelas do schema `public`, menos `_prisma_migrations`. As duas travas
 para a DATABASE_URL errada é irreversível — e a errada, aqui, seria a de produção
 no futuro.
 
-O host é a parte `host:porta` da URL. Se a URL for
-`postgresql://postgres:xxx@yamabiko.proxy.rlwy.net:29471/railway`, então
-`RESET_DB_HOST_CONFIRM="yamabiko.proxy.rlwy.net:29471"`.
+O host é a parte `host:porta` da URL. No formato
+`postgresql://postgres:<senha>@<host>:<porta>/railway`, o que vai em
+`RESET_DB_HOST_CONFIRM` é exatamente `<host>:<porta>` — pegue o valor real com
+`railway variables list --service Postgres --kv`, ele não fica documentado aqui.
 
 Para repovoar depois: rode o seed de novo (§6).
 
