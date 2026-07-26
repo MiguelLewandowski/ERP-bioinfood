@@ -32,8 +32,11 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <div className="flex items-start gap-2 pr-6">
+      {/* Coluna flex: o corpo rola e o rodapé com os botões fica sempre
+          visível, mesmo em notebooks baixos com descrição/predecessoras longas. */}
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-4 pt-6">
+        <div className="flex items-start gap-2 pr-8">
           <span
             className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: priority.color }}
@@ -42,7 +45,7 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
           <DialogTitle className="leading-snug">{activity.title}</DialogTitle>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
             className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
             style={{ backgroundColor: status.bg, color: status.color }}
@@ -65,7 +68,7 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
         </div>
 
         {activity.description && (
-          <p className="mb-4 whitespace-pre-line text-sm text-muted-foreground">{activity.description}</p>
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{activity.description}</p>
         )}
 
         <dl className="space-y-2.5 text-sm">
@@ -101,8 +104,9 @@ export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
             </div>
           )}
         </dl>
+        </div>
 
-        <div className="mt-2 flex justify-end gap-3">
+        <div className="flex shrink-0 flex-col-reverse justify-end gap-2 border-t border-border px-6 py-4 sm:flex-row sm:gap-3">
           <Button variant="outline" onClick={onClose}>Fechar</Button>
           <Button onClick={openInProject}>
             Abrir no projeto <ArrowUpRight size={15} />
