@@ -67,12 +67,14 @@ detecção de reuso. É a parte mais fácil de quebrar sem perceber.
       logue com ele: tem que ser empurrado para `/change-password` e não conseguir
       escapar navegando para outra rota.
 
-> **Ponto de atenção conhecido.** Existem dois caminhos de renovação: o
-> `apps/web/proxy.ts` (middleware) e o `SessionRefreshGate`. Os dois usam o mesmo
-> refresh rotativo de uso único. Se durante os testes uma sessão cair sozinha sem
-> motivo aparente, é aqui que se olha primeiro — uma corrida entre os dois
-> dispararia a detecção de reuso e derrubaria todas as sessões do usuário.
-> Anote como reproduziu.
+> **Resolvido em 2026-07-26.** O risco previsto aqui se confirmou em produção: o
+> log da API mostrou dois `POST /auth/refresh` no mesmo segundo, ~15min após o
+> login, e a detecção de reuso derrubava todas as sessões. Causa: o middleware
+> renovava no servidor em paralelo com o `refreshOnce()` do navegador, que não o
+> enxerga. Hoje existe um caminho só, e a dedupe por token no `/api/auth/refresh`
+> cobre também várias abas. Se voltar a acontecer, procure por
+> `Reuso de refresh token detectado` em `railway logs --service api` e verifique
+> se o serviço `web` passou a rodar com mais de uma réplica.
 
 ---
 

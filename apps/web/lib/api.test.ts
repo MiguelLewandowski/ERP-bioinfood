@@ -132,6 +132,26 @@ describe('api — renovação de sessão', () => {
     expect(fetchMock.mock.calls.filter(isRefresh)).toHaveLength(1);
   });
 
+  // Derrubar a sessão porque a API piscou é perda de trabalho sem motivo: os
+  // cookies continuam válidos, só não deu para falar com o servidor.
+  it('should keep the session when the refresh fails from unavailability', async () => {
+    fetchMock
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => '' } as unknown as Response);
+
+    await expect(api.get('/projects/p1')).rejects.toThrow(/indisponível/i);
+    expect(window.location.href).toBe('');
+  });
+
+  it('should send the user to the login screen only when the refresh is rejected', async () => {
+    fetchMock
+      .mockResolvedValueOnce(unauthorized())
+      .mockResolvedValueOnce(unauthorized());
+
+    await expect(api.get('/projects/p1')).rejects.toThrow(ApiError);
+    expect(window.location.href).toBe('/');
+  });
+
   it('should surface the validation messages the API returned', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ message: ['Título é obrigatório'] }, 400));
 

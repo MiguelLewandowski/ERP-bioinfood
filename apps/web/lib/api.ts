@@ -26,21 +26,30 @@ function baseUrl(): string {
  * incômodo: o segundo uso do mesmo jti é tratado como roubo e derruba TODAS as
  * sessões do usuário. O single-flight é o que impede o falso positivo.
  */
-let inFlightRefresh: Promise<boolean> | null = null;
+/**
+ * `unavailable` existe para não confundir "a API caiu" com "sua sessão acabou".
+ * Tratar os dois igual mandava o usuário para o login por indisponibilidade,
+ * perdendo o que ele estava fazendo, com a sessão perfeitamente válida.
+ */
+export type RefreshOutcome = 'ok' | 'unauthorized' | 'unavailable';
 
-async function doRefresh(): Promise<boolean> {
+let inFlightRefresh: Promise<RefreshOutcome> | null = null;
+
+async function doRefresh(): Promise<RefreshOutcome> {
   try {
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
       credentials: 'include',
     });
-    return res.ok;
+    if (res.ok) return 'ok';
+    return res.status === 401 ? 'unauthorized' : 'unavailable';
   } catch {
-    return false;
+    // Rede fora: a sessão pode estar ótima, só não deu para falar com o servidor.
+    return 'unavailable';
   }
 }
 
-function refreshOnce(): Promise<boolean> {
+function refreshOnce(): Promise<RefreshOutcome> {
   inFlightRefresh ??= doRefresh().finally(() => { inFlightRefresh = null; });
   return inFlightRefresh;
 }
@@ -51,7 +60,7 @@ function refreshOnce(): Promise<boolean> {
  * refresh concorrentes com o token rotativo de uso único disparam a detecção de
  * reuso e derrubam todas as sessões.
  */
-export function refreshSession(): Promise<boolean> {
+export function refreshSession(): Promise<RefreshOutcome> {
   return refreshOnce();
 }
 
@@ -78,10 +87,14 @@ async function request<T>(
   // No servidor não há o que renovar: o proxy de navegação já trocou os cookies
   // antes do render, e daqui não sai cookie nenhum.
   if (res.status === 401 && !retried && browser) {
-    const refreshed = await refreshOnce();
-    if (!refreshed) {
+    const outcome = await refreshOnce();
+    if (outcome === 'unauthorized') {
       window.location.href = '/';
       throw new ApiError(['Sessão expirada'], 401);
+    }
+    if (outcome === 'unavailable') {
+      // Não derruba a sessão por indisponibilidade — o usuário tenta de novo.
+      throw new ApiError(['Serviço indisponível. Tente novamente.'], 503);
     }
     // Refaz a chamada: o cookie já foi trocado, então o proxy pega o token novo.
     return request<T>(path, token, options, true);
