@@ -29,7 +29,7 @@ export function PessoasTab({ initialContacts, sources, canEdit }: PessoasTabProp
       c.name.toLowerCase().includes(q)
       || (c.email?.toLowerCase().includes(q) ?? false)
       || (c.whatsapp?.toLowerCase().includes(q) ?? false)
-      || c.organizations.some((o) => o.name.toLowerCase().includes(q))
+      || (c.organizations?.some((o) => o.name.toLowerCase().includes(q)) ?? false)
     ));
   }, [contacts, search]);
 
@@ -102,12 +102,14 @@ export function PessoasTab({ initialContacts, sources, canEdit }: PessoasTabProp
                 <TableRow key={c.id}>
                   <TableCell>
                     <span className="font-medium text-foreground">{c.name}</span>
-                    {c.organizations[0]?.jobTitle && (
+                    {c.organizations?.[0]?.jobTitle && (
                       <span className="block text-xs text-muted-foreground">{c.organizations[0].jobTitle}</span>
                     )}
                   </TableCell>
+                  {/* `?.` porque durante um deploy o web pode subir antes da API
+                      e receber a listagem antiga, sem o campo. */}
                   <TableCell className="text-muted-foreground">
-                    {c.organizations.length === 0 ? '—' : (
+                    {!c.organizations?.length ? '—' : (
                       <>
                         {c.organizations[0].name}
                         {c.organizations.length > 1 && (

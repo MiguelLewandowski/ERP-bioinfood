@@ -241,26 +241,37 @@ const SCORE: Record<string, number> = { VERY_LOW: 1, LOW: 2, MEDIUM: 3, HIGH: 4,
 
 // ── Partes interessadas ──────────────────────────────────────────────────────
 
+// `orgKey` e `jobTitle` alimentam o vínculo pessoa↔empresa, que é o que a coluna
+// Empresa da tabela de Pessoas mostra. Sem eles as pessoas nascem soltas, e a
+// coluna fica vazia mesmo com o banco populado. Luís e Patrícia ficam de fora de
+// propósito: são externos sem empresa cadastrada, e exercitam o caso do traço.
 const STAKEHOLDERS: Array<{
   contactKey: string; name: string; email: string; phone?: string;
+  orgKey?: string; jobTitle?: string;
   type: StakeholderType; roleNote: string; influence: RiskImpact; interest: RiskImpact;
 }> = [
   { contactKey: 'ct-sponsor', name: 'Eduardo Villela', email: 'eduardo.villela@nutrivale.com.br', phone: '(11) 3555-2100',
+    orgKey: 'org-nutrivale', jobTitle: 'Diretor de Inovação',
     type: StakeholderType.SPONSOR, roleNote: 'Diretor de Inovação da Nutrivale — patrocinador e aprovador do orçamento',
     influence: RiskImpact.VERY_HIGH, interest: RiskImpact.VERY_HIGH },
   { contactKey: 'ct-marina', name: 'Marina Alencar', email: 'marina@bioinfood.com', phone: '(19) 99812-4400',
+    orgKey: 'org-bioinfood-interno', jobTitle: 'Coordenadora de projetos',
     type: StakeholderType.OWNER, roleNote: 'Coordenadora do projeto pela Bioinfood',
     influence: RiskImpact.HIGH, interest: RiskImpact.VERY_HIGH },
   { contactKey: 'ct-rafael', name: 'Rafael Bittencourt', email: 'rafael@bioinfood.com',
+    orgKey: 'org-bioinfood-interno', jobTitle: 'Pesquisador',
     type: StakeholderType.TEAM_MEMBER, roleNote: 'Pesquisador responsável pela rota tecnológica',
     influence: RiskImpact.MEDIUM, interest: RiskImpact.HIGH },
   { contactKey: 'ct-juliana', name: 'Juliana Prado', email: 'juliana@bioinfood.com',
+    orgKey: 'org-bioinfood-interno', jobTitle: 'Analista de laboratório',
     type: StakeholderType.TEAM_MEMBER, roleNote: 'Analista de laboratório — caracterização e lotes piloto',
     influence: RiskImpact.LOW, interest: RiskImpact.HIGH },
   { contactKey: 'ct-thiago', name: 'Thiago Nakamura', email: 'thiago@bioinfood.com',
+    orgKey: 'org-bioinfood-interno', jobTitle: 'Engenheiro de processos',
     type: StakeholderType.TEAM_MEMBER, roleNote: 'Engenheiro de processos — escalonamento piloto',
     influence: RiskImpact.MEDIUM, interest: RiskImpact.HIGH },
   { contactKey: 'ct-planta', name: 'Sandra Okamoto', email: 'sandra.okamoto@nutrivale.com.br', phone: '(11) 3555-2144',
+    orgKey: 'org-nutrivale', jobTitle: 'Gerente da planta industrial',
     type: StakeholderType.STAKEHOLDER, roleNote: 'Gerente da planta industrial que receberá a transferência',
     influence: RiskImpact.HIGH, interest: RiskImpact.MEDIUM },
   { contactKey: 'ct-regulatorio', name: 'Luís Fontana', email: 'luis@fontanaregulatorio.com.br',
@@ -365,6 +376,20 @@ export async function seedDemoProject(
       customerProfile: { create: { stage: CustomerStage.ACTIVE, salesRepId: liderId } },
     },
   });
+
+  // ── Vínculos pessoa ↔ empresa ──
+  // Depois da Nutrivale existir, senão a FK quebra. Só liga quem tem empresa
+  // cadastrada: consultor externo e agência de fomento seguem sem vínculo.
+  for (const person of STAKEHOLDERS) {
+    if (!person.orgKey) continue;
+    const org = await prisma.organization.findUnique({ where: { id: person.orgKey } });
+    if (!org) continue;
+    await prisma.contactOrganizationLink.upsert({
+      where: { contactId_orgId: { contactId: person.contactKey, orgId: person.orgKey } },
+      update: { jobTitle: person.jobTitle ?? null },
+      create: { contactId: person.contactKey, orgId: person.orgKey, jobTitle: person.jobTitle ?? null },
+    });
+  }
 
   // ── Projeto ──
   const project = await prisma.project.create({

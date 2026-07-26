@@ -183,6 +183,14 @@ async function main() {
     },
   });
 
+  // Vincula a pessoa do portal à empresa dela — sem isso ela aparece sem empresa
+  // na tabela de Pessoas, que é justamente a informação mais útil ali.
+  await prisma.contactOrganizationLink.upsert({
+    where: { contactId_orgId: { contactId: clienteContact.id, orgId: ambev.id } },
+    update: { jobTitle: 'Contato do projeto' },
+    create: { contactId: clienteContact.id, orgId: ambev.id, jobTitle: 'Contato do projeto' },
+  });
+
   const projeto1 = await prisma.project.upsert({
     where: { id: 'proj-001' },
     update: {},
