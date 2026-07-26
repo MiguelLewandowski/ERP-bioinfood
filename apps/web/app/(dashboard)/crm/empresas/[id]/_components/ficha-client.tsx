@@ -135,14 +135,7 @@ export function FichaClient(props: FichaClientProps) {
       </div>
 
       {tab === 'dados' && <DadosTab {...props} />}
-      {tab === 'contatos' && (
-        <ContatosTab
-          organizationId={props.organizationId}
-          initialContacts={contacts}
-          sources={props.sources}
-          canEdit={props.canEdit}
-        />
-      )}
+      {tab === 'contatos' && <ContatosTab contacts={contacts} />}
       {tab === 'timeline' && (
         <TimelineTab
           organizationId={props.organizationId}
