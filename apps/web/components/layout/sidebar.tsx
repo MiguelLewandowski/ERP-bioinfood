@@ -57,7 +57,7 @@ export default function Sidebar({ session }: SidebarProps) {
           <Image
             src="/logo/logotipo-vertical.png"
             alt="Bioinfood"
-            width={1801}
+            width={1800}
             height={1968}
             priority
             className="h-14 w-auto"
