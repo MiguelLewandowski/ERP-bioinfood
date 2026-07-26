@@ -1,3 +1,14 @@
+// ── Paginação ────────────────────────────────────────────────────────────────
+
+// Contrato único de listagem paginada (page baseado em 1). Todo endpoint que
+// pagina de verdade (skip/take + count) devolve este shape.
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // ── Enums ────────────────────────────────────────────────────────────────────
 
 /**

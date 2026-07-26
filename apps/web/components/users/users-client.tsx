@@ -12,6 +12,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Pagination } from '@/components/ui/pagination';
 import {
   TableContainer, Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
@@ -22,6 +23,9 @@ import UserProjectAccessDialog from './user-project-access-dialog';
 
 interface UsersClientProps {
   users: UserDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 const ROLE_LABELS: Record<UserDto['role'], string> = {
@@ -30,9 +34,13 @@ const ROLE_LABELS: Record<UserDto['role'], string> = {
   CLIENTE: 'Cliente',
 };
 
-export default function UsersClient({ users }: UsersClientProps) {
+export default function UsersClient({ users, total, page, limit }: UsersClientProps) {
   const { session, token } = useAuth();
   const router = useRouter();
+
+  function goToPage(next: number) {
+    router.push(`/users?page=${next}`);
+  }
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDto | null>(null);
   const [resetTarget, setResetTarget] = useState<UserDto | null>(null);
@@ -148,6 +156,10 @@ export default function UsersClient({ users }: UsersClientProps) {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {total > 0 && (
+        <Pagination page={page} limit={limit} total={total} onPageChange={goToPage} />
       )}
 
       <UserDialog open={dialogOpen} onOpenChange={setDialogOpen} user={editingUser} onSaved={onSaved} />

@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
+    "@bioinfood/shared": "workspace:*",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^10.0.0",

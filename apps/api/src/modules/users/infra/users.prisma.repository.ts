@@ -18,13 +18,13 @@ const USER_SELECT = {
 export class UsersPrismaRepository implements IUserRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(page: number, limit: number): Promise<{ users: UserView[]; total: number }> {
+  async findAll(page: number, limit: number): Promise<{ items: UserView[]; total: number }> {
     const skip = (page - 1) * limit;
-    const [users, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.prisma.user.findMany({ skip, take: limit, select: USER_SELECT, orderBy: { createdAt: 'desc' } }),
       this.prisma.user.count(),
     ]);
-    return { users, total };
+    return { items, total };
   }
 
   async findById(id: string): Promise<UserView | null> {

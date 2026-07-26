@@ -35,6 +35,7 @@ import type {
   PopDto,
   PopDetailDto,
   PopCategoryDto,
+  PaginatedResult,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -468,8 +469,15 @@ export const crmActivitiesApi = {
 // ── Usuários (leitura: ADMIN/PADRAO · escrita: ADMIN) ────────────────────────────────────────────────────
 
 export const usersApi = {
+  // Lista "achatada" (sem paginação) — usada pelos seletores de pessoa
+  // (equipe do TAP, responsável de tarefa, atribuição do CRM). O teto de 100
+  // cobre qualquer headcount realista da empresa; a tabela de Usuários usa
+  // listPage() abaixo, com paginação de verdade.
   list: (token: string) =>
-    api.get<{ users: UserDto[] }>('/users?limit=100', token).then((d) => d.users ?? []),
+    api.get<PaginatedResult<UserDto>>('/users?limit=100', token).then((d) => d.items ?? []),
+
+  listPage: (params: { page: number; limit: number }, token: string) =>
+    api.get<PaginatedResult<UserDto>>(`/users?page=${params.page}&limit=${params.limit}`, token),
 
   create: (data: Record<string, unknown>, token: string) =>
     api.post<UserDto>('/users', data, token),
