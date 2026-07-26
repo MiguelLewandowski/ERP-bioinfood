@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  organizationSchema, type OrganizationDto, type OrganizationFormData, type TaxonomyDto, type UserDto,
+  organizationSchema, type OrganizationDto, type OrganizationFormData, type TaxonomyDto,
 } from '@bioinfood/shared';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -36,11 +36,10 @@ interface ClienteDialogProps {
   sources: TaxonomyDto[];
   categories: TaxonomyDto[];
   productServices: TaxonomyDto[];
-  users: UserDto[];
 }
 
 export default function ClienteDialog({
-  open, onOpenChange, onCreated, sectors, sources, categories, productServices, users,
+  open, onOpenChange, onCreated, sectors, sources, categories, productServices,
 }: ClienteDialogProps) {
   const { token } = useAuth();
   const [enriching, setEnriching] = useState(false);
@@ -85,7 +84,7 @@ export default function ClienteDialog({
 
   async function onSubmit(data: FormData) {
     try {
-      const { salesRepId, sectorId, sourceId, categoryId, ...orgData } = data;
+      const { sectorId, sourceId, categoryId, ...orgData } = data;
       const organization = await organizationsApi.create({
         ...orgData,
         sectorId: sectorId || undefined,
@@ -93,19 +92,15 @@ export default function ClienteDialog({
         categoryId: categoryId || undefined,
       }, token);
 
-      // Responsável e produtos/serviço dependem da empresa já existir — feitos
-      // em seguida, best-effort (a empresa já foi criada com sucesso).
-      const followUps: Promise<unknown>[] = [];
-      if (salesRepId) {
-        followUps.push(organizationsApi.saveCustomerProfile(organization.id, { salesRepId }, token));
-      }
-      for (const productServiceId of selectedProductServices) {
-        followUps.push(organizationsApi.addProductService(organization.id, productServiceId, token));
-      }
+      // Produtos/serviço dependem da empresa já existir — feitos em seguida,
+      // best-effort (a empresa já foi criada com sucesso).
+      const followUps = selectedProductServices.map(
+        (productServiceId) => organizationsApi.addProductService(organization.id, productServiceId, token),
+      );
       if (followUps.length > 0) {
         const results = await Promise.allSettled(followUps);
         if (results.some((r) => r.status === 'rejected')) {
-          toast.warning('Cliente criado, mas alguns dados (responsável/produtos) não foram salvos — ajuste na ficha.');
+          toast.warning('Cliente criado, mas alguns produtos não foram vinculados — ajuste na ficha.');
         }
       }
 
@@ -180,14 +175,6 @@ export default function ClienteDialog({
           <div>
             <Label htmlFor="cliente-trade-name">Nome</Label>
             <Input id="cliente-trade-name" {...register('tradeName')} placeholder="Como o cliente é conhecido" />
-          </div>
-
-          <div>
-            <Label htmlFor="cliente-sales-rep">Responsável</Label>
-            <Select id="cliente-sales-rep" {...register('salesRepId')}>
-              <option value="">—</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </Select>
           </div>
 
           <div>

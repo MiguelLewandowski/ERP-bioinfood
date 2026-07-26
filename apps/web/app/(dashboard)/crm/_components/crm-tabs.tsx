@@ -102,7 +102,6 @@ export function CrmTabs(props: CrmTabsProps) {
             sources={props.sources}
             categories={props.categories}
             productServices={props.productServices}
-            users={props.users}
           />
         )}
         {tab === 'pessoas' && (

@@ -6,16 +6,14 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Save, Plus, X } from 'lucide-react';
 import type {
-  OrganizationDetailDto, TaxonomyDto, OrgAddressDto, PartyRoleType, UserDto,
+  OrganizationDetailDto, TaxonomyDto, PartyRoleType,
 } from '@bioinfood/shared';
 import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { MaskedInput } from '@/components/ui/masked-input';
-import {
-  maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput, maskPhone, maskDocument, maskCEP, maskCNAE,
-} from '@/lib/masks';
+import { maskDocument, maskCNAE } from '@/lib/masks';
 
 const ROLE_LABELS: Record<PartyRoleType, string> = {
   CUSTOMER: 'Cliente',
@@ -25,13 +23,6 @@ const ROLE_LABELS: Record<PartyRoleType, string> = {
   FUNDING_AGENCY: 'Agência de fomento',
   RESEARCH_INSTITUTION: 'Instituição de pesquisa',
 };
-
-const STAGE_OPTIONS = [
-  { value: 'PROSPECT', label: 'Prospect' },
-  { value: 'ACTIVE', label: 'Ativo' },
-  { value: 'INACTIVE', label: 'Inativo' },
-  { value: 'VIP', label: 'VIP' },
-];
 
 const inputCls =
   'w-full text-sm px-3 py-2.5 border border-border rounded-lg focus:border-ring focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed';
@@ -43,11 +34,12 @@ interface DadosTabProps {
   sources: TaxonomyDto[];
   categories: TaxonomyDto[];
   productServices: TaxonomyDto[];
-  users: UserDto[];
   canEdit: boolean;
   canManageRoles: boolean;
 }
 
+// Empresa não guarda contato próprio: quem tem e-mail e telefone são as pessoas
+// vinculadas, na aba Contatos. As colunas continuam no banco, sem uso pela tela.
 interface FormValues {
   legalName: string;
   tradeName: string;
@@ -60,22 +52,12 @@ interface FormValues {
   cnae: string;
   website: string;
   notes: string;
-  email: string;
-  phone: string;
-  mobile: string;
-  whatsapp: string;
-  fax: string;
-  ramal: string;
-  facebook: string;
-  twitter: string;
   linkedin: string;
-  skype: string;
-  instagram: string;
 }
 
 export function DadosTab(props: DadosTabProps) {
   const {
-    organizationId, organization, sectors, sources, categories, productServices, users, canEdit, canManageRoles,
+    organizationId, organization, sectors, sources, categories, productServices, canEdit, canManageRoles,
   } = props;
   const { token } = useAuth();
   const router = useRouter();
@@ -94,17 +76,7 @@ export function DadosTab(props: DadosTabProps) {
       cnae: organization.cnae ?? '',
       website: organization.website ?? '',
       notes: organization.notes ?? '',
-      email: organization.email ?? '',
-      phone: organization.phone ?? '',
-      mobile: organization.mobile ?? '',
-      whatsapp: organization.whatsapp ?? '',
-      fax: organization.fax ?? '',
-      ramal: organization.ramal ?? '',
-      facebook: organization.facebook ?? '',
-      twitter: organization.twitter ?? '',
       linkedin: organization.linkedin ?? '',
-      skype: organization.skype ?? '',
-      instagram: organization.instagram ?? '',
     },
   });
 
@@ -194,9 +166,14 @@ export function DadosTab(props: DadosTabProps) {
             </Field>
           </div>
 
-          <Field label="Website">
-            <input {...register('website')} disabled={!canEdit} placeholder="https://…" className={inputCls} />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Website">
+              <input {...register('website')} disabled={!canEdit} placeholder="https://…" className={inputCls} />
+            </Field>
+            <Field label="LinkedIn">
+              <input {...register('linkedin')} disabled={!canEdit} className={inputCls} />
+            </Field>
+          </div>
           <Field label="Descrição">
             <textarea {...register('notes')} disabled={!canEdit} rows={3} className={inputCls} />
           </Field>
@@ -206,57 +183,6 @@ export function DadosTab(props: DadosTabProps) {
               Situação cadastral (Receita): <strong>{organization.registrationStatus}</strong>
             </p>
           )}
-        </section>
-
-        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Contato</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="E-mail">
-              <input {...register('email')} disabled={!canEdit} className={inputCls} />
-            </Field>
-            <Field label="Telefone">
-              <MaskedInput format={maskPhone} {...register('phone')} disabled={!canEdit} className={inputCls} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Celular">
-              <MaskedInput format={maskPhone} {...register('mobile')} disabled={!canEdit} className={inputCls} />
-            </Field>
-            <Field label="WhatsApp">
-              <MaskedInput format={maskPhone} {...register('whatsapp')} disabled={!canEdit} className={inputCls} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fax">
-              <MaskedInput format={maskPhone} {...register('fax')} disabled={!canEdit} className={inputCls} />
-            </Field>
-            <Field label="Ramal">
-              <input {...register('ramal')} disabled={!canEdit} className={inputCls} />
-            </Field>
-          </div>
-        </section>
-
-        <section className="bg-card rounded-xl border border-border p-5 space-y-4">
-          <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Redes sociais</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="LinkedIn">
-              <input {...register('linkedin')} disabled={!canEdit} className={inputCls} />
-            </Field>
-            <Field label="Instagram">
-              <input {...register('instagram')} disabled={!canEdit} className={inputCls} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Facebook">
-              <input {...register('facebook')} disabled={!canEdit} className={inputCls} />
-            </Field>
-            <Field label="Twitter">
-              <input {...register('twitter')} disabled={!canEdit} className={inputCls} />
-            </Field>
-          </div>
-          <Field label="Skype">
-            <input {...register('skype')} disabled={!canEdit} className={inputCls} />
-          </Field>
 
           {canEdit && (
             <div className="flex justify-end">
@@ -274,23 +200,10 @@ export function DadosTab(props: DadosTabProps) {
         canManage={canManageRoles}
       />
 
-      <CustomerProfileSection
-        organizationId={organizationId}
-        profile={organization.customerProfile}
-        users={users}
-        canEdit={canEdit}
-      />
-
       <ProductServicesSection
         organizationId={organizationId}
         options={productServices}
         selected={organization.productServices}
-        canEdit={canEdit}
-      />
-
-      <AddressesSection
-        organizationId={organizationId}
-        addresses={organization.addresses}
         canEdit={canEdit}
       />
     </div>
@@ -377,79 +290,6 @@ function RolesSection({
   );
 }
 
-function CustomerProfileSection({
-  organizationId, profile, users, canEdit,
-}: {
-  organizationId: string;
-  profile: OrganizationDetailDto['customerProfile'];
-  users: UserDto[];
-  canEdit: boolean;
-}) {
-  const { token } = useAuth();
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const { register, handleSubmit, formState: { isDirty } } = useForm({
-    defaultValues: {
-      stage: profile?.stage ?? 'PROSPECT',
-      paymentTerms: profile?.paymentTerms ?? '',
-      creditLimit: formatCurrencyForInput(profile?.creditLimit),
-      salesRepId: profile?.salesRepId ?? '',
-    },
-  });
-
-  async function onSubmit(v: { stage: string; paymentTerms: string; creditLimit: string; salesRepId: string }) {
-    setSaving(true);
-    try {
-      await organizationsApi.saveCustomerProfile(organizationId, {
-        stage: v.stage,
-        paymentTerms: v.paymentTerms || null,
-        creditLimit: parseCurrencyBRL(v.creditLimit) ?? null,
-        salesRepId: v.salesRepId || null,
-      }, token);
-      toast.success('Perfil comercial salvo');
-      router.refresh();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-card rounded-xl border border-border p-5 space-y-4">
-      <h2 className="text-sm font-bold text-foreground border-b border-border pb-2">Perfil comercial</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Estágio">
-          <select {...register('stage')} disabled={!canEdit} className={inputCls}>
-            {STAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </Field>
-        <Field label="Responsável">
-          <select {...register('salesRepId')} disabled={!canEdit} className={inputCls}>
-            <option value="">—</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Condição de pagamento">
-          <input {...register('paymentTerms')} disabled={!canEdit} placeholder="Ex: 30 dias" className={inputCls} />
-        </Field>
-        <Field label="Limite de crédito (R$)">
-          <MaskedInput format={maskCurrencyBRL} {...register('creditLimit')} disabled={!canEdit} className={inputCls} />
-        </Field>
-      </div>
-      {canEdit && (
-        <div className="flex justify-end">
-          <Button type="submit" disabled={saving || !isDirty}>
-            <Save size={15} /> {saving ? 'Salvando…' : 'Salvar'}
-          </Button>
-        </div>
-      )}
-    </form>
-  );
-}
-
 function ProductServicesSection({
   organizationId, options, selected, canEdit,
 }: {
@@ -522,101 +362,6 @@ function ProductServicesSection({
           </span>
         )}
       </div>
-    </section>
-  );
-}
-
-const ADDRESS_TYPE_LABELS: Record<string, string> = {
-  PRIMARY: 'Principal', BILLING: 'Cobrança', SHIPPING: 'Entrega', COLLECTION: 'Coleta',
-};
-
-function AddressesSection({
-  organizationId, addresses, canEdit,
-}: { organizationId: string; addresses: OrgAddressDto[]; canEdit: boolean }) {
-  const { token } = useAuth();
-  const router = useRouter();
-  const [showForm, setShowForm] = useState(false);
-  const { register, handleSubmit, reset } = useForm({
-    defaultValues: { type: 'PRIMARY', zipCode: '', street: '', number: '', district: '', city: '', state: '' },
-  });
-
-  async function onAdd(v: Record<string, string>) {
-    try {
-      await organizationsApi.addAddress(organizationId, v, token);
-      reset();
-      setShowForm(false);
-      router.refresh();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    }
-  }
-
-  async function remove(addressId: string) {
-    try {
-      await organizationsApi.removeAddress(organizationId, addressId, token);
-      router.refresh();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-    }
-  }
-
-  return (
-    <section className="bg-card rounded-xl border border-border p-5">
-      <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
-        <h2 className="text-sm font-bold text-foreground">Endereços</h2>
-        {canEdit && !showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          >
-            <Plus size={13} /> Adicionar
-          </button>
-        )}
-      </div>
-
-      {addresses.length === 0 && !showForm && (
-        <p className="text-xs text-muted-foreground">Nenhum endereço cadastrado.</p>
-      )}
-
-      <ul className="space-y-2">
-        {addresses.map((a) => (
-          <li key={a.id} className="flex items-start justify-between rounded-lg border border-border px-3 py-2">
-            <div className="text-sm text-muted-foreground">
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{ADDRESS_TYPE_LABELS[a.type] ?? a.type}</span>
-              <p>{[a.street, a.number, a.district, a.city, a.state].filter(Boolean).join(', ') || '—'}</p>
-            </div>
-            {canEdit && (
-              <button onClick={() => remove(a.id)} className="text-muted-foreground hover:text-red-600" aria-label="Remover endereço">
-                <X size={15} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {showForm && (
-        <form onSubmit={handleSubmit(onAdd)} className="mt-3 space-y-2 rounded-lg bg-muted p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <select {...register('type')} className={inputCls}>
-              {Object.entries(ADDRESS_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <MaskedInput format={maskCEP} {...register('zipCode')} placeholder="CEP" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <input {...register('street')} placeholder="Rua" className={`${inputCls} col-span-2`} />
-            <input {...register('number')} placeholder="Nº" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <input {...register('district')} placeholder="Bairro" className={inputCls} />
-            <input {...register('city')} placeholder="Cidade" className={inputCls} />
-            <input {...register('state')} placeholder="UF" maxLength={2} className={inputCls} />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => { reset(); setShowForm(false); }}>Cancelar</Button>
-            <Button type="submit" size="sm">Adicionar</Button>
-          </div>
-        </form>
-      )}
     </section>
   );
 }

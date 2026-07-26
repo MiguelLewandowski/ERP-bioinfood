@@ -33,7 +33,6 @@ export const organizationSchema = z
     sectorId: z.string().optional(),
     sourceId: z.string().optional(),
     categoryId: z.string().optional(),
-    salesRepId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.documentType !== 'FOREIGN' && !data.document?.trim()) {

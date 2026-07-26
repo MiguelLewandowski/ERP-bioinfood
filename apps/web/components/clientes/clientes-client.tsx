@@ -9,7 +9,7 @@ import {
   Settings, Archive, ArchiveRestore, Pencil, Search, Mail, Phone, X, Building2,
 } from 'lucide-react';
 import type {
-  OrganizationDto, PartyRoleType, SystemRole, TaxonomyDto, UserDto,
+  OrganizationDto, PartyRoleType, SystemRole, TaxonomyDto,
 } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -32,7 +32,6 @@ interface ClientesClientProps {
   sources: TaxonomyDto[];
   categories: TaxonomyDto[];
   productServices: TaxonomyDto[];
-  users: UserDto[];
 }
 
 // Escrita do CRM é exclusiva do ADMIN (decisão do owner).
@@ -54,7 +53,7 @@ function initials(name: string): string {
 }
 
 export default function ClientesClient({
-  organizations, sectors, sources, categories, productServices, users,
+  organizations, sectors, sources, categories, productServices,
 }: ClientesClientProps) {
   const { session, token } = useAuth();
   const router = useRouter();
@@ -131,7 +130,6 @@ export default function ClientesClient({
           sources={sources}
           categories={categories}
           productServices={productServices}
-          users={users}
         />
       </>
     );
@@ -287,7 +285,6 @@ export default function ClientesClient({
           sources={sources}
           categories={categories}
           productServices={productServices}
-          users={users}
         />
     </>
   );

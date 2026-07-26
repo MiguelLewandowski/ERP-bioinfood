@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import type { TaxonomyDto, UserDto } from '@bioinfood/shared';
+import type { TaxonomyDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
 import { renderWithProviders, screen, waitFor, TEST_TOKEN } from '@/lib/test-utils';
 import ClienteDialog from './cliente-dialog';
@@ -31,8 +31,6 @@ const PRODUCT_SERVICES = [
   { id: 'ps-1', name: 'Análise sensorial' },
   { id: 'ps-2', name: 'Consultoria' },
 ] as TaxonomyDto[];
-const USERS = [{ id: 'user-3', name: 'Elena Costa' }] as UserDto[];
-
 function setup(overrides: Partial<React.ComponentProps<typeof ClienteDialog>> = {}) {
   const onOpenChange = vi.fn();
   const onCreated = vi.fn();
@@ -45,7 +43,6 @@ function setup(overrides: Partial<React.ComponentProps<typeof ClienteDialog>> = 
       sources={SOURCES}
       categories={CATEGORIES}
       productServices={PRODUCT_SERVICES}
-      users={USERS}
       {...overrides}
     />,
   );
@@ -210,22 +207,21 @@ describe('ClienteDialog', () => {
     expect(enrichMock).not.toHaveBeenCalled();
   });
 
-  it('should link the sales rep after the organization exists', async () => {
+  // A empresa não tem mais responsável interno: a seção de perfil comercial saiu
+  // da ficha, então oferecer o campo só na criação deixaria um valor que ninguém
+  // conseguiria ver nem corrigir depois.
+  it('should not offer a sales rep field nor touch the customer profile', async () => {
     const user = userEvent.setup();
     setup();
 
+    expect(screen.queryByLabelText('Responsável')).not.toBeInTheDocument();
+
     await user.type(screen.getByLabelText('CNPJ *'), '11222333000181');
     await user.type(screen.getByLabelText('Razão social *'), 'ACME LTDA');
-    await user.selectOptions(screen.getByLabelText('Responsável'), 'user-3');
     await user.click(screen.getByRole('button', { name: 'Criar Empresa' }));
 
-    await waitFor(() => {
-      expect(saveCustomerProfileMock).toHaveBeenCalledWith(
-        'org-1', { salesRepId: 'user-3' }, TEST_TOKEN,
-      );
-    });
-    // salesRepId belongs to the profile call, not to the organization payload.
-    expect(createMock.mock.calls[0][0].salesRepId).toBeUndefined();
+    await waitFor(() => expect(createMock).toHaveBeenCalled());
+    expect(saveCustomerProfileMock).not.toHaveBeenCalled();
   });
 
   it('should attach each selected product or service to the new organization', async () => {
