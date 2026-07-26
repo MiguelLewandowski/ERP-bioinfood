@@ -101,10 +101,12 @@ ERP-bioinfood**. Depois, em **Settings** do serviço:
 | Root Directory         | `/` (deixe vazio — é a raiz)   |
 | Config-as-code path    | `apps/api/railway.json`        |
 
-Não preencha Watch Paths na UI: eles vêm de `watchPatterns` no `railway.json`.
-E precisam incluir os arquivos da **raiz** (`package.json`, `.nvmrc`,
-`pnpm-lock.yaml`), senão mudar a versão do Node ou uma dependência do workspace
-não dispara rebuild nenhum — o serviço fica servindo uma imagem velha sem avisar.
+**Deixe Watch Paths vazio.** A tentação é restringir cada serviço ao seu diretório
+para economizar build, mas num monorepo compartilhado metade do que importa mora
+na raiz (`package.json`, `.nvmrc`, `pnpm-lock.yaml`). Watch path incompleto faz o
+Railway marcar o deploy como `SKIPPED` e continuar servindo a imagem antiga **sem
+erro nenhum** — você fica olhando para código que não subiu. Com dois serviços,
+rebuildar os dois a cada push é mais barato que esse tipo de confusão.
 
 O `apps/api/railway.json` já traz build, start, healthcheck e política de restart:
 
