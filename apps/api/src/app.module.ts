@@ -48,7 +48,13 @@ import { AuditModule } from './common/audit/audit.module';
     }),
     // Rate limiting global — barra flood/scraping por IP. Rotas de auth têm
     // limite mais agressivo via @Throttle (ver auth.controller.ts).
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    // Fora de produção o limite atrapalha mais do que ajuda (ex.: errar a senha
+    // testando localmente) — desligado fora de 'production', nunca em prod.
+    ThrottlerModule.forRoot([{
+      ttl: 60_000,
+      limit: 120,
+      skipIf: () => process.env.NODE_ENV !== 'production',
+    }]),
     PrismaModule,
     AuditModule,
     AuthModule,
