@@ -13,6 +13,9 @@
   "devDependencies": {
     "turbo": "^2.0.0"
   },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "pnpm": {
     "overrides": {
       "multer@<2.2.0": ">=2.2.0",
