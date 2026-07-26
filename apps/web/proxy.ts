@@ -47,10 +47,20 @@ function clearAuthAndRedirect(req: NextRequest): NextResponse {
 export default async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
 
-  // Deixa rotas públicas e de API passarem sem verificação
+  // Deixa rotas públicas e de API passarem sem verificação.
+  //
+  // `/api/` inteiro fica de fora, e isso vale para o `/api/proxy` tanto quanto
+  // para o `/api/auth`: quem chama espera JSON. Redirecionar uma chamada de
+  // fetch para a tela de login faz o navegador seguir o 307 e devolver HTML com
+  // status 200 — o cliente então quebra em `JSON.parse` com "Unexpected token
+  // '<'", que não diz nada sobre sessão expirada.
+  //
+  // Sem sessão válida o caminho correto é o proxy encaminhar e a API responder
+  // 401 de verdade; o `request()` do `lib/api.ts` já renova e repete a chamada,
+  // e só manda para o login se a renovação falhar.
   if (
     pathname === '/' ||
-    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
   ) {

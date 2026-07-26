@@ -137,4 +137,19 @@ describe('api — renovação de sessão', () => {
 
     await expect(api.post('/pops', {})).rejects.toThrow('Título é obrigatório');
   });
+
+  // O middleware redirecionava as chamadas de /api/proxy para a tela de login; o
+  // fetch seguia o 307 e entregava HTML com status 200. O JSON.parse cru
+  // estourava com "Unexpected token '<'", que não ajuda ninguém a entender que a
+  // sessão caiu.
+  it('should raise a readable error when a 2xx response is not JSON', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '<!DOCTYPE html><html lang="pt-BR"><body>login</body></html>',
+    } as unknown as Response);
+
+    await expect(api.get('/organizations/enrich/00000000000191')).rejects.toThrow(ApiError);
+    await expect(api.get('/organizations/enrich/00000000000191')).rejects.toThrow(/Resposta inesperada/);
+  });
 });

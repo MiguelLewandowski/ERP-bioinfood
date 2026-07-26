@@ -99,7 +99,16 @@ async function request<T>(
   // DELETE (e outras rotas sem corpo) respondem 200/204 sem JSON —
   // res.json() lançaria SyntaxError em corpo vazio.
   const text = await res.text();
-  return text ? JSON.parse(text) : (undefined as T);
+  if (!text) return undefined as T;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // 2xx que não é JSON só acontece quando alguém no caminho devolveu uma
+    // página: um redirect seguido pelo fetch, um 404 do Next. O SyntaxError cru
+    // ("Unexpected token '<'") não diz nada a quem está usando o sistema.
+    throw new ApiError(['Resposta inesperada do servidor. Recarregue a página.'], res.status);
+  }
 }
 
 export const api = {
