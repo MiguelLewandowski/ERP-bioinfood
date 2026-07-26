@@ -232,17 +232,16 @@ export interface ContactListItemDto {
   id: string;
   name: string;
   email: string | null;
-  phone: string | null;
-  mobile: string | null;
+  // WhatsApp é o único telefone que os formulários coletam — `phone`/`mobile`
+  // seguem no banco, mas ficavam sempre vazios nas telas que os exibiam.
+  whatsapp: string | null;
   source: { id: string; name: string } | null;
+  // Empresas vinculadas, com o cargo em cada uma.
+  organizations: Array<{ id: string; name: string; jobTitle: string | null }>;
   // Present only when the list is filtered by organization.
   link?: {
     linkId: string;
     jobTitle: string | null;
-    isDecision: boolean;
-    isFinance: boolean;
-    isTechnical: boolean;
-    isPrimary: boolean;
   } | null;
 }
 
@@ -259,17 +258,10 @@ export interface ContactLinkDto {
   isActive: boolean;
 }
 
+// Só o que os formulários de pessoa editam. As demais colunas (cpf, fax, ramal,
+// nascimento, outras redes) seguem no banco, fora das telas.
 export interface ContactDetailDto extends ContactListItemDto {
-  cpf: string | null;
-  whatsapp: string | null;
-  fax: string | null;
-  ramal: string | null;
-  birthDate: string | null;
-  facebook: string | null;
-  twitter: string | null;
   linkedin: string | null;
-  skype: string | null;
-  instagram: string | null;
   notes: string | null;
   orgLinks: ContactLinkDto[];
 }

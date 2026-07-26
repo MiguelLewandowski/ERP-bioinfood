@@ -2,18 +2,17 @@ export interface ContactListItem {
   id: string;
   name: string;
   email: string | null;
-  phone: string | null;
-  mobile: string | null;
+  // WhatsApp é o único telefone que os formulários coletam. `phone`/`mobile`
+  // continuam no banco, mas ficavam sempre vazios nas telas que os exibiam.
+  whatsapp: string | null;
   source: { id: string; name: string } | null;
-  // Present only when the list is filtered by organization: the link markers
-  // for that org, so the org's contact tab can show decisor/primary/etc.
+  // Empresas às quais a pessoa está vinculada, com o cargo em cada uma.
+  organizations: Array<{ id: string; name: string; jobTitle: string | null }>;
+  // Present only when the list is filtered by organization: identifies the link
+  // so the org's contact tab can edit or unlink it.
   link?: {
     linkId: string;
     jobTitle: string | null;
-    isDecision: boolean;
-    isFinance: boolean;
-    isTechnical: boolean;
-    isPrimary: boolean;
   } | null;
 }
 
@@ -30,17 +29,10 @@ export interface ContactOrgLink {
   isActive: boolean;
 }
 
+// Só o que os formulários de pessoa realmente editam. As demais colunas
+// (cpf, fax, ramal, nascimento, outras redes) seguem no banco, fora das telas.
 export interface ContactDetail extends ContactListItem {
-  cpf: string | null;
-  whatsapp: string | null;
-  fax: string | null;
-  ramal: string | null;
-  birthDate: Date | null;
-  facebook: string | null;
-  twitter: string | null;
   linkedin: string | null;
-  skype: string | null;
-  instagram: string | null;
   notes: string | null;
   orgLinks: ContactOrgLink[];
 }

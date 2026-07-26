@@ -28,7 +28,8 @@ export function PessoasTab({ initialContacts, sources, canEdit }: PessoasTabProp
     return contacts.filter((c) => (
       c.name.toLowerCase().includes(q)
       || (c.email?.toLowerCase().includes(q) ?? false)
-      || (c.phone?.toLowerCase().includes(q) ?? false)
+      || (c.whatsapp?.toLowerCase().includes(q) ?? false)
+      || c.organizations.some((o) => o.name.toLowerCase().includes(q))
     ));
   }, [contacts, search]);
 
@@ -90,6 +91,7 @@ export function PessoasTab({ initialContacts, sources, canEdit }: PessoasTabProp
             <TableHeader>
               <TableRow className="uppercase tracking-wide hover:bg-transparent">
                 <TableHead>Pessoa</TableHead>
+                <TableHead>Empresa</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -98,12 +100,27 @@ export function PessoasTab({ initialContacts, sources, canEdit }: PessoasTabProp
             <TableBody>
               {filtered.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium text-foreground">{c.name}</TableCell>
                   <TableCell>
-                    {c.email || c.phone ? (
+                    <span className="font-medium text-foreground">{c.name}</span>
+                    {c.organizations[0]?.jobTitle && (
+                      <span className="block text-xs text-muted-foreground">{c.organizations[0].jobTitle}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {c.organizations.length === 0 ? '—' : (
+                      <>
+                        {c.organizations[0].name}
+                        {c.organizations.length > 1 && (
+                          <span className="ml-1 text-xs">+{c.organizations.length - 1}</span>
+                        )}
+                      </>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {c.email || c.whatsapp ? (
                       <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                         {c.email && <span className="inline-flex items-center gap-1"><Mail size={11} />{c.email}</span>}
-                        {c.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{c.phone}</span>}
+                        {c.whatsapp && <span className="inline-flex items-center gap-1"><Phone size={11} />{c.whatsapp}</span>}
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>

@@ -518,7 +518,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                         <span className="font-medium text-foreground">{c.name}</span>
                         {c.link?.jobTitle && <span className="text-muted-foreground">{c.link.jobTitle}</span>}
                         {c.email && <span className="inline-flex items-center gap-1"><Mail size={11} />{c.email}</span>}
-                        {c.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{c.phone}</span>}
+                        {c.whatsapp && <span className="inline-flex items-center gap-1"><Phone size={11} />{c.whatsapp}</span>}
                       </li>
                     ))}
                   </ul>

@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Plus, Mail, Phone, X, Star, Pencil } from 'lucide-react';
+import { Plus, Mail, Phone, X, Pencil } from 'lucide-react';
 import type { ContactListItemDto, TaxonomyDto } from '@bioinfood/shared';
 import { contactsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { MaskedInput } from '@/components/ui/masked-input';
-import { maskCPF, maskPhone } from '@/lib/masks';
+import { maskPhone } from '@/lib/masks';
 
 const inputCls =
   'w-full text-sm px-3 py-2.5 border border-border rounded-lg focus:border-ring focus:outline-none';
@@ -23,42 +23,20 @@ interface ContatosTabProps {
   canEdit: boolean;
 }
 
+// Mesmos campos do diálogo de criar pessoa — editar e criar coletam o mesmo
+// conjunto. As demais colunas seguem no banco, fora das telas.
 interface ContactForm {
   name: string;
-  cpf: string;
   email: string;
-  phone: string;
-  mobile: string;
   whatsapp: string;
-  fax: string;
-  ramal: string;
-  birthDate: string;
   linkedin: string;
-  facebook: string;
-  twitter: string;
-  skype: string;
-  instagram: string;
   sourceId: string;
   jobTitle: string;
-  isDecision: boolean;
-  isFinance: boolean;
-  isTechnical: boolean;
-  isPrimary: boolean;
 }
 
 const EMPTY_FORM: ContactForm = {
-  name: '', cpf: '', email: '', phone: '', mobile: '', whatsapp: '', fax: '', ramal: '',
-  birthDate: '', linkedin: '', facebook: '', twitter: '', skype: '', instagram: '', sourceId: '',
-  jobTitle: '', isDecision: false, isFinance: false, isTechnical: false, isPrimary: false,
+  name: '', email: '', whatsapp: '', linkedin: '', sourceId: '', jobTitle: '',
 };
-
-type LinkMarker = 'isDecision' | 'isFinance' | 'isTechnical';
-
-const MARKERS: Array<{ key: LinkMarker; label: string }> = [
-  { key: 'isDecision', label: 'Decisor' },
-  { key: 'isFinance', label: 'Financeiro' },
-  { key: 'isTechnical', label: 'Técnico' },
-];
 
 export function ContatosTab({ organizationId, initialContacts, sources, canEdit }: ContatosTabProps) {
   const { token } = useAuth();
@@ -80,25 +58,11 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
       const detail = await contactsApi.get(contact.id, token);
       reset({
         name: detail.name,
-        cpf: detail.cpf ?? '',
         email: detail.email ?? '',
-        phone: detail.phone ?? '',
-        mobile: detail.mobile ?? '',
         whatsapp: detail.whatsapp ?? '',
-        fax: detail.fax ?? '',
-        ramal: detail.ramal ?? '',
-        birthDate: detail.birthDate?.slice(0, 10) ?? '',
         linkedin: detail.linkedin ?? '',
-        facebook: detail.facebook ?? '',
-        twitter: detail.twitter ?? '',
-        skype: detail.skype ?? '',
-        instagram: detail.instagram ?? '',
         sourceId: detail.source?.id ?? '',
         jobTitle: contact.link.jobTitle ?? '',
-        isDecision: contact.link.isDecision,
-        isFinance: contact.link.isFinance,
-        isTechnical: contact.link.isTechnical,
-        isPrimary: contact.link.isPrimary,
       });
       setMode({ kind: 'edit', contactId: contact.id, linkId: contact.link.linkId });
     } catch (err) {
@@ -117,28 +81,12 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
     setSaving(true);
     const contactPayload = {
       name: v.name,
-      cpf: v.cpf || undefined,
       email: v.email || undefined,
-      phone: v.phone || undefined,
-      mobile: v.mobile || undefined,
       whatsapp: v.whatsapp || undefined,
-      fax: v.fax || undefined,
-      ramal: v.ramal || undefined,
-      birthDate: v.birthDate || undefined,
       linkedin: v.linkedin || undefined,
-      facebook: v.facebook || undefined,
-      twitter: v.twitter || undefined,
-      skype: v.skype || undefined,
-      instagram: v.instagram || undefined,
       sourceId: v.sourceId || undefined,
     };
-    const linkPayload = {
-      jobTitle: v.jobTitle || undefined,
-      isDecision: v.isDecision,
-      isFinance: v.isFinance,
-      isTechnical: v.isTechnical,
-      isPrimary: v.isPrimary,
-    };
+    const linkPayload = { jobTitle: v.jobTitle || undefined };
     try {
       if (mode.kind === 'create') {
         const contact = await contactsApi.create(contactPayload, token);
@@ -195,27 +143,13 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">{c.name}</span>
-                {c.link?.isPrimary && (
-                  <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-accent">
-                    <Star size={11} fill="currentColor" /> Principal
-                  </span>
-                )}
                 {c.link?.jobTitle && <span className="text-xs text-muted-foreground">· {c.link.jobTitle}</span>}
                 {c.source && <span className="text-xs text-muted-foreground">· {c.source.name}</span>}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {c.email && <span className="inline-flex items-center gap-1"><Mail size={12} />{c.email}</span>}
-                {c.phone && <span className="inline-flex items-center gap-1"><Phone size={12} />{c.phone}</span>}
+                {c.whatsapp && <span className="inline-flex items-center gap-1"><Phone size={12} />{c.whatsapp}</span>}
               </div>
-              {c.link && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {MARKERS.filter((m) => c.link![m.key]).map((m) => (
-                    <span key={m.key} className="rounded-full bg-success/20 px-2 py-0.5 text-[10px] font-medium text-primary-dark">
-                      {m.label}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
             {canEdit && (
               <div className="flex items-center gap-2">
@@ -246,40 +180,16 @@ export function ContatosTab({ organizationId, initialContacts, sources, canEdit 
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input {...register('email')} type="email" placeholder="E-mail" className={inputCls} />
-            <MaskedInput format={maskCPF} {...register('cpf')} placeholder="CPF" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <MaskedInput format={maskPhone} {...register('phone')} placeholder="Telefone" className={inputCls} />
-            <MaskedInput format={maskPhone} {...register('mobile')} placeholder="Celular" className={inputCls} />
             <MaskedInput format={maskPhone} {...register('whatsapp')} placeholder="WhatsApp" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <MaskedInput format={maskPhone} {...register('fax')} placeholder="Fax" className={inputCls} />
-            <input {...register('ramal')} placeholder="Ramal" className={inputCls} />
-            <input {...register('birthDate')} type="date" placeholder="Aniversário" className={inputCls} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input {...register('linkedin')} placeholder="LinkedIn" className={inputCls} />
-            <input {...register('instagram')} placeholder="Instagram" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input {...register('facebook')} placeholder="Facebook" className={inputCls} />
-            <input {...register('twitter')} placeholder="Twitter" className={inputCls} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <input {...register('skype')} placeholder="Skype" className={inputCls} />
             <select aria-label="Origem" {...register('sourceId')} className={inputCls}>
               <option value="">Origem…</option>
               {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
 
-          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isPrimary')} className="accent-[hsl(var(--primary))]" /> Principal</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isDecision')} className="accent-[hsl(var(--primary))]" /> Decisor</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isFinance')} className="accent-[hsl(var(--primary))]" /> Financeiro</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" {...register('isTechnical')} className="accent-[hsl(var(--primary))]" /> Técnico</label>
-          </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={closeForm}>Cancelar</Button>
             <Button type="submit" size="sm" disabled={saving}>

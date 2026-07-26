@@ -124,24 +124,37 @@ describe('ContatosTab form', () => {
     );
   });
 
-  it('should send the relationship markers on the link, not on the contact', async () => {
+  // A pessoa passou a ter os mesmos campos em criar e editar: nome, e-mail,
+  // WhatsApp, cargo, LinkedIn e origem. Marcadores do vínculo e dados como CPF,
+  // telefone fixo e aniversário saíram das telas.
+  it('should collect only the fields the create form also has', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await openCreateForm(user);
+
+    expect(screen.getByPlaceholderText('Nome *')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('WhatsApp')).toBeInTheDocument();
+    for (const removido of ['CPF', 'Telefone', 'Celular', 'Fax', 'Ramal', 'Instagram', 'Facebook', 'Twitter', 'Skype']) {
+      expect(screen.queryByPlaceholderText(removido)).not.toBeInTheDocument();
+    }
+    for (const marcador of ['Decisor', 'Financeiro', 'Técnico', 'Principal']) {
+      expect(screen.queryByLabelText(marcador)).not.toBeInTheDocument();
+    }
+  });
+
+  it('should send only the job title on the link when creating', async () => {
     const user = userEvent.setup();
     setup();
 
     await openCreateForm(user);
     await user.type(screen.getByPlaceholderText('Nome *'), 'Marcos Vinicius');
-    await user.click(screen.getByLabelText('Decisor'));
-    await user.click(screen.getByLabelText('Financeiro'));
+    await user.type(screen.getByPlaceholderText('Cargo'), 'Gerente de P&D');
     await user.click(screen.getByRole('button', { name: 'Adicionar' }));
 
     await waitFor(() => expect(addLinkMock).toHaveBeenCalled());
-    expect(addLinkMock.mock.calls[0][1]).toMatchObject({
-      isDecision: true,
-      isFinance: true,
-      isTechnical: false,
-      isPrimary: false,
-    });
-    expect(createMock.mock.calls[0][0]).not.toHaveProperty('isDecision');
+    expect(addLinkMock.mock.calls[0][1]).toMatchObject({ jobTitle: 'Gerente de P&D' });
+    expect(createMock.mock.calls[0][0]).not.toHaveProperty('jobTitle');
   });
 
   it('should send undefined instead of empty strings for the optional fields', async () => {
@@ -160,16 +173,14 @@ describe('ContatosTab form', () => {
     expect(payload.sourceId).toBeUndefined();
   });
 
-  it('should mask the typed phone and CPF', async () => {
+  it('should mask the typed WhatsApp number', async () => {
     const user = userEvent.setup();
     setup();
 
     await openCreateForm(user);
-    await user.type(screen.getByPlaceholderText('Celular'), '11988887777');
-    await user.type(screen.getByPlaceholderText('CPF'), '12345678901');
+    await user.type(screen.getByPlaceholderText('WhatsApp'), '11988887777');
 
-    expect(screen.getByPlaceholderText('Celular')).toHaveValue('(11) 98888-7777');
-    expect(screen.getByPlaceholderText('CPF')).toHaveValue('123.456.789-01');
+    expect(screen.getByPlaceholderText('WhatsApp')).toHaveValue('(11) 98888-7777');
   });
 
   it('should load the contact detail and switch to edit mode', async () => {

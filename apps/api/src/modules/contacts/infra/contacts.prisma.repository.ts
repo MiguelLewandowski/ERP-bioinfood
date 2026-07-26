@@ -13,8 +13,16 @@ import {
 } from '../domain/contact.entity';
 
 const LIST_SELECT = {
-  id: true, name: true, email: true, phone: true, mobile: true,
+  id: true, name: true, email: true, whatsapp: true,
   source: { select: { id: true, name: true } },
+} as const;
+
+// Vínculos com empresa: alimentam a coluna Empresa da tabela de Pessoas e, quando
+// a listagem é filtrada por empresa, identificam o link para editar/desvincular.
+const ORG_LINK_SELECT = {
+  id: true,
+  jobTitle: true,
+  organization: { select: { id: true, legalName: true, tradeName: true } },
 } as const;
 
 const LINK_SELECT = {
@@ -29,6 +37,17 @@ const LINK_SELECT = {
   isPrimary: true,
   isActive: true,
 } as const;
+
+// Nome de exibição da empresa: fantasia quando existe, senão a razão social.
+function toOrganizations(
+  links: Array<{ jobTitle: string | null; organization: { id: string; legalName: string; tradeName: string | null } }>,
+): Array<{ id: string; name: string; jobTitle: string | null }> {
+  return links.map((l) => ({
+    id: l.organization.id,
+    name: l.organization.tradeName || l.organization.legalName,
+    jobTitle: l.jobTitle,
+  }));
+}
 
 @Injectable()
 export class ContactsPrismaRepository implements IContactRepository {
@@ -48,67 +67,59 @@ export class ContactsPrismaRepository implements IContactRepository {
       },
       select: {
         ...LIST_SELECT,
-        // Only pull the link for the filtered org, to surface its markers.
-        orgLinks: filter.orgId
-          ? {
-              where: { orgId: filter.orgId },
-              select: {
-                id: true, jobTitle: true, isDecision: true, isFinance: true,
-                isTechnical: true, isPrimary: true,
-              },
-            }
-          : false,
+        // Filtrado por empresa traz só aquele vínculo; sem filtro traz todos,
+        // que é o que a tabela de Pessoas usa na coluna Empresa.
+        orgLinks: {
+          where: filter.orgId ? { orgId: filter.orgId } : undefined,
+          select: ORG_LINK_SELECT,
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { name: 'asc' },
       take: 200,
     });
 
-    return contacts.map((c) => {
-      const { orgLinks, ...base } = c as typeof c & { orgLinks?: Array<Record<string, unknown>> };
-      const l = orgLinks?.[0];
+    return contacts.map(({ orgLinks, ...base }) => {
+      const first = orgLinks[0];
       return {
         ...base,
-        link: l
-          ? {
-              linkId: l.id as string,
-              jobTitle: l.jobTitle as string | null,
-              isDecision: l.isDecision as boolean,
-              isFinance: l.isFinance as boolean,
-              isTechnical: l.isTechnical as boolean,
-              isPrimary: l.isPrimary as boolean,
-            }
+        organizations: toOrganizations(orgLinks),
+        link: filter.orgId && first
+          ? { linkId: first.id, jobTitle: first.jobTitle }
           : null,
       };
     });
   }
 
-  findById(id: string): Promise<ContactDetail | null> {
-    return this.prisma.contact.findFirst({
+  async findById(id: string): Promise<ContactDetail | null> {
+    const contact = await this.prisma.contact.findFirst({
       where: { id, deletedAt: null },
       select: {
         ...LIST_SELECT,
-        cpf: true,
-        whatsapp: true,
-        fax: true,
-        ramal: true,
-        birthDate: true,
-        facebook: true,
-        twitter: true,
         linkedin: true,
-        skype: true,
-        instagram: true,
         notes: true,
         orgLinks: { select: LINK_SELECT, orderBy: { createdAt: 'asc' } },
       },
     });
+    if (!contact) return null;
+    return { ...contact, organizations: toOrganizations(contact.orgLinks), link: null };
   }
 
-  create(data: CreateContactData): Promise<ContactListItem> {
-    return this.prisma.contact.create({ data, select: LIST_SELECT });
+  async create(data: CreateContactData): Promise<ContactListItem> {
+    const contact = await this.prisma.contact.create({
+      data,
+      select: { ...LIST_SELECT, orgLinks: { select: ORG_LINK_SELECT } },
+    });
+    return { ...contact, organizations: toOrganizations(contact.orgLinks), link: null };
   }
 
-  update(id: string, data: UpdateContactData): Promise<ContactListItem> {
-    return this.prisma.contact.update({ where: { id }, data, select: LIST_SELECT });
+  async update(id: string, data: UpdateContactData): Promise<ContactListItem> {
+    const contact = await this.prisma.contact.update({
+      where: { id },
+      data,
+      select: { ...LIST_SELECT, orgLinks: { select: ORG_LINK_SELECT } },
+    });
+    return { ...contact, organizations: toOrganizations(contact.orgLinks), link: null };
   }
 
   async softDelete(id: string): Promise<void> {

@@ -4,9 +4,9 @@ export interface ContactListItemDto {
   id: string;
   name: string;
   email: string | null;
-  phone: string | null;
-  mobile: string | null;
+  whatsapp: string | null;
   source: { id: string; name: string } | null;
+  organizations: Array<{ id: string; name: string; jobTitle: string | null }>;
   link?: ContactListItem['link'];
 }
 
@@ -24,23 +24,20 @@ export interface ContactLinkDto {
 }
 
 export interface ContactDetailDto extends ContactListItemDto {
-  cpf: string | null;
-  whatsapp: string | null;
-  fax: string | null;
-  ramal: string | null;
-  birthDate: string | null;
-  facebook: string | null;
-  twitter: string | null;
   linkedin: string | null;
-  skype: string | null;
-  instagram: string | null;
   notes: string | null;
   orgLinks: ContactLinkDto[];
 }
 
 export function toContactListItemDto(c: ContactListItem): ContactListItemDto {
   return {
-    id: c.id, name: c.name, email: c.email, phone: c.phone, mobile: c.mobile, source: c.source, link: c.link,
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    whatsapp: c.whatsapp,
+    source: c.source,
+    organizations: c.organizations,
+    link: c.link,
   };
 }
 
@@ -62,16 +59,7 @@ export function toContactLinkDto(l: ContactOrgLink): ContactLinkDto {
 export function toContactDetailDto(c: ContactDetail): ContactDetailDto {
   return {
     ...toContactListItemDto(c),
-    cpf: c.cpf,
-    whatsapp: c.whatsapp,
-    fax: c.fax,
-    ramal: c.ramal,
-    birthDate: c.birthDate?.toISOString() ?? null,
-    facebook: c.facebook,
-    twitter: c.twitter,
     linkedin: c.linkedin,
-    skype: c.skype,
-    instagram: c.instagram,
     notes: c.notes,
     orgLinks: c.orgLinks.map(toContactLinkDto),
   };
