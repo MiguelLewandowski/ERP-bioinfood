@@ -11,6 +11,6 @@ export class ListProjectsUseCase {
     if (user.role === SystemRole.CLIENTE) {
       return this.repo.findAllByUserId(user.id);
     }
-    return this.repo.findAll({ excludeCancelled: true });
+    return this.repo.findAll();
   }
 }

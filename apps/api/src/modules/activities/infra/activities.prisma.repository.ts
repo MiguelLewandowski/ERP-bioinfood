@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProjectStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IActivitiesRepository } from '../domain/activities.repository.interface';
 import { ActivityFilters, ActivityListItem } from '../domain/activity.entity';
@@ -38,6 +38,7 @@ export class ActivitiesPrismaRepository implements IActivitiesRepository {
     const tasks = await this.prisma.task.findMany({
       where: {
         deletedAt: null,
+        project: { status: { not: ProjectStatus.CANCELLED } },
         ...(projectIds && { projectId: { in: projectIds } }),
         OR: dateCondition,
       },

@@ -48,7 +48,7 @@ export default function UserProjectAccessDialog({ open, onOpenChange, user }: Us
   }, [open, user.id, token]);
 
   const availableProjects = useMemo(
-    () => allProjects.filter((p) => !access.some((a) => a.id === p.id)),
+    () => allProjects.filter((p) => p.status !== 'CANCELLED' && !access.some((a) => a.id === p.id)),
     [allProjects, access],
   );
 

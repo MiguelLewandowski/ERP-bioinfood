@@ -26,9 +26,8 @@ const WITH_RELATIONS = {
 export class ProjectsPrismaRepository implements IProjectRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findAll({ excludeCancelled }: { excludeCancelled: boolean }): Promise<ProjectWithRelations[]> {
+  async findAll(): Promise<ProjectWithRelations[]> {
     return this.prisma.project.findMany({
-      where: excludeCancelled ? { status: { not: ProjectStatus.CANCELLED } } : undefined,
       include: WITH_RELATIONS,
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -37,10 +36,7 @@ export class ProjectsPrismaRepository implements IProjectRepository {
 
   async findAllByUserId(userId: string): Promise<ProjectWithRelations[]> {
     return this.prisma.project.findMany({
-      where: {
-        accesses: { some: { userId } },
-        status: { not: ProjectStatus.CANCELLED },
-      },
+      where: { accesses: { some: { userId } } },
       include: WITH_RELATIONS,
       orderBy: { createdAt: 'desc' },
       take: 100,

@@ -8,7 +8,7 @@ import {
 export const PROJECT_REPOSITORY = 'PROJECT_REPOSITORY';
 
 export interface IProjectRepository {
-  findAll(options: { excludeCancelled: boolean }): Promise<ProjectWithRelations[]>;
+  findAll(): Promise<ProjectWithRelations[]>;
   findAllByUserId(userId: string): Promise<ProjectWithRelations[]>;
   findById(id: string): Promise<ProjectWithRelations | null>;
   create(data: CreateProjectData): Promise<ProjectWithRelations>;
