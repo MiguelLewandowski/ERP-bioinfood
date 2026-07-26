@@ -9,11 +9,11 @@ import Link from 'next/link';
 import { Plus, FileCheck, Search, X, SlidersHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/components/providers/auth-provider';
 import { popsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
-import { cn } from '@/lib/utils';
 import type { PopCategoryDto, PopDto, PopVersionDto } from '@bioinfood/shared';
 import { PopRow } from './pop-row';
 
@@ -157,20 +157,19 @@ export function PopsClient({ initialPops, categories }: PopsClientProps) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <FilterChip active={categoryId === null} onClick={() => setCategoryId(null)}>
-            Todas <span className="opacity-60">{pops.length}</span>
-          </FilterChip>
+        <Select
+          aria-label="Filtrar por categoria"
+          value={categoryId ?? ''}
+          onChange={(e) => setCategoryId(e.target.value || null)}
+          className="w-auto min-w-[10rem]"
+        >
+          <option value="">Todas as categorias ({pops.length})</option>
           {activeCategories.map((c) => (
-            <FilterChip
-              key={c.id}
-              active={categoryId === c.id}
-              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
-            >
-              {c.name} <span className="opacity-60">{countByCategory.get(c.id) ?? 0}</span>
-            </FilterChip>
+            <option key={c.id} value={c.id}>
+              {c.name} ({countByCategory.get(c.id) ?? 0})
+            </option>
           ))}
-        </div>
+        </Select>
 
         {isFiltering && (
           <button
@@ -291,24 +290,5 @@ export function PopsClient({ initialPops, categories }: PopsClientProps) {
         </Dialog>
       )}
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }: {
-  active: boolean; onClick: () => void; children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-        active
-          ? 'border-primary bg-primary text-white'
-          : 'border-gray-200 bg-white text-muted-foreground hover:bg-gray-50',
-      )}
-    >
-      {children}
-    </button>
   );
 }

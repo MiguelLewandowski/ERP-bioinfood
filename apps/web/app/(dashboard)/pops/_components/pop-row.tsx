@@ -102,7 +102,12 @@ export function PopRow({ pop, onDeleted, onVersionCreated }: PopRowProps) {
           </span>
         )}
 
-        {/* Link externo (Drive). rel=noreferrer: o destino não recebe a URL do ERP. */}
+        <span className="shrink-0 text-xs font-semibold text-primary bg-success/10 rounded-full px-2 py-0.5">
+          v{pop.latestVersion.versionNumber}
+        </span>
+
+        {/* Link externo (Drive). rel=noreferrer: o destino não recebe a URL do ERP.
+            Botão com rótulo — é a ação mais usada da tela, precisa ser óbvia. */}
         {pop.latestVersion.fileUrl && (
           <a
             href={pop.latestVersion.fileUrl}
@@ -110,15 +115,11 @@ export function PopRow({ pop, onDeleted, onVersionCreated }: PopRowProps) {
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             aria-label={`Abrir documento da POP ${pop.title}`}
-            className="shrink-0 text-muted-foreground transition-colors hover:text-primary"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-dark"
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={13} /> Abrir
           </a>
         )}
-
-        <span className="shrink-0 text-xs font-semibold text-primary bg-success/10 rounded-full px-2 py-0.5">
-          v{pop.latestVersion.versionNumber}
-        </span>
 
         <span className="shrink-0 text-xs text-muted-foreground hidden sm:inline">
           {pop.latestVersion.createdBy.name} · {fmt(pop.latestVersion.createdAt)}

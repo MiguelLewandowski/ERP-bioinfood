@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { PopDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, TEST_TOKEN } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, within, TEST_TOKEN } from '@/lib/test-utils';
 import { PopsClient } from './pops-client';
 
 const createMock = vi.fn();
@@ -187,17 +187,18 @@ describe('PopsClient — busca e filtros', () => {
     const user = userEvent.setup();
     setup([LIMPEZA, REATOR]);
 
-    await user.click(screen.getByRole('button', { name: /Processo/ }));
+    await user.selectOptions(screen.getByLabelText('Filtrar por categoria'), 'cat-2');
 
     expect(screen.getByText('Operação do reator piloto')).toBeInTheDocument();
     expect(screen.queryByText('Limpeza de bancada')).not.toBeInTheDocument();
   });
 
-  it('should count the POPs of each category on the filter chip', () => {
+  it('should count the POPs of each category on the filter select', () => {
     setup([LIMPEZA, REATOR]);
 
-    expect(screen.getByRole('button', { name: /Todas 2/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Qualidade 1/ })).toBeInTheDocument();
+    const select = screen.getByLabelText('Filtrar por categoria');
+    expect(screen.getByText('Todas as categorias (2)')).toBeInTheDocument();
+    expect(within(select).getByText('Qualidade (1)')).toBeInTheDocument();
   });
 
   it('should offer a way out when nothing matches', async () => {
