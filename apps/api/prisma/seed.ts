@@ -66,12 +66,44 @@ async function seedCrmDefaults() {
   });
 }
 
+// Senhas de demonstração só valem contra um banco local. Num banco remoto
+// (Railway) a URL é pública e `admin123` seria uma porta destrancada na
+// internet — então exigimos senha por env e abortamos se faltar.
+const LOCAL_DB = /@(localhost|127\.0\.0\.1|host\.docker\.internal|postgres)[:/]/.test(
+  process.env.DATABASE_URL ?? '',
+);
+
+function seedPassword(envVar: string, localDefault: string): string {
+  const fromEnv = process.env[envVar];
+  if (fromEnv) {
+    if (fromEnv.length < 8) {
+      throw new Error(`${envVar} precisa ter ao menos 8 caracteres.`);
+    }
+    return fromEnv;
+  }
+  if (!LOCAL_DB) {
+    throw new Error(
+      `Banco remoto detectado e ${envVar} não definida. Defina SEED_ADMIN_PASSWORD, ` +
+      'SEED_LIDER_PASSWORD e SEED_CLIENTE_PASSWORD antes de semear fora do localhost.',
+    );
+  }
+  return localDefault;
+}
+
 async function main() {
+  // Resolve as senhas ANTES de qualquer escrita: se faltar env num banco remoto,
+  // o seed aborta com o banco intacto em vez de deixar meia taxonomia gravada.
+  const passwords = {
+    admin: seedPassword('SEED_ADMIN_PASSWORD', 'admin123'),
+    lider: seedPassword('SEED_LIDER_PASSWORD', 'lider123'),
+    cliente: seedPassword('SEED_CLIENTE_PASSWORD', 'cliente123'),
+  };
+
   await seedCrmDefaults();
 
-  const adminHash = await bcrypt.hash('admin123', 10);
-  const liderHash = await bcrypt.hash('lider123', 10);
-  const clienteHash = await bcrypt.hash('cliente123', 10);
+  const adminHash = await bcrypt.hash(passwords.admin, 10);
+  const liderHash = await bcrypt.hash(passwords.lider, 10);
+  const clienteHash = await bcrypt.hash(passwords.cliente, 10);
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@bioinfood.com' },
@@ -213,5 +245,10 @@ async function main() {
 }
 
 main()
-  .catch(console.error)
+  // Sai com código 1: encadeado num deploy (`seed && ...`), engolir o erro
+  // faria o passo seguinte rodar como se o banco estivesse semeado.
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

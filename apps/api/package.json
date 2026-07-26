@@ -10,6 +10,8 @@
     "test:coverage": "vitest run --coverage",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:reset-data": "ts-node prisma/reset-data.ts",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
