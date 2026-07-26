@@ -5,7 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '@/lib/errors';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 const schema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('E-mail inválido'),
@@ -17,6 +21,7 @@ type FormData = z.infer<typeof schema>;
 export default function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -45,36 +50,58 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-        <input
+        <Label htmlFor="login-email">E-mail</Label>
+        <Input
           id="login-email"
           {...register('email')}
           type="email"
+          autoComplete="email"
           placeholder="seu@email.com"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+          aria-invalid={!!errors.email}
         />
-        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
       </div>
+
       <div>
-        <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-        <input
-          id="login-password"
-          {...register('password')}
-          type="password"
-          placeholder="••••••••"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
-        />
-        {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+        <Label htmlFor="login-password">Senha</Label>
+        <div className="relative">
+          <Input
+            id="login-password"
+            {...register('password')}
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            placeholder="••••••••"
+            className="pr-10"
+            aria-invalid={!!errors.password}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
       </div>
-      {error && <p className="text-xs text-red-500 text-center">{error}</p>}
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full py-2.5 rounded-lg text-white font-semibold text-sm transition-opacity disabled:opacity-60"
-        style={{ backgroundColor: 'hsl(var(--primary))' }}
-      >
-        {isSubmitting ? 'Entrando...' : 'Entrar'}
-      </button>
+
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
+
+      <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2 w-full">
+        {isSubmitting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Entrando...
+          </>
+        ) : (
+          'Entrar'
+        )}
+      </Button>
     </form>
   );
 }

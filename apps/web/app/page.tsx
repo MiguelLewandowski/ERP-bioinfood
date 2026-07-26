@@ -8,21 +8,26 @@ export default async function LoginPage() {
   if (session) redirect('/projects');
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md px-8 py-10 bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex flex-col items-center mb-8">
-          <div className="mb-4">
-            <Image
-              src="/logo/logotipo-horizontal.png"
-              alt="Bioinfood"
-              width={2618}
-              height={1084}
-              priority
-              className="h-28 w-auto"
-            />
-          </div>
-          <p className="text-sm text-gray-500">Sistema de Gestão Interno</p>
+    <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-muted px-6">
+      <div aria-hidden className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-32 -right-24 h-[26rem] w-[26rem] rounded-full bg-success/10 blur-[130px]" />
+
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-lg">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <Image
+            src="/logo/bio.png"
+            alt="Bioinfood"
+            width={1529}
+            height={1624}
+            priority
+            className="h-16 w-auto"
+          />
+          <h1 className="mt-4 text-xl font-bold text-foreground">Bem-vindo de volta</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Entre com suas credenciais para continuar.
+          </p>
         </div>
+
         <LoginForm />
       </div>
     </main>
