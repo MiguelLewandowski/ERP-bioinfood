@@ -97,6 +97,8 @@ async function main() {
     admin: seedPassword('SEED_ADMIN_PASSWORD', 'admin123'),
     lider: seedPassword('SEED_LIDER_PASSWORD', 'lider123'),
     cliente: seedPassword('SEED_CLIENTE_PASSWORD', 'cliente123'),
+    // A equipe do projeto demo também é PADRAO: mesma exigência.
+    demo: seedPassword('SEED_DEMO_PASSWORD', 'demo123'),
   };
 
   await seedCrmDefaults();
@@ -229,7 +231,7 @@ async function main() {
   // Projeto de demonstração completo (TAP, EAP, 45 tarefas, roadmap, riscos e
   // partes interessadas) — serve de vitrine para avaliar as telas sem cadastrar
   // nada à mão. Recriado a cada execução.
-  const demo = await seedDemoProject(prisma, admin.id, lider.id);
+  const demo = await seedDemoProject(prisma, admin.id, lider.id, passwords.demo);
 
   await prisma.projectAccess.upsert({
     where: { projectId_userId: { projectId: demo.projectId, userId: cliente.id } },

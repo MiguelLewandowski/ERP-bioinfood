@@ -309,13 +309,21 @@ const POPS = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function seedDemoProject(prisma: PrismaClient, adminId: string, liderId: string) {
+export async function seedDemoProject(
+  prisma: PrismaClient,
+  adminId: string,
+  liderId: string,
+  // Vem do seed.ts já validado. A equipe demo é PADRAO — vê e edita TODOS os
+  // projetos — então uma senha fixa aqui seria acesso interno aberto num
+  // ambiente publicado. Quem decide a senha é quem chama.
+  demoPassword: string,
+) {
   // Recria do zero: o projeto cascateia tarefas, EAP, riscos, marcos, TAP e
   // partes interessadas, então rodar o seed de novo não duplica nada.
   await prisma.project.deleteMany({ where: { id: PROJECT_ID } });
 
   // ── Equipe interna ──
-  const demoHash = await bcrypt.hash('demo123', 10);
+  const demoHash = await bcrypt.hash(demoPassword, 10);
   const users: Record<string, string> = {};
   for (const member of TEAM) {
     const user = await prisma.user.upsert({
