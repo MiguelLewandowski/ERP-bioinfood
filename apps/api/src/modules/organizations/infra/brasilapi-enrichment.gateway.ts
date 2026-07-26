@@ -5,6 +5,16 @@ import { EnrichmentResult, ICnpjEnrichmentGateway } from '../domain/cnpj-enrichm
 const BASE_URL = 'https://brasilapi.com.br/api/cnpj/v1';
 const TIMEOUT_MS = 5000;
 
+// A BrasilAPI está atrás de uma borda que responde 403 a requisição sem
+// User-Agent — e o fetch do Node não manda nenhum por padrão. Sem este header a
+// consulta falha sempre, silenciosamente, e o formulário cai no preenchimento
+// manual sem dizer por quê (o mesmo curl na mão responde 200, o que torna o
+// diagnóstico enganoso).
+const HEADERS = {
+  'User-Agent': 'bioinfood-erp',
+  Accept: 'application/json',
+};
+
 // Maps BrasilAPI's "situacao cadastral" text to our enum. Unknown -> UNKNOWN.
 const STATUS_MAP: Record<string, RegistrationStatus> = {
   ATIVA: RegistrationStatus.ACTIVE,
@@ -35,17 +45,26 @@ export class BrasilApiEnrichmentGateway implements ICnpjEnrichmentGateway {
 
   async fetchByCnpj(cnpjDigits: string): Promise<EnrichmentResult> {
     if (cnpjDigits.length !== 14) return { enriched: false };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      const res = await fetch(`${BASE_URL}/${cnpjDigits}`, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!res.ok) return { enriched: false };
+      const res = await fetch(`${BASE_URL}/${cnpjDigits}`, {
+        headers: HEADERS,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        // Sem este log, uma mudança na borda da BrasilAPI (403, rate limit) vira
+        // "não foi possível consultar" na tela e nada no servidor.
+        this.logger.warn(`CNPJ enrichment: BrasilAPI respondeu ${res.status} para ${cnpjDigits}`);
+        return { enriched: false };
+      }
       return this.toResult((await res.json()) as BrasilApiCnpj);
     } catch (err) {
       // Best-effort: log and fall back to manual entry, never block the caller.
       this.logger.warn(`CNPJ enrichment failed for ${cnpjDigits}: ${(err as Error).message}`);
       return { enriched: false };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
