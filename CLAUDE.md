@@ -80,6 +80,7 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | `/seguranca-secrets <alvo>` | Segredos e .env: validação de startup, vazamento no git/bundle, cookies |
 | `/seguranca-total` | Auditoria completa: secrets + RBAC + infra + supply chain, consolidada em docs/analise-seguranca.md |
 | `/deploy <o que>` | Checklist pré-deploy para Railway |
+| `/railway <tarefa>` | Operar o ambiente já no ar: logs, migration, seed, limpeza, diagnóstico |
 | `/commit <contexto>` | Criar commits semânticos, pequenos e separados por intenção |
 
 Skills de revisão e análise (não escrevem código de feature, produzem diagnóstico):
@@ -140,6 +141,23 @@ apps/api/.env
 
 apps/web/.env.local
   NEXT_PUBLIC_API_URL=http://localhost:3001
+
+## Deploy (Railway)
+Guia completo: `docs/deploy-railway.md` · Roteiro de teste: `docs/testes-railway.md`.
+
+Três serviços num projeto (`Postgres`, `api`, `web`), todos com Root Directory na
+**raiz** do monorepo — `packages/shared` é TS cru e o build precisa do workspace
+inteiro. A separação vem do `--filter` nos comandos, versionados em
+`apps/api/railway.json` e `apps/web/railway.json`.
+
+- Entrypoint da API é `dist/src/main.js` (o `prisma/seed.ts` sobe o `rootDir` do tsc).
+- `prisma:generate` roda antes do build — não há `postinstall`.
+- `NEXT_PUBLIC_API_URL` é **assada no build**: trocar exige redeploy do `web`, não restart.
+- `NODE_ENV=production` no `web` é o que liga o `Secure` dos cookies de sessão.
+- Seed contra banco remoto exige `SEED_ADMIN_PASSWORD`/`SEED_LIDER_PASSWORD`/
+  `SEED_CLIENTE_PASSWORD` — aborta sem elas, para não publicar `admin123` na internet.
+- Limpar dados de teste: `pnpm db:reset-data` (exige `ALLOW_DATA_RESET=yes` e
+  confirmação do host do banco).
 
 ## Regra de ouro
 Se uma decisão impactar arquitetura, banco ou segurança:
