@@ -100,7 +100,11 @@ ERP-bioinfood**. Depois, em **Settings** do serviço:
 | Service Name           | `api`                          |
 | Root Directory         | `/` (deixe vazio — é a raiz)   |
 | Config-as-code path    | `apps/api/railway.json`        |
-| Watch Paths            | `apps/api/**`, `packages/**`, `pnpm-lock.yaml` |
+
+Não preencha Watch Paths na UI: eles vêm de `watchPatterns` no `railway.json`.
+E precisam incluir os arquivos da **raiz** (`package.json`, `.nvmrc`,
+`pnpm-lock.yaml`), senão mudar a versão do Node ou uma dependência do workspace
+não dispara rebuild nenhum — o serviço fica servindo uma imagem velha sem avisar.
 
 O `apps/api/railway.json` já traz build, start, healthcheck e política de restart:
 
@@ -168,7 +172,6 @@ Por fim: **Settings → Networking → Generate Domain**. Anote a URL.
 | Service Name        | `web`                          |
 | Root Directory      | `/`                            |
 | Config-as-code path | `apps/web/railway.json`        |
-| Watch Paths         | `apps/web/**`, `packages/**`, `pnpm-lock.yaml` |
 
 Variáveis:
 
@@ -250,6 +253,16 @@ bloquear por um minuto — é o comportamento correto, não um bug.
 **O IP real depende do proxy.** `main.ts` faz `app.set('trust proxy', 1)` e o proxy
 BFF repassa `x-forwarded-for`. Sem isso o rate limit contaria todo mundo como um
 IP só (o do servidor Next) e um usuário derrubaria o limite de todos.
+
+**O Nixpacks usa Node 18 se ninguém disser o contrário.** O Next 16 exige
+`>=20.9.0` e o build morre com uma linha discreta no meio do log. O `.nvmrc` na
+raiz (fixado em `22`) é o que resolve — e só chega ao builder porque
+`watchPatterns` inclui os arquivos da raiz.
+
+**A UI acumula mudanças em staging.** Criar serviço e mexer em Settings não
+aplica nada: fica tudo numa fila até você clicar em **Deploy** no topo do
+projeto. Serviço que aparece na lista mas responde `ServiceInstance not found`
+na CLI está nesse estado.
 
 **Migration destrutiva não tem volta neste ambiente.** Não há backup automático no
 Hobby. Antes de qualquer migration que dropa coluna, tire um dump (§10).
