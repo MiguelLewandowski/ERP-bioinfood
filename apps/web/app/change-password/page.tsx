@@ -17,12 +17,12 @@ export default async function ChangePasswordPage() {
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4">
             <Image
-              src="/logo/logotipo-horizontal.png"
+              src="/logo/bio.png"
               alt="Bioinfood"
-              width={2618}
-              height={1084}
+              width={1529}
+              height={1624}
               priority
-              className="h-28 w-auto"
+              className="h-16 w-auto"
             />
           </div>
           <h1 className="text-lg font-semibold text-foreground">Trocar senha</h1>
