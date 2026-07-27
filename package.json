@@ -8,7 +8,8 @@
     "test": "turbo run test",
     "seed": "pnpm --filter @bioinfood/api prisma:seed",
     "db:deploy": "pnpm --filter @bioinfood/api prisma:deploy",
-    "db:reset-data": "pnpm --filter @bioinfood/api prisma:reset-data"
+    "db:reset-data": "pnpm --filter @bioinfood/api prisma:reset-data",
+    "db:unseed": "pnpm --filter @bioinfood/api prisma:unseed"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

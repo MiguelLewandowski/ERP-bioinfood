@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:reset-data": "ts-node prisma/reset-data.ts",
+    "prisma:unseed": "ts-node prisma/unseed.ts",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate"
   },
