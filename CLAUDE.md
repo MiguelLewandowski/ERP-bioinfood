@@ -158,6 +158,9 @@ inteiro. A separação vem do `--filter` nos comandos, versionados em
   `SEED_CLIENTE_PASSWORD` — aborta sem elas, para não publicar `admin123` na internet.
 - Limpar dados de teste: `pnpm db:reset-data` (exige `ALLOW_DATA_RESET=yes` e
   confirmação do host do banco).
+- Remover só o que o seed criou, preservando cadastro real: `pnpm db:unseed`
+  (dry-run por padrão; apaga com `UNSEED_CONFIRM=yes` + `UNSEED_DB_HOST_CONFIRM`).
+  Preserva sempre `admin@bioinfood.com`, as taxonomias e o funil padrão do CRM.
 
 ## Regra de ouro
 Se uma decisão impactar arquitetura, banco ou segurança:
