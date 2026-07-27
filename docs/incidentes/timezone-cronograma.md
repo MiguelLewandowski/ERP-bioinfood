@@ -94,23 +94,46 @@ original de "8 renderizadores contaminados" tem uma correção e duas ressalvas.
 
 ### Contaminados — campo de dia lido com `new Date()`
 
-| Arquivo | Linha | Campo |
-|---|---|---|
-| `projects/[id]/gantt/_components/gantt-mapping.ts` | 42 (`fmtCol`) | `start`, `end` |
-| `projects/[id]/backlog/_components/backlog-row.tsx` | 40 | `task.dueDate` |
-| `projects/[id]/kanban/_components/kanban-card.tsx` | 91 | `task.dueDate` |
-| `components/projects/project-card.tsx` | 12 | `startDate`, `endDate` |
-| `components/projects/projects-table.tsx` | 14 | `startDate`, `endDate` |
-| `app/(dashboard)/dashboard/page.tsx` | 23 | `dueDate` (dashboard **global**) |
-| `lib/project-report.ts` | 11 | `startDate`, `endDate`, `forecastEndDate` |
+| Arquivo | Linha | Campo | Commit |
+|---|---|---|---|
+| `projects/[id]/gantt/_components/gantt-mapping.ts` | 42 (`fmtCol`) | `start`, `end` | **1** (junto com `combineDateTime`) |
+| `projects/[id]/backlog/_components/backlog-row.tsx` | 40 | `task.dueDate` | 2 |
+| `projects/[id]/kanban/_components/kanban-card.tsx` | 91 | `task.dueDate` | 2 |
+| `components/projects/project-card.tsx` | 12 | `startDate`, `endDate` | 2 |
+| `components/projects/projects-table.tsx` | 14 | `startDate`, `endDate` | 2 |
+| `app/(dashboard)/dashboard/page.tsx` | 23 | `dueDate` (dashboard **global**) | 2 |
+| `lib/project-report.ts` | 11 | `startDate`, `endDate`, `forecastEndDate` | 2 |
+| `projects/[id]/charter/_components/charter-client.tsx` | 30 (`fmtDate`) | `startDate`, `endDate` | **3** (split, ver abaixo) |
 
-### ⚠️ `pop-row.tsx` é falso positivo — **não corrigir**
+### A aritmética
+
+`gantt-mapping.ts` nunca fez parte da lista dos "8 renderizadores" — sempre foi
+tratado à parte, no commit 1, porque é interdependente com `combineDateTime`.
+Partindo da lista original:
+
+| | |
+|---|---|
+| Inventário original | **8** renderizadores |
+| − `pop-row.tsx`, falso positivo verificado | **7** contaminados de verdade |
+| − `charter-client.tsx`, que vai sozinho no commit 3 | **commit 2 leva 6** |
+
+Ou seja: **7 renderizadores contaminados** (+ `fmtCol`, no commit 1), em **3
+commits**. Quem for conferir o commit 2 vai contar 6 arquivos, e isso está certo.
+
+### 🚫 `pop-row.tsx` — falso positivo VERIFICADO, não corrigir
+
+**Se você chegou aqui numa próxima passada achando que faltou corrigir o
+`pop-row.tsx`: não faltou. Ele está certo. Não mexa.**
 
 `app/(dashboard)/pops/_components/pop-row.tsx:13` formata
-`pop.latestVersion.createdAt` (linhas 125 e 174) — um **instante**, não um dia de
-calendário. Renderizar instante em hora local é o comportamento correto. Aplicar
-`parseCalendarDate` aqui **introduziria** um bug: uma versão criada às 22h de
-Brasília (01:00Z do dia seguinte) passaria a exibir o dia seguinte.
+`pop.latestVersion.createdAt` (usado nas linhas 125 e 174) — um **instante**, não
+um dia de calendário. Renderizar instante em hora local é o comportamento
+correto. Aplicar `parseCalendarDate` aqui **introduziria** um bug: uma versão
+criada às 22h de Brasília (`01:00Z` do dia seguinte) passaria a exibir o dia
+seguinte.
+
+Verificado em 2026-07-27 lendo os três pontos de uso. A regra geral que este
+achado gerou está em `CLAUDE.md`, seção "Datas — dia de calendário vs instante".
 
 ### ⚠️ `charter-client.tsx` tem helper misto — exige split, não troca
 
@@ -177,12 +200,17 @@ Ordem dos commits:
 1. **`combineDateTime` + `fmtCol` juntos.** Interdependentes: separá-los faz os
    registros do caminho A passarem a exibir 03:00. `combineDateTime` passa a
    emitir `YYYY-MM-DD`; `fmtCol` passa a usar `parseCalendarDate`.
-2. **Os renderizadores contaminados** — 7 pontos da seção 3, com o split do
-   `charter-client` e **sem** tocar `pop-row`.
-3. **`use-gantt-persistence` com PATCH condicional** — commit isolado. É o mais
+2. **Os 6 renderizadores de troca simples** — `backlog-row`, `kanban-card`,
+   `project-card`, `projects-table`, `dashboard/page` (global) e
+   `lib/project-report`. Troca de implementação, sem mudar assinatura. **Sem**
+   tocar `pop-row` (falso positivo verificado) e **sem** o `charter-client`.
+3. **Split do `charter-client` em `fmtInstant` / `fmtDay`** — commit próprio. É o
+   único ponto que muda **assinatura de função** em vez de trocar implementação,
+   e misturá-lo com o commit 2 esconderia essa diferença no diff.
+4. **`use-gantt-persistence` com PATCH condicional** — commit isolado. É o mais
    arriscado (escrita otimista com reversão) e precisa poder ser revertido
    sozinho.
-4. **Remoção dos campos de hora do `TaskFormDialog`** — ver decisão de produto
+5. **Remoção dos campos de hora do `TaskFormDialog`** — ver decisão de produto
    na seção 7.
 
 ### Etapa (b) — corrigir os dados já gravados · script manual
@@ -242,8 +270,16 @@ existir — some junto com os campos.
 | `Project.startDate`, `Project.endDate` | `@db.Date` | dia de calendário |
 | `Milestone.date` | `@db.Date` | dia de calendário |
 | `Opportunity.expectedCloseDate` | `@db.Date` | ver nota abaixo |
+| `Task.actualStart`, `Task.actualEnd` | `@db.Date` | ver nota abaixo |
 | `Activity.dueDate` | **continua `TIMESTAMP`** | é agenda, hora é significativa |
-| `Task.actualStart`, `Task.actualEnd` | **a decidir** | ver seção 10 |
+
+**`Task.actualStart` / `actualEnd`** — decidido em 2026-07-27: `@db.Date`, junto
+com o resto. O desvio de cronograma do dashboard ("11 dias além do planejado") é
+`actual` menos `baseline`, contado em **dias**. Se a baseline vira `Date` e o
+actual fica `TIMESTAMP`, a comparação é entre tipos diferentes e reintroduz erro
+de fronteira: tarefa concluída às 22h contaria um dia a mais de atraso. A
+auditoria de "quando foi marcada" já está coberta por `updatedAt` — não precisa
+ser duplicada em `actualEnd`.
 
 **`Opportunity.expectedCloseDate`** — verificado em 2026-07-27: escrito só por
 `<Input type="date">` (`opportunity-dialog.tsx:197`), lido só com `.slice(0,10)`
@@ -305,10 +341,15 @@ Projetos criados por seed (para o filtro por origem da etapa (b)):
    original e não foi recuperado. As queries classificam por assinatura
    observável; o mapeamento assinatura → caminho precisa ser feito quando o
    resultado voltar.
-2. **`Task.actualStart` / `actualEnd`** não entraram na decisão de tipo da seção
-   8. São preenchidos na mudança de status — se for o instante da transição,
-   continuam `TIMESTAMP`; se for "o dia em que começou", viram `@db.Date`.
-   Decisão de produto pendente.
-3. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** em três pontos. Correto
-   hoje, mas é a próxima ocorrência do mesmo bug esperando alguém editar. Vale
-   unificar fora deste incidente.
+2. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
+   cada uma reimplementa `new Date(\`${x.slice(0,10)}T00:00:00\`)` à mão. Está
+   **correto hoje**, e por isso ficou fora do escopo deste incidente: mexer nele
+   agora seria alterar código que funciona no meio de uma correção de produção.
+
+   **Regra para a próxima pessoa:** na próxima vez que alguém encostar nesse
+   arquivo por qualquer motivo, unifique os três pontos em `parseCalendarDate` de
+   `lib/dates.ts`. É lógica de fuso duplicada em três lugares — a primeira vez
+   que alguém editar um deles sem lembrar dos outros dois, o bug volta.
+
+*(A decisão sobre `Task.actualStart`/`actualEnd`, antes pendente aqui, foi tomada
+em 2026-07-27 e está na seção 8.)*
