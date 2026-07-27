@@ -227,8 +227,10 @@ Módulos existentes: `activities`, `auth`, `charter`, `contacts`, `crm-activitie
 
 | Documento | Conteúdo |
 |---|---|
+| [`docs/deploy.md`](docs/deploy.md) | **Como o sistema vai ao ar** — branches, promoção para produção, migration em produção, backup e restauração |
 | [`CLAUDE.md`](CLAUDE.md) | Convenções, arquitetura e decisões de segurança do projeto |
 | [`docs/analise-seguranca.md`](docs/analise-seguranca.md) | Auditoria de segurança viva (RBAC, secrets, infra) |
+| [`docs/deploy-railway.md`](docs/deploy-railway.md) | Montar o ambiente no Railway do zero (setup inicial) |
 | [`docs/testes-frontend.md`](docs/testes-frontend.md) | Cobertura de testes, bugs encontrados e dívidas |
 | [`docs/design/design-tokens.md`](docs/design/design-tokens.md) | Tokens de design — ler antes de criar qualquer UI |
 | [`docs/analise-backend.md`](docs/analise-backend.md) · [`analise-frontend.md`](docs/analise-frontend.md) · [`analise-uiux.md`](docs/analise-uiux.md) | Revisões técnicas por especialidade |
@@ -238,5 +240,7 @@ Módulos existentes: `activities`, `auth`, `charter`, `contacts`, `crm-activitie
 - TypeScript strict em todos os projetos
 - Arquivos em `kebab-case` · classes em `PascalCase` · funções e variáveis em `camelCase`
 - Commits semânticos: `feat:` `fix:` `chore:` `docs:` `refactor:` `test:`
+- Branches: feature sai de `develop` e volta para `develop`. `main` é produção com
+  auto-deploy — só recebe promoção deliberada ([`docs/deploy.md`](docs/deploy.md))
 - Server Components por padrão no Next.js
 - Sem `console.log` ou `TODO` no código commitado
