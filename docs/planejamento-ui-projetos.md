@@ -12,7 +12,7 @@ Ordenadas por **impacto ÷ esforço**, não por tela.
 
 ```
 /implementar-plano docs/tasks/bug-gantt-marco-grava-sem-comparar.md
-/planejar Onda 2 — TAP (ver seção "Onda 2" deste documento)
+/planejar Onda 3 — Metodologia (ver seção "Onda 3" deste documento)
 ```
 
 Estado em 2026-07-28:
@@ -20,8 +20,8 @@ Estado em 2026-07-28:
 | Onda | Estado |
 |---|---|
 | 1 — EAP/WBS | ✅ **entregue e em produção** |
-| 2 — TAP | ⬜ próxima recomendada |
-| 3 — Metodologia | ⬜ |
+| 2 — TAP | ✅ **implementada** — em `feat/ui-projetos-onda-2-tap`, aguardando promoção |
+| 3 — Metodologia | ⬜ próxima recomendada |
 | 4 — Dashboard | ⬜ |
 | 5 — `requiresSOP` | ⬜ único item com banco |
 | 6 — Gantt | ⬜ **destravada** — era bloqueada pelo incidente de fuso, que fechou |
@@ -51,24 +51,34 @@ o agrupamento por pacote no Gantt reaproveitar a navegação da árvore.
 
 ---
 
-## Onda 2 — TAP ⬜ PRÓXIMA
+## Onda 2 — TAP ✅ IMPLEMENTADA
 
 **Um arquivo só:** `apps/web/app/(dashboard)/projects/[id]/charter/_components/charter-client.tsx`
 
-| Item | Detalhe |
+| Item | O que foi feito |
 |---|---|
-| Botão "Salvar" desabilitado parece bug | **Remover o botão.** Há autosave na linha ~318; o botão é redundante e o `disabled` (linha ~436) parece defeito com razão. Trocar por indicador de estado: "Salvo às 14:32" / "Salvando…" |
-| Três elementos competindo no header | O status "Aprovado" **não é botão** — virar `<span>`/badge |
-| Bolinhas de status sem semântica | Todas verdes hoje; dar cor por estado |
-| Tipo/Prioridade soltos ocupando a largura inteira | Grid de 2 colunas |
-| Falta limite de leitura | `max-w-3xl` nos blocos de texto |
+| Botão "Salvar" desabilitado parece bug | Botão removido. No lugar, indicador `aria-live` com três estados: "Alterações não salvas" → "Salvando…" → "Salvo às 14:32" |
+| Três elementos competindo no header | Pill de aprovado virou `<Badge variant="success">`; com o Salvar fora, sobraram dois elementos e uma hierarquia |
+| Bolinhas de status sem semântica | Dois estados: `bg-success` (preenchida) e `bg-border` (vazia), com `aria-label` correspondente |
+| Tipo/Prioridade soltos ocupando a largura inteira | `half?: boolean` no `FieldDef` + grid de 2 colunas; campo sem o flag atravessa as duas |
+| ~~Falta limite de leitura~~ | ⚠️ **não existia.** O `max-w-3xl` já estava no container do formulário |
 
-**Complexidade: baixa.** Cabe numa tarde e some com a sensação de bug — daí ser a
-melhor razão impacto/esforço agora que a Onda 1 saiu.
+**Duas coisas que a revisão diagnosticou errado**, para quem for auditar depois:
+
+- O status "Aprovado" **já era um `<span>`**, nunca foi botão. O que competia era o
+  peso visual — pill do mesmo tamanho dos botões vizinhos, com `style` inline em vez
+  do primitivo `Badge`.
+- O `max-w-3xl` já existia. Nada foi mudado por esse item.
+
+**Decisão que ficou no código:** remover o botão Salvar abre um caminho de perda de
+texto — o autosave depende do `blur`, e fechar a aba com o cursor dentro do campo
+nunca dispara blur. O `beforeunload` guardado por `isDirty` é a **contrapartida da
+remoção**, não um extra. Não remover um sem o outro.
 
 > Cuidado ao mexer nas datas deste arquivo: ele tem `fmtDay` e `fmtInstant`
 > **separados de propósito** (incidente de fuso, §3). `approvedAt` é instante;
-> `project.startDate`/`endDate` são dia de calendário. Não reunifique.
+> `project.startDate`/`endDate` são dia de calendário. Não reunifique. O `fmtClock`
+> do indicador de autosave é instante também.
 
 ---
 
