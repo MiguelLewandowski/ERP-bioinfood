@@ -132,6 +132,95 @@ describe('CharterClient — equipe do TAP', () => {
 });
 
 /**
+ * O botão "Salvar" saiu na Onda 2 de UI: ele ficava `disabled` quase o tempo todo
+ * — porque o autosave do blur já tinha salvado — e botão apagado lê como defeito.
+ * O que entrou no lugar não é uma ação, é o estado do documento.
+ *
+ * O caso que protege a troca é o terceiro: sem botão, o único jeito de salvar é o
+ * blur. Se ele parar de disparar, o usuário perde texto em silêncio.
+ */
+describe('CharterClient — estado de salvamento', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertMock.mockResolvedValue({});
+    listContactsMock.mockResolvedValue([]);
+    listUsersMock.mockResolvedValue(ALL_USERS);
+  });
+
+  it('should not offer a Salvar button, since the blur already persists', () => {
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    expect(screen.queryByRole('button', { name: /^Salvar/ })).not.toBeInTheDocument();
+  });
+
+  it('should warn that changes are pending while the field is still focused', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    await user.type(screen.getByPlaceholderText(/Subvenção/), 'P&D Interno');
+
+    expect(screen.getByText('Alterações não salvas')).toBeInTheDocument();
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it('should report the time of the autosave once the field loses focus', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    await user.type(screen.getByPlaceholderText(/Subvenção/), 'P&D Interno');
+    await user.tab();
+
+    await waitFor(() => expect(upsertMock).toHaveBeenCalled());
+    expect(await screen.findByText(/^Salvo às \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(screen.queryByText('Alterações não salvas')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * "Todas as bolinhas verdes" não era mapa de cor errado: a bolinha só era
+ * renderizada quando a seção tinha conteúdo, então nunca havia uma segunda cor
+ * para comparar. Os dois casos precisam existir juntos — testar só a preenchida
+ * passa com o comportamento antigo.
+ */
+describe('CharterClient — progresso das seções no nav', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertMock.mockResolvedValue({});
+    listContactsMock.mockResolvedValue([]);
+    listUsersMock.mockResolvedValue(ALL_USERS);
+  });
+
+  it('should mark every section as empty when the charter has no content', () => {
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(8);
+    expect(screen.queryByLabelText('Seção preenchida')).not.toBeInTheDocument();
+  });
+
+  it('should distinguish a filled section from the empty ones', () => {
+    const charter = {
+      mainObjective: 'Reduzir o custo do xarope de xilose em 30%.',
+      team: [],
+    } as unknown as Parameters<typeof CharterClient>[0]['initialData'];
+
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />,
+    );
+
+    expect(screen.getAllByLabelText('Seção preenchida')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(7);
+  });
+});
+
+/**
  * O `charter-client` tinha UM `fmtDate` servindo aos dois tipos de data — e por
  * isso estava errado nas duas pontas: corrigir o dia de calendário quebraria o
  * instante, e deixar como estava mantinha o dia deslocado. O split em

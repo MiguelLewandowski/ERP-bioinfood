@@ -7,12 +7,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import {
-  Save, CheckCircle2, Info, Target, FlaskConical,
+  CheckCircle2, Info, Target, FlaskConical,
   Layers, Package, Users, Link2, Wrench,
   FileDown, Pencil, Mail, Phone,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -44,6 +45,11 @@ function fmtInstant(iso: string | null, withTime = false): string {
   return withTime
     ? d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
     : d.toLocaleDateString('pt-BR');
+}
+
+/** Hora do último autosave — instante, logo hora local. */
+function fmtClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 const schema = z.object({
@@ -105,6 +111,8 @@ type FieldDef = {
   placeholder?: string;
   rows?: number;
   options?: readonly string[];
+  /** Ocupa meia largura no grid da seção; sem isso o campo atravessa as duas colunas. */
+  half?: boolean;
 };
 
 const SECTIONS: Array<{
@@ -116,15 +124,15 @@ const SECTIONS: Array<{
     icon: Info,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1 },
-      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS },
+      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1, half: true },
+      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS, half: true },
     ],
   },
   {
     id: 'contexto',
     label: 'Contexto e Justificativa',
     icon: FlaskConical,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
       { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4 },
       { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3 },
@@ -157,7 +165,7 @@ const SECTIONS: Array<{
     id: 'entregaveis',
     label: 'Entregáveis',
     icon: Package,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
       { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais, um por linha…', rows: 4 },
     ],
@@ -195,7 +203,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('identificacao');
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
@@ -315,9 +323,9 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       // se o usuário já começou a editar outro campo enquanto isso salvava,
       // isso evita que o reset apague o que ele digitou nesse meio-tempo.
       reset(getValues());
-      setLastEdit({ name: 'você', at: new Date().toISOString() });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      const at = new Date().toISOString();
+      setLastEdit({ name: 'você', at });
+      setLastSavedAt(at);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -330,6 +338,16 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   function handleFieldBlur() {
     if (isDirty) persist(getValues());
   }
+
+  // Não existe mais botão Salvar: o autosave depende do blur, e fechar a aba com o
+  // cursor ainda dentro do campo nunca dispara blur. É o único caminho de perda de
+  // texto que a remoção do botão abriu — este aviso é a contrapartida dela.
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty]);
 
   // Checkbox não dispara blur de forma confiável — salva no próprio clique.
   function toggleTeamMember(userId: string) {
@@ -385,15 +403,18 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
             >
               <Icon size={13} className="shrink-0" />
               <span className="leading-snug flex-1">{i + 1}. {label}</span>
-              {sectionHasContent[id] && (
-                <span
-                  className={cn(
-                    'h-1.5 w-1.5 rounded-full shrink-0',
-                    activeSection === id ? 'bg-white' : 'bg-success',
-                  )}
-                  aria-label="Seção preenchida"
-                />
-              )}
+              {/* Dois estados, duas cores. Antes a bolinha só existia quando havia
+                  conteúdo — daí "todas verdes": o que faltava não era mapa de cor,
+                  era mostrar também o que ainda está vazio. */}
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full shrink-0',
+                  activeSection === id
+                    ? sectionHasContent[id] ? 'bg-white' : 'bg-white/40'
+                    : sectionHasContent[id] ? 'bg-success' : 'bg-border',
+                )}
+                aria-label={sectionHasContent[id] ? 'Seção preenchida' : 'Seção vazia'}
+              />
             </button>
           ))}
         </nav>
@@ -418,7 +439,22 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Substitui o botão "Salvar": ele ficava `disabled` quase sempre — porque
+                  o autosave do blur já tinha salvado — e um botão apagado lê como defeito.
+                  O que faltava era dizer em que estado o documento está, não uma ação. */}
+              <span
+                aria-live="polite"
+                className="text-xs font-medium text-muted-foreground tabular-nums"
+              >
+                {saving
+                  ? 'Salvando…'
+                  : isDirty
+                    ? 'Alterações não salvas'
+                    : lastSavedAt
+                      ? `Salvo às ${fmtClock(lastSavedAt)}`
+                      : ''}
+              </span>
               <button
                 type="button"
                 onClick={() => setExportOpen(true)}
@@ -428,9 +464,12 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 Exportar PDF
               </button>
               {isApproved ? (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: 'hsl(var(--success) / 0.6)', color: 'hsl(var(--primary-dark))' }}>
+                // Estado, não ação: badge do catálogo em vez de um pill com o mesmo
+                // peso dos botões vizinhos — era isso que fazia três elementos
+                // competirem no header.
+                <Badge variant="success" className="gap-1.5">
                   <CheckCircle2 size={12} /> Aprovado em {fmtInstant(initialData!.approvedAt!)}
-                </span>
+                </Badge>
               ) : (
                 <button
                   type="button"
@@ -442,15 +481,6 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                   {approving ? 'Aprovando…' : 'Aprovar TAP'}
                 </button>
               )}
-              <button
-                type="submit"
-                disabled={saving || !isDirty}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
-              >
-                <Save size={13} />
-                {saving ? 'Salvando…' : saved ? 'Salvo ✓' : 'Salvar'}
-              </button>
             </div>
           </div>
 
@@ -599,33 +629,37 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </>
             )}
 
-            {activeData.fields.map(({ key, label, placeholder, rows, options }) => (
-              <div key={key}>
-                <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
-                {options ? (
-                  <select
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  >
-                    <option value="">—</option>
-                    {options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : rows === 1 ? (
-                  <input
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  />
-                ) : (
-                  <textarea
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    rows={rows}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
-                  />
-                )}
-              </div>
-            ))}
+            {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
+                que são curtos, dividem a linha. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => (
+                <div key={key} className={half ? undefined : 'col-span-2'}>
+                  <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
+                  {options ? (
+                    <select
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    >
+                      <option value="">—</option>
+                      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : rows === 1 ? (
+                    <input
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    />
+                  ) : (
+                    <textarea
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      rows={rows}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </form>
       </div>
