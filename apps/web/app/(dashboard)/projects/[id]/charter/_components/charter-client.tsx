@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import {
-  Save, CheckCircle2, Info, Target, FlaskConical,
+  CheckCircle2, Info, Target, FlaskConical,
   Layers, Package, Users, Link2, Wrench,
   FileDown, Pencil, Mail, Phone,
 } from 'lucide-react';
@@ -45,6 +45,11 @@ function fmtInstant(iso: string | null, withTime = false): string {
   return withTime
     ? d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
     : d.toLocaleDateString('pt-BR');
+}
+
+/** Hora do último autosave — instante, logo hora local. */
+function fmtClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 const schema = z.object({
@@ -198,7 +203,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('identificacao');
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
@@ -318,9 +323,9 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       // se o usuário já começou a editar outro campo enquanto isso salvava,
       // isso evita que o reset apague o que ele digitou nesse meio-tempo.
       reset(getValues());
-      setLastEdit({ name: 'você', at: new Date().toISOString() });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      const at = new Date().toISOString();
+      setLastEdit({ name: 'você', at });
+      setLastSavedAt(at);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -333,6 +338,16 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   function handleFieldBlur() {
     if (isDirty) persist(getValues());
   }
+
+  // Não existe mais botão Salvar: o autosave depende do blur, e fechar a aba com o
+  // cursor ainda dentro do campo nunca dispara blur. É o único caminho de perda de
+  // texto que a remoção do botão abriu — este aviso é a contrapartida dela.
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty]);
 
   // Checkbox não dispara blur de forma confiável — salva no próprio clique.
   function toggleTeamMember(userId: string) {
@@ -424,7 +439,22 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Substitui o botão "Salvar": ele ficava `disabled` quase sempre — porque
+                  o autosave do blur já tinha salvado — e um botão apagado lê como defeito.
+                  O que faltava era dizer em que estado o documento está, não uma ação. */}
+              <span
+                aria-live="polite"
+                className="text-xs font-medium text-muted-foreground tabular-nums"
+              >
+                {saving
+                  ? 'Salvando…'
+                  : isDirty
+                    ? 'Alterações não salvas'
+                    : lastSavedAt
+                      ? `Salvo às ${fmtClock(lastSavedAt)}`
+                      : ''}
+              </span>
               <button
                 type="button"
                 onClick={() => setExportOpen(true)}
@@ -451,15 +481,6 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                   {approving ? 'Aprovando…' : 'Aprovar TAP'}
                 </button>
               )}
-              <button
-                type="submit"
-                disabled={saving || !isDirty}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
-              >
-                <Save size={13} />
-                {saving ? 'Salvando…' : saved ? 'Salvo ✓' : 'Salvar'}
-              </button>
             </div>
           </div>
 
