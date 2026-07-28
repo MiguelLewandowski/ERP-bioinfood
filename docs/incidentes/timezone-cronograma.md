@@ -603,6 +603,14 @@ caso de a etapa (c) precisar de normalização.
 
 ## 10. Em aberto
 
+> Os itens 1, 2 e 3 viraram tarefas em `docs/tasks/` em 2026-07-28 — é lá que o
+> trabalho pendente mora. O texto aqui fica como registro do **porquê**; o plano
+> de execução está no doc de cada uma.
+>
+> - `docs/tasks/bug-gantt-marco-grava-sem-comparar.md`
+> - `docs/tasks/test-suite-web-instavel-sob-carga.md`
+> - `docs/tasks/perf-gantt-reordenar-reescreve-projeto-inteiro.md`
+
 1. **🔶 A suíte web é instável sob carga — e `pnpm test` é o portão de deploy.**
    Verificado em 2026-07-28: a suíte completa falhou 11-12 testes, em conjuntos
    **diferentes a cada execução** (`project-dialog`, `pops-client`,
