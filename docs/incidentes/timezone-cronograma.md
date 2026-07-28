@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | **Etapa (a) completa** (blocos 1, 2 e 3), coberta por teste — aguardando teste manual e deploy. Etapa (b) não existe. Falta a etapa (c) |
+| **Estado** | **Correção completa.** Etapa (a) feita e coberta por teste; etapa (b) inexistente (não há dado a corrigir); etapa (c) cancelada. **Falta só teste manual e deploy** |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -413,9 +413,16 @@ Se a etapa (c) exigir normalização antes da conversão de tipo, o script entra
 filtrado por origem, `SELECT` do depois, transação com rollback fácil. **Nunca
 dentro de migration** — seção 6.
 
-### Etapa (c) — alinhar o tipo no banco · duas publicações
+### Etapa (c) — ❌ CANCELADA em 2026-07-28
 
-`@db.Date` nos campos que são dia de calendário. Detalhe na seção 8.
+**Não será feita. Nenhuma migration sai deste incidente.** Detalhe e motivo na
+seção 8.
+
+Resumo: com a revogação da §7, os campos de tarefa ficam `TIMESTAMP` porque têm
+hora. Sobravam três campos sem hora nenhuma, e neles `@db.Date` não corrigiria
+bug algum — o `hasTimeComponent` e o `formatDay` já resolvem em código. A troca
+seria uma migration num banco sem backup automático, que aplica sozinha no boot
+da API (seção 6), em favor de higiene de tipo em campos que não estão quebrados.
 
 ---
 
@@ -465,7 +472,20 @@ registro já tinha no servidor. Arrastar barra move dias e **não apaga hora**.
 
 ---
 
-## 8. Etapa (c) — campos por tipo
+## 8. Etapa (c) — ❌ cancelada · o levantamento fica como referência
+
+> **Decidido em 2026-07-28: a etapa (c) não será executada.** A tabela abaixo é o
+> levantamento que levou a essa conclusão, não um plano pendente. Ninguém deve
+> abrir migration a partir daqui.
+>
+> Se algum dia alguém quiser retomar, o argumento a derrubar é este: os campos
+> que poderiam virar `@db.Date` **não estão quebrados** — a correção de código
+> (`hasTimeComponent`, `formatDay`, `parseCalendarDate`) já garante o dia certo na
+> escrita e na leitura. O que a migration acrescentaria é impedir que um código
+> futuro erre de novo, e isso custa uma alteração de schema em produção que
+> aplica sozinha no boot da API, num banco sem backup automático.
+
+### Levantamento por campo
 
 | Campo | Vira | Motivo |
 |---|---|---|
