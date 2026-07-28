@@ -135,36 +135,14 @@ describe('TaskFormDialog — create mode', () => {
     expect(postMock).not.toHaveBeenCalled();
   });
 
-  // Business rule: times only conflict when both fall on the same day.
-  it('should reject an end time earlier than the start time on the same day', async () => {
-    const user = userEvent.setup();
+  // Tarefa de cronograma virou dia puro (§7 do incidente): os campos de hora
+  // saíram do formulário, e com eles a regra de conflito entre horas. Quem
+  // precisa de hora marcada usa Activity.
+  it('should not offer time fields for a schedule task', () => {
     setup();
 
-    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
-    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
-    await user.type(screen.getByLabelText('Prazo'), '2026-08-10');
-    await user.type(screen.getByLabelText('Hora de Início'), '14:00');
-    await user.type(screen.getByLabelText('Hora Final'), '09:00');
-    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
-
-    expect(
-      await screen.findByText('A hora final não pode ser anterior à hora de início'),
-    ).toBeInTheDocument();
-    expect(postMock).not.toHaveBeenCalled();
-  });
-
-  it('should accept an earlier end time when the dates differ', async () => {
-    const user = userEvent.setup();
-    setup();
-
-    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
-    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
-    await user.type(screen.getByLabelText('Prazo'), '2026-08-11');
-    await user.type(screen.getByLabelText('Hora de Início'), '14:00');
-    await user.type(screen.getByLabelText('Hora Final'), '09:00');
-    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
-
-    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    expect(screen.queryByLabelText('Hora de Início')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Hora Final')).not.toBeInTheDocument();
   });
 
   // Story points are bounded by the native min/max on `type="number"`, which
@@ -247,22 +225,28 @@ describe('TaskFormDialog — create mode', () => {
     expect(payload.dueDate).toBeUndefined();
   });
 
-  it('should combine the date and time fields into a single timestamp', async () => {
+  /**
+   * O caminho de escrita que ainda podia gravar dado deslocado (§2.1). O antigo
+   * `combineDateTime` fazia `new Date('2026-08-10T00:00:00').toISOString()` —
+   * sem `Z`, o construtor lê meia-noite LOCAL e converte para UTC, então o dia
+   * escolhido pelo usuário chegava à API como `2026-08-10T03:00:00.000Z`.
+   *
+   * A asserção é sobre a string crua de propósito: reidratar com `new Date()`
+   * antes de comparar é justamente o que mascarava o deslocamento.
+   */
+  it('should send the plain calendar day, without shifting it to UTC', async () => {
     const user = userEvent.setup();
     setup();
 
     await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
     await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
-    await user.type(screen.getByLabelText('Hora de Início'), '09:30');
+    await user.type(screen.getByLabelText('Prazo'), '2026-08-12');
     await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
 
     await waitFor(() => expect(postMock).toHaveBeenCalled());
-    const sent = new Date(postMock.mock.calls[0][1].startDate);
-    expect(sent.getFullYear()).toBe(2026);
-    expect(sent.getMonth()).toBe(7); // August, zero-based
-    expect(sent.getDate()).toBe(10);
-    expect(sent.getHours()).toBe(9);
-    expect(sent.getMinutes()).toBe(30);
+    const payload = postMock.mock.calls[0][1];
+    expect(payload.startDate).toBe('2026-08-10');
+    expect(payload.dueDate).toBe('2026-08-12');
   });
 
   it('should show the server message and keep the dialog open when creation fails', async () => {

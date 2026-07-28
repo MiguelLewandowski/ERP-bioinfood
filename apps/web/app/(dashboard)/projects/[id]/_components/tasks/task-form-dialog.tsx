@@ -26,23 +26,16 @@ const schema = z
     storyPoints: z.coerce.number().int().min(1, 'Mínimo 1').max(100, 'Máximo 100').optional().or(z.literal('')),
     // Input date="" quando vazio — mantém string aqui e normaliza pra undefined no onSubmit,
     // nunca envia "" pro backend (que rejeitaria com @IsDateString()).
+    // Tarefa de cronograma é dia puro, sem horário — decisão de produto da §7 do
+    // incidente. Quem precisa de compromisso com hora usa Activity, que já tem
+    // semântica de agenda. O Gantt trabalha em dias, duração é em dias e baseline
+    // é em dias: hora aqui não tinha para onde ir.
     startDate:   z.string().optional(),
     dueDate:     z.string().optional(),
-    // Hora é opcional e só se aplica quando a data correspondente está preenchida.
-    startTime:   z.string().optional(),
-    endTime:     z.string().optional(),
   })
   .refine((data) => !data.startDate || !data.dueDate || data.dueDate >= data.startDate, {
     message: 'O prazo não pode ser anterior à data de início',
     path: ['dueDate'],
-  })
-  .refine((data) => {
-    if (!data.startDate || !data.dueDate || data.startDate !== data.dueDate) return true;
-    if (!data.startTime || !data.endTime) return true;
-    return data.endTime >= data.startTime;
-  }, {
-    message: 'A hora final não pode ser anterior à hora de início',
-    path: ['endTime'],
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -52,15 +45,16 @@ function toDateInput(d: string | null | undefined): string {
   return d.split('T')[0];
 }
 
-// '00:00' é o sentinel de "sem hora definida" (mesma regra de apps/web/lib/activities.ts formatTime).
-function toTimeInput(d: string | null | undefined): string {
-  if (!d) return '';
-  const time = new Date(d).toTimeString().slice(0, 5);
-  return time === '00:00' ? '' : time;
-}
-
-function combineDateTime(date: string, time: string | undefined): string {
-  return new Date(`${date}T${time || '00:00'}:00`).toISOString();
+// Data de cronograma é dia de calendário: vai crua, como 'YYYY-MM-DD'.
+//
+// O que estava aqui antes era `new Date(\`${date}T${time}:00\`).toISOString()`.
+// Sem `Z`, o construtor lê meia-noite LOCAL e o toISOString convertia para UTC:
+// "1º de outubro" virava `2026-10-01T03:00:00.000Z` em UTC-3. `@IsDateString`
+// aceita 'YYYY-MM-DD' e a API grava 00:00Z — o mesmo que o banco já tem.
+//
+// Ver docs/incidentes/timezone-cronograma.md §2.1.
+function toApiDay(date: string): string {
+  return date.slice(0, 10);
 }
 
 // Id local de item ainda não persistido (modo criação). Nunca vai para a API:
@@ -136,8 +130,6 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
           storyPoints: task!.storyPoints ?? ('' as unknown as number),
           startDate:   toDateInput(task!.startDate),
           dueDate:     toDateInput(task!.dueDate),
-          startTime:   toTimeInput(task!.startDate),
-          endTime:     toTimeInput(task!.dueDate),
         }
       : { priority: 'MEDIUM' },
   });
@@ -152,8 +144,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         priority:    values.priority,
         assigneeId:  values.assigneeId || undefined,
         storyPoints: values.storyPoints === '' ? undefined : values.storyPoints,
-        startDate:   values.startDate ? combineDateTime(values.startDate, values.startTime) : undefined,
-        dueDate:     values.dueDate ? combineDateTime(values.dueDate, values.endTime) : undefined,
+        startDate:   values.startDate ? toApiDay(values.startDate) : undefined,
+        dueDate:     values.dueDate ? toApiDay(values.dueDate) : undefined,
         ...(isEdit ? { status: values.status } : {}),
       };
 
@@ -504,21 +496,12 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                 <input id="task-startDate" {...register('startDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
               </div>
               <div>
-                <label htmlFor="task-startTime" className="block text-xs font-semibold text-muted-foreground mb-1">Hora de Início</label>
-                <input id="task-startTime" {...register('startTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
-              </div>
-              <div>
                 <label htmlFor="task-dueDate" className="block text-xs font-semibold text-muted-foreground mb-1">Prazo</label>
                 <input id="task-dueDate" {...register('dueDate')} type="date" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
                 {errors.dueDate && <p className="text-xs text-red-500 mt-1">{errors.dueDate.message}</p>}
               </div>
-              <div>
-                <label htmlFor="task-endTime" className="block text-xs font-semibold text-muted-foreground mb-1">Hora Final</label>
-                <input id="task-endTime" {...register('endTime')} type="time" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none" />
-                {errors.endTime && <p className="text-xs text-red-500 mt-1">{errors.endTime.message}</p>}
-              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground -mt-3">Preencha início e prazo para aparecer no Gantt. Hora é opcional.</p>
+            <p className="text-[11px] text-muted-foreground -mt-3">Preencha início e prazo para aparecer no Gantt. Para compromisso com hora marcada, use Atividades.</p>
 
                 {/* ── Checklist ── */}
                 <div className="border-t border-gray-100 pt-4">
