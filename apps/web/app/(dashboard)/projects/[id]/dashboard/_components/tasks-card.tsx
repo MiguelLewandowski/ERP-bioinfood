@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, ListChecks, UserX } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ProgressBar } from '@/components/ui/progress-bar';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import type { TaskMetrics } from '@/lib/project-metrics';
 
 interface TasksCardProps {
@@ -10,12 +9,21 @@ interface TasksCardProps {
   metrics: TaskMetrics;
 }
 
+// Mesma semântica de cor do Gantt (`gantt-status.css`): cinza a fazer, âmbar em
+// andamento, verde concluída. Divergir aqui faria a mesma tarefa mudar de cor
+// entre duas telas do mesmo projeto.
+//
+// Ordem: concluídas à esquerda — a barra lê como progresso enchendo, não como
+// três categorias soltas.
+const SEGMENTS = [
+  { key: 'done',       label: 'Concluídas',   className: 'bg-success' },
+  { key: 'inProgress', label: 'Em andamento', className: 'bg-warning' },
+  { key: 'todo',       label: 'A fazer',      className: 'bg-muted-foreground/30' },
+] as const;
+
 export function TasksCard({ projectId, metrics }: TasksCardProps) {
-  const rows: Array<{ label: string; count: number }> = [
-    { label: 'A fazer',     count: metrics.todo },
-    { label: 'Em andamento', count: metrics.inProgress },
-    { label: 'Concluídas',  count: metrics.done },
-  ];
+  const segments = SEGMENTS.map((s) => ({ ...s, count: metrics[s.key] }));
+  const summary = segments.map((s) => `${s.label}: ${s.count}`).join(', ');
 
   return (
     <Card>
@@ -37,43 +45,45 @@ export function TasksCard({ projectId, metrics }: TasksCardProps) {
           </p>
         ) : (
           <>
-            <div className="flex flex-col gap-2">
-              {rows.map(({ label, count }) => (
-                <div key={label} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 text-xs text-muted-foreground">{label}</span>
-                  <ProgressBar
-                    value={(count / metrics.total) * 100}
-                    label={`${label}: ${count} de ${metrics.total} tarefas`}
-                    className="flex-1"
+            {/* Uma barra empilhada em vez de três trilhos: três barras de mesma
+                largura com valores próximos liam como se não fossem proporcionais,
+                mesmo estando certas. Empilhar tira a comparação do olho. */}
+            <div
+              role="img"
+              aria-label={`${metrics.total} tarefas — ${summary}`}
+              className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            >
+              {segments.map(({ key, count, className }) => (
+                count > 0 && (
+                  <div
+                    key={key}
+                    className={cn('h-full', className)}
+                    style={{ width: `${(count / metrics.total) * 100}%` }}
                   />
-                  <span className="w-8 shrink-0 text-right text-xs font-medium tabular-nums text-foreground">
-                    {count}
-                  </span>
-                </div>
+                )
               ))}
             </div>
 
+            <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+              {segments.map(({ key, label, count, className }) => (
+                <li key={key} className="flex items-center gap-1.5 text-xs">
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', className)} aria-hidden="true" />
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-semibold tabular-nums text-foreground">{count}</span>
+                </li>
+              ))}
+            </ul>
+
             {metrics.unassigned > 0 && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+              // Clicável: saber que há trabalho sem dono só serve se der para ver
+              // qual. O backlog lê `?assignee=none`.
+              <Link
+                href={`/projects/${projectId}/backlog?assignee=none`}
+                className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:underline"
+              >
                 <UserX size={12} aria-hidden="true" />
                 {metrics.unassigned} tarefa{metrics.unassigned > 1 ? 's' : ''} em aberto sem responsável.
-              </p>
-            )}
-
-            {metrics.byAssignee.length > 0 && (
-              <div className="mt-4 border-t border-border pt-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Carga por responsável</p>
-                <ul className="flex flex-col gap-1.5">
-                  {metrics.byAssignee.map((a) => (
-                    <li key={a.id} className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm text-foreground">{a.name}</span>
-                      <Badge variant="neutral">
-                        {a.done}/{a.total}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              </Link>
             )}
           </>
         )}

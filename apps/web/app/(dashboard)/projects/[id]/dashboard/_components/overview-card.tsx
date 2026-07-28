@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Building2, FileText, Users } from 'lucide-react';
+import { ArrowRight, BarChart2, Building2, FileText, Users } from 'lucide-react';
 import type { ProjectDto, StakeholderDto } from '@bioinfood/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +23,20 @@ export function OverviewCard({ project, keyPeople }: OverviewCardProps) {
         <CardTitle className="flex items-center gap-2">
           <FileText size={15} className="text-primary" /> Resumo
         </CardTitle>
-        <Link
-          href={`/projects/${project.id}/charter`}
-          className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          Abrir TAP <ArrowRight size={12} />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/projects/${project.id}/gantt`}
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary hover:underline"
+          >
+            <BarChart2 size={12} /> Gantt
+          </Link>
+          <Link
+            href={`/projects/${project.id}/charter`}
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            Abrir TAP <ArrowRight size={12} />
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
         <p className="text-xs font-medium text-muted-foreground">Objetivo</p>
