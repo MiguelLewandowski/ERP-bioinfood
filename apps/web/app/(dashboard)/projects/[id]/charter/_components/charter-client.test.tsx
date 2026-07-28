@@ -130,3 +130,60 @@ describe('CharterClient — equipe do TAP', () => {
     expect(listUsersMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * O `charter-client` tinha UM `fmtDate` servindo aos dois tipos de data — e por
+ * isso estava errado nas duas pontas: corrigir o dia de calendário quebraria o
+ * instante, e deixar como estava mantinha o dia deslocado. O split em
+ * `fmtDay`/`fmtInstant` foi a única mudança do bloco 2 que alterou assinatura de
+ * função, e era a única sem teste.
+ *
+ * Os dois casos abaixo precisam existir juntos: um teste que só exercita dia de
+ * calendário passa com um helper que quebra instantes, e vice-versa — é
+ * exatamente a armadilha registrada no CLAUDE.md.
+ *
+ * O fuso é fixado em `vitest.config.ts` (America/Sao_Paulo): o caso de instante
+ * depende do relógio local.
+ */
+describe('CharterClient — dia de calendário vs instante', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertMock.mockResolvedValue({});
+    listContactsMock.mockResolvedValue([]);
+    listUsersMock.mockResolvedValue(ALL_USERS);
+  });
+
+  // Dia de calendário: o usuário escolheu 01/10 num type="date". A API devolve
+  // meia-noite UTC, que `new Date()` renderizaria como 30/09 em Brasília.
+  it('should show the calendar day the API sent for the project dates', () => {
+    const project = {
+      ...PROJECT,
+      startDate: '2026-10-01T00:00:00.000Z',
+      endDate: '2026-12-31T00:00:00.000Z',
+    } as unknown as ProjectDto;
+
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={project} />,
+    );
+
+    expect(screen.getByText('01/10/2026')).toBeInTheDocument();
+    expect(screen.getByText('31/12/2026')).toBeInTheDocument();
+  });
+
+  // Instante: aprovação carimbada às 22h de Brasília é 01:00Z do dia seguinte.
+  // A hora local é a informação correta — `parseCalendarDate` mostraria 02/10.
+  it('should show the local day for an approval stamped late at night', () => {
+    const charter = {
+      id: 'charter-1',
+      projectId: 'proj-1',
+      approvedAt: '2026-10-02T01:00:00.000Z',
+      team: [],
+    } as unknown as Parameters<typeof CharterClient>[0]['initialData'];
+
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />,
+    );
+
+    expect(screen.getByText(/Aprovado em 01\/10\/2026/)).toBeInTheDocument();
+  });
+});

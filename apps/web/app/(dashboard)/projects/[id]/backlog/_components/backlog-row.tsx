@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDay } from '@/lib/dates';
 import type { TaskDto as Task } from '@bioinfood/shared';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { PriorityBadge } from '@/components/ui/priority-badge';
@@ -37,7 +38,7 @@ export function BacklogRow({ task, onEdit }: BacklogRowProps) {
       <PriorityBadge priority={task.priority} className="w-fit" />
       <span className="text-sm font-semibold text-right text-muted-foreground">{task.storyPoints ?? '—'}</span>
       <span className="text-xs text-right text-muted-foreground">
-        {task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
+        {task.dueDate ? formatDay(task.dueDate) : '—'}
       </span>
       <button
         onClick={() => onEdit(task)}

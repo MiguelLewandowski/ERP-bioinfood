@@ -247,7 +247,34 @@ describe('TaskFormDialog — create mode', () => {
     expect(payload.dueDate).toBeUndefined();
   });
 
-  it('should combine the date and time fields into a single timestamp', async () => {
+  /**
+   * O caminho de escrita que ainda podia gravar dado deslocado (§2.1). O antigo
+   * `combineDateTime` fazia `new Date('2026-08-10T00:00:00').toISOString()` —
+   * sem `Z`, o construtor lê meia-noite LOCAL e converte para UTC, então o dia
+   * escolhido pelo usuário chegava à API como `2026-08-10T03:00:00.000Z`.
+   *
+   * A asserção é sobre a string crua de propósito: reidratar com `new Date()`
+   * antes de comparar é justamente o que mascarava o deslocamento.
+   */
+  it('should send the plain calendar day when no time is given', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
+    await user.type(screen.getByLabelText('Prazo'), '2026-08-12');
+    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    const payload = postMock.mock.calls[0][1];
+    expect(payload.startDate).toBe('2026-08-10');
+    expect(payload.dueDate).toBe('2026-08-12');
+  });
+
+  // Com hora preenchida o campo é um INSTANTE, e aí a conversão local→UTC é a
+  // correta: 09:30 em Brasília (UTC-3) é 12:30Z. O fuso do teste está fixado em
+  // America/Sao_Paulo no vitest.config — sem isso esta asserção mudaria no CI.
+  it('should send a UTC instant when a time is given', async () => {
     const user = userEvent.setup();
     setup();
 
@@ -257,12 +284,7 @@ describe('TaskFormDialog — create mode', () => {
     await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
 
     await waitFor(() => expect(postMock).toHaveBeenCalled());
-    const sent = new Date(postMock.mock.calls[0][1].startDate);
-    expect(sent.getFullYear()).toBe(2026);
-    expect(sent.getMonth()).toBe(7); // August, zero-based
-    expect(sent.getDate()).toBe(10);
-    expect(sent.getHours()).toBe(9);
-    expect(sent.getMinutes()).toBe(30);
+    expect(postMock.mock.calls[0][1].startDate).toBe('2026-08-10T12:30:00.000Z');
   });
 
   it('should show the server message and keep the dialog open when creation fails', async () => {
@@ -300,6 +322,37 @@ describe('TaskFormDialog — edit mode', () => {
 
     expect(screen.getByLabelText('Data de Início')).toHaveValue('2026-08-10');
     expect(screen.getByLabelText('Prazo')).toHaveValue('2026-08-20');
+  });
+
+  // EXISTING_TASK é dia puro (00:00Z). Em America/Sao_Paulo isso é 21:00 do dia
+  // anterior, e a versão antiga do toTimeInput — que comparava a hora LOCAL com
+  // '00:00' — preenchia o campo com "21:00" numa tarefa sem hora.
+  it('should leave the time fields empty for a task without a time', () => {
+    setup({ mode: 'edit', task: EXISTING_TASK });
+
+    expect(screen.getByLabelText('Hora de Início')).toHaveValue('');
+    expect(screen.getByLabelText('Hora Final')).toHaveValue('');
+  });
+
+  // A consequência do bug acima: abrir e salvar sem tocar em nada gravava
+  // 00:00Z do dia SEGUINTE, empurrando a tarefa um dia a cada edição.
+  it('should not shift the dates when saving without touching them', async () => {
+    const user = userEvent.setup();
+    setup({ mode: 'edit', task: EXISTING_TASK });
+
+    await user.type(screen.getByLabelText('Título *'), ' revisado');
+    await user.click(screen.getByRole('button', { name: /Salvar|Criar/ }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+    const payload = patchMock.mock.calls[0][1];
+    expect(payload.startDate).toBe('2026-08-10');
+    expect(payload.dueDate).toBe('2026-08-20');
+  });
+
+  it('should keep a real time when the task has one', () => {
+    setup({ mode: 'edit', task: { ...EXISTING_TASK, startDate: '2026-08-10T12:30:00.000Z' } as unknown as Task });
+
+    expect(screen.getByLabelText('Hora de Início')).toHaveValue('09:30');
   });
 
   it('should offer the status field only when editing', () => {

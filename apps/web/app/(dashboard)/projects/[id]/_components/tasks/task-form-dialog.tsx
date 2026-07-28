@@ -12,6 +12,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
 import { popsApi, tasksApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
+import { hasTimeComponent } from '@/lib/dates';
 import type { ProjectMember } from '@/lib/project-members';
 import type { TaskDto as Task, TaskChecklistItemDto as TaskChecklistItem, PopDto } from '@bioinfood/shared';
 import { checklistProgress } from '@bioinfood/shared';
@@ -52,15 +53,34 @@ function toDateInput(d: string | null | undefined): string {
   return d.split('T')[0];
 }
 
-// '00:00' é o sentinel de "sem hora definida" (mesma regra de apps/web/lib/activities.ts formatTime).
+// Campo de hora vazio quando a tarefa não tem hora.
+//
+// A versão anterior comparava o horário LOCAL com '00:00'. Registro dia-puro é
+// 00:00Z, que em UTC-3 é 21:00 do dia ANTERIOR — então o formulário abria com
+// "21:00" numa tarefa sem hora, e salvar sem tocar em nada gravava 00:00Z do dia
+// seguinte: abrir e salvar empurrava a tarefa um dia para frente.
 function toTimeInput(d: string | null | undefined): string {
-  if (!d) return '';
-  const time = new Date(d).toTimeString().slice(0, 5);
-  return time === '00:00' ? '' : time;
+  if (!hasTimeComponent(d)) return '';
+  return new Date(d!).toTimeString().slice(0, 5);
 }
 
-function combineDateTime(date: string, time: string | undefined): string {
-  return new Date(`${date}T${time || '00:00'}:00`).toISOString();
+/**
+ * Data (+ hora opcional) no formato que a API espera.
+ *
+ * **Sem hora → dia puro `'YYYY-MM-DD'`.** Este é o caso que causava o bug: o
+ * antigo `new Date(\`${date}T00:00:00\`).toISOString()` lia meia-noite LOCAL e
+ * convertia para UTC, então "1º de outubro" virava `2026-10-01T03:00:00.000Z`.
+ * Um dia de calendário não tem instante — mandar o dia cru é o correto.
+ *
+ * **Com hora → instante ISO.** Aí existe um momento de verdade: 15:20 em
+ * Brasília É `18:20Z`, e converter está certo. É o mesmo que a tela de
+ * Atividades faz.
+ *
+ * Ver docs/incidentes/timezone-cronograma.md §2.1.
+ */
+function toApiDateTime(date: string, time: string | undefined): string {
+  const day = date.slice(0, 10);
+  return time ? new Date(`${day}T${time}:00`).toISOString() : day;
 }
 
 // Id local de item ainda não persistido (modo criação). Nunca vai para a API:
@@ -152,8 +172,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         priority:    values.priority,
         assigneeId:  values.assigneeId || undefined,
         storyPoints: values.storyPoints === '' ? undefined : values.storyPoints,
-        startDate:   values.startDate ? combineDateTime(values.startDate, values.startTime) : undefined,
-        dueDate:     values.dueDate ? combineDateTime(values.dueDate, values.endTime) : undefined,
+        startDate:   values.startDate ? toApiDateTime(values.startDate, values.startTime) : undefined,
+        dueDate:     values.dueDate ? toApiDateTime(values.dueDate, values.endTime) : undefined,
         ...(isEdit ? { status: values.status } : {}),
       };
 

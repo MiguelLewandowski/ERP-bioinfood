@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Gantt, Toolbar, Editor, Tooltip, ContextMenu, Willow,
+  Gantt, Editor, Tooltip, ContextMenu, Willow,
 } from '@svar-ui/react-gantt';
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
@@ -230,7 +230,11 @@ function GanttBoard({
   return (
     <Locale words={ganttLocalePt}>
       <Willow>
-        {editable && api && <Toolbar api={api} />}
+        {/* A Toolbar nativa da SVAR foi removida de propósito: o botão de adicionar
+            dela criava tarefa direto na API (título "New Task", datas vindas da
+            escala visível), sem passar pelo TaskFormDialog e sem validação. Era um
+            caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
+            O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
           style={{ height: 'calc(100vh - 180px)' }}
           onContextMenu={(e) => {

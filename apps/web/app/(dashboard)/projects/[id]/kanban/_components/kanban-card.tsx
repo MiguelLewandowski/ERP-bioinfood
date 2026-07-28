@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDay } from '@/lib/dates';
 import { PriorityBadge } from '@/components/ui/priority-badge';
 import type { Task } from './types';
 import { checklistProgress } from './types';
@@ -88,7 +89,7 @@ export function KanbanCard({ task, isOverlay, onEdit }: KanbanCardProps) {
           )}
           {task.dueDate && (
             <span className="text-xs text-muted-foreground">
-              {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+              {formatDay(task.dueDate)}
             </span>
           )}
         </div>
