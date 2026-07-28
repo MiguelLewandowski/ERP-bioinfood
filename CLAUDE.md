@@ -117,6 +117,19 @@ Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
 > `apps/web/lib/dates.ts` ao formatar `date`/`dueDate`/`startDate`. `new Date('2026-10-01')`
 > é meia-noite **UTC** e renderiza um dia antes em `America/Sao_Paulo`.
 
+## Fluxo de branches
+- `develop` → branch de **integração**. Não publica em lugar nenhum. Toda feature
+  branch sai dela e volta para ela.
+- `main` → **produção**. O Railway observa e faz deploy sozinho; há usuários reais
+  dentro. `main` só recebe **promoção deliberada** de `develop`, via merge `--no-ff`.
+- Nunca abrir feature branch a partir de `main` nem de outra feature branch.
+- Nunca commitar direto em `main`.
+- Migration destrutiva vai em **duas publicações** (aditiva primeiro, remoção depois):
+  `prisma:deploy` roda no `startCommand` da API, então toda migration em `main`
+  aplica **sozinha** ao banco de produção.
+- Runbook completo (promoção, migration em produção, backup, restauração,
+  variáveis de ambiente): `docs/deploy.md`.
+
 ## Convenções
 - TypeScript strict em todos os projetos
 - Arquivos: kebab-case
@@ -143,7 +156,8 @@ apps/web/.env.local
   NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ## Deploy (Railway)
-Guia completo: `docs/deploy-railway.md` · Roteiro de teste: `docs/testes-railway.md`.
+Operar o que já está no ar (promover, migrar, restaurar): `docs/deploy.md`.
+Montar o ambiente do zero: `docs/deploy-railway.md` · Roteiro de teste: `docs/testes-railway.md`.
 
 Três serviços num projeto (`Postgres`, `api`, `web`), todos com Root Directory na
 **raiz** do monorepo — `packages/shared` é TS cru e o build precisa do workspace
