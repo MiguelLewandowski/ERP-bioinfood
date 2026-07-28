@@ -41,6 +41,24 @@ const fmtCol = (d?: Date | string) => {
     + (hasTime ? ` ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '');
 };
 
+/**
+ * Duração em dias para a coluna da grade.
+ *
+ * Tarefa que começa e termina no mesmo dia tem diferença zero, e zero é falsy —
+ * a célula saía vazia. Pela convenção de cronograma, algo que acontece na
+ * segunda ocupa **um** dia de trabalho, então o piso é `1d`. É a mesma regra que
+ * a store da SVAR aplica internamente (`duration = 1` quando o diff é zero).
+ *
+ * Só a exibição compensa: o banco continua com `dueDate == startDate`, e a
+ * persistência não vê esta função. Ver docs/incidentes/timezone-cronograma.md §2.4(a).
+ */
+export function fmtDuration(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const days = Number(value);
+  if (!Number.isFinite(days)) return '';
+  return `${Math.max(1, Math.round(days))}d`;
+}
+
 // Escalas localizadas (mês + dia). Com zoom, ajustam automaticamente.
 export const scales = [
   { unit: 'month', step: 1, format: (d: Date) => d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) },
@@ -53,7 +71,7 @@ export const columns = [
   { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
   { id: 'start', header: 'Início', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'end', header: 'Término', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
-  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => (v ? `${v}d` : '') },
+  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => fmtDuration(v) },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
 
