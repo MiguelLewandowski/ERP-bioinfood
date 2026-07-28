@@ -24,7 +24,7 @@
     "@svar-ui/core-locales": "2.6.0",
     "@svar-ui/gantt-locales": "2.7.1",
     "@svar-ui/react-core": "2.6.0",
-    "@svar-ui/react-gantt": "^2.7.1",
+    "@svar-ui/react-gantt": "2.7.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

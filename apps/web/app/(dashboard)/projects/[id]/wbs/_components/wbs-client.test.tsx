@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { WbsNodeDto } from '@bioinfood/shared';
+import type { WbsRollup } from '@/lib/project-wbs';
 import { renderWithProviders, screen } from '@/lib/test-utils';
 import { WbsClient } from './wbs-client';
 
@@ -42,23 +43,71 @@ const MEMBERS = [
   { id: 'user-3', name: 'Thiago' },
 ];
 
-function setup(nodes: WbsNodeDto[] = [PARENT, LEAF], members = MEMBERS) {
+function setup(
+  nodes: WbsNodeDto[] = [PARENT, LEAF],
+  members = MEMBERS,
+  rollup: Record<string, WbsRollup> = {},
+) {
   return renderWithProviders(
-    <WbsClient projectId="proj-1" initialNodes={nodes} members={members} />,
+    <WbsClient projectId="proj-1" initialNodes={nodes} members={members} rollup={rollup} />,
   );
 }
+
+describe('WbsClient — andamento do pacote', () => {
+  it('should show progress and task count on the package row', () => {
+    setup([PARENT, LEAF], MEMBERS, {
+      p1: { total: 12, done: 7, progress: 58 },
+      l1: { total: 4, done: 4, progress: 100 },
+    });
+
+    expect(screen.getByText('7/12 tarefas')).toBeInTheDocument();
+    expect(screen.getByText('58%')).toBeInTheDocument();
+    expect(screen.getByText('4/4 tarefas')).toBeInTheDocument();
+    expect(screen.getByText('100%')).toBeInTheDocument();
+  });
+
+  it('should say a package has no tasks instead of showing 0%', () => {
+    setup([PARENT, LEAF], MEMBERS, { p1: { total: 0, done: 0, progress: 0 } });
+
+    expect(screen.getAllByText('sem tarefas').length).toBeGreaterThan(0);
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+});
 
 describe('WbsClient — detalhes do pacote de trabalho', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // O motivo da mudança: antes, dono/pronto/saídas só existiam dentro do drawer
-  // de edição — nada na árvore dizia se o pacote estava documentado.
-  it('should mark which details are filled without opening the panel', () => {
+  // Antes a linha marcava o que estava preenchido — como quase tudo está, os
+  // selos apareciam em toda linha e viravam ruído. Agora a linha só fala quando
+  // falta alguma coisa: um pacote completo não gera selo nenhum.
+  it('should stay silent on a work package that has nothing missing', () => {
     setup();
 
     expect(screen.getByText('Juliana')).toBeInTheDocument();
-    expect(screen.getByText('pronto')).toBeInTheDocument();
-    expect(screen.getByText('saídas')).toBeInTheDocument();
+    expect(screen.queryByText('pronto')).not.toBeInTheDocument();
+    expect(screen.queryByText('saídas')).not.toBeInTheDocument();
+    expect(screen.queryByText(/falta/)).not.toBeInTheDocument();
+  });
+
+  it('should flag exactly what is missing on an incomplete work package', () => {
+    setup([PARENT, makeNode({ id: 'l2', code: '1.2', title: 'Sem saídas', parentId: 'p1', owner: 'Juliana', readyCriteria: 'Pronto quando validado' })]);
+
+    expect(screen.getByRole('button', { name: /falta saídas/ })).toBeInTheDocument();
+    expect(screen.queryByText(/falta critério de pronto/)).not.toBeInTheDocument();
+  });
+
+  it('should flag a work package that has no owner', () => {
+    setup([makeNode({ id: 'l2', code: '2', title: 'Órfã', owner: null, readyCriteria: 'x', outputs: 'y' })]);
+
+    expect(screen.getByText('sem dono')).toBeInTheDocument();
+  });
+
+  // Critério de pronto e saídas se cobram de quem executa, não de quem agrupa.
+  it('should not demand ready criteria from a package that only groups children', () => {
+    setup();
+
+    // PARENT ('Bancada') não tem readyCriteria nem outputs, mas tem filho.
+    expect(screen.queryAllByRole('button', { name: /falta/ })).toHaveLength(0);
   });
 
   it('should keep the detail text hidden until the work package is expanded', () => {
