@@ -644,7 +644,9 @@ model Opportunity {
   probability       Int? // 0..100 — sobrescrito pelo default da etapa ao mover; editável
   startDate         DateTime?
   description       String?
-  expectedCloseDate DateTime?
+  // Dia de calendário: o CRM só escreve por <input type="date"> e lê com
+  // slice(0,10). @db.Date impede que alguém volte a gravar um instante aqui.
+  expectedCloseDate DateTime? @db.Date
   closedAt          DateTime? // preenchido ao entrar em etapa WON/LOST
   lostReason        String?
   // Congelado é um marcador ortogonal à etapa do funil (não é WON/LOST/OPEN):
@@ -671,8 +673,9 @@ model Project {
   name        String
   description String?
   status      ProjectStatus @default(PLANNING)
-  startDate   DateTime?
-  endDate     DateTime?
+  // Dia de calendário — início e término planejados do projeto não têm hora.
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
   objective   String?
 
   // DÍVIDA CORRIGIDA: clientName (String) -> FK para Organization.
@@ -937,7 +940,8 @@ model Milestone {
   projectId   String
   title       String
   description String?
-  date        DateTime
+  // Dia de calendário — marco acontece num dia, não num instante.
+  date        DateTime  @db.Date
   reached     Boolean   @default(false)
   order       Int       @default(0)
   createdAt   DateTime  @default(now())

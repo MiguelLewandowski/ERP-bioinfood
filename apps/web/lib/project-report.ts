@@ -1,4 +1,5 @@
 import type { ProjectDto, ProjectStatus } from '@bioinfood/shared';
+import { formatDay } from './dates';
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   PLANNING: 'Planejamento',
@@ -9,7 +10,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 };
 
 function fmtDate(value: string | null): string {
-  return value ? new Date(value).toLocaleDateString('pt-BR') : '—';
+  return value ? formatDay(value, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 }
 
 export type ProjectColumnKey =

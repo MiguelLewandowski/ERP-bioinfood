@@ -98,6 +98,27 @@ Skills de revisão e análise (não escrevem código de feature, produzem diagn�
 ## Design
 Antes de criar qualquer componente de UI, ler `docs/design/design-tokens.md`.
 
+## Datas — dia de calendário vs instante
+**Antes de aplicar `parseCalendarDate`, decida qual dos dois o campo é.** Aplicar
+conversão de dia puro num instante **introduz** o bug em vez de corrigi-lo.
+
+| Tipo | Exemplos | Como renderizar |
+|---|---|---|
+| **Dia de calendário** — o usuário escolheu uma data num `type="date"` | `Task.dueDate`/`startDate`/`baselineStart`/`baselineEnd`/`actualStart`/`actualEnd`, `Project.startDate`/`endDate`, `Milestone.date`, `Opportunity.expectedCloseDate` | `parseCalendarDate()` / `formatDay()` de `apps/web/lib/dates.ts` |
+| **Instante** — o sistema carimbou um momento | `createdAt`, `updatedAt`, `approvedAt`, `baselineSetAt`, `completedAt`, `Activity.dueDate` (é agenda) | `new Date(iso)` direto, em hora local. **Nunca** `parseCalendarDate` |
+
+Por quê: `new Date('2026-10-01')` (ou o ISO com `Z` que a API devolve) é meia-noite
+**UTC** e renderiza um dia antes em `America/Sao_Paulo` — erro num campo de dia.
+Já num instante, a hora local é a informação correta: uma versão de POP criada às
+22h de Brasília é `01:00Z` do dia seguinte, e `parseCalendarDate` a exibiria no dia
+errado.
+
+> Um mesmo helper de formatação **não pode** servir aos dois tipos. Se um `fmtDate`
+> local formata `approvedAt` e `startDate`, separe em `fmtInstant`/`fmtDay` antes de
+> corrigir qualquer coisa. Caso real: `charter-client.tsx`.
+
+Histórico e inventário verificado: `docs/incidentes/timezone-cronograma.md`.
+
 ## Testes
 Vitest nos dois apps. `pnpm test` na raiz roda a suíte completa via Turborepo.
 - **API**: Vitest puro sobre casos de uso, com repositórios mockados.
@@ -113,9 +134,9 @@ Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
 > `type="number"` com `min`/`max`, `required`) bloqueia o submit **antes** do zod rodar —
 > a mensagem do schema nunca aparece nesses casos.
 
-> Campo de dia é dia de calendário, não instante: usar `parseCalendarDate()` de
-> `apps/web/lib/dates.ts` ao formatar `date`/`dueDate`/`startDate`. `new Date('2026-10-01')`
-> é meia-noite **UTC** e renderiza um dia antes em `America/Sao_Paulo`.
+> Ao testar formatação de data, cobrir os **dois** tipos da seção "Datas — dia de
+> calendário vs instante": um teste que só exercita dia de calendário passa com um
+> helper que quebra instantes.
 
 ## Fluxo de branches
 - `develop` → branch de **integração**. Não publica em lugar nenhum. Toda feature

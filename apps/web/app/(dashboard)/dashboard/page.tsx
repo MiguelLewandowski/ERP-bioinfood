@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { ActivityDto, CrmActivityDto, ProjectDto } from '@bioinfood/shared';
 import { getSession } from '@/lib/auth';
+import { formatDay } from '@/lib/dates';
 import { activitiesApi, crmActivitiesApi, projectsApi } from '@/lib/api-hooks';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -20,7 +21,7 @@ function iso(d: Date): string {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return formatDay(dateStr);
 }
 
 export default async function DashboardPage() {

@@ -12,6 +12,26 @@ export function parseCalendarDate(value: string | Date): Date {
   return new Date(`${value.slice(0, 10)}T00:00:00`);
 }
 
+/**
+ * O valor carrega um horário de verdade, ou é só um dia de calendário?
+ *
+ * Dia puro é gravado como meia-noite **UTC** (`'2026-08-10'` → `00:00:00.000Z`),
+ * então a checagem é pelos componentes UTC. Fazer isso pelo horário LOCAL é o
+ * erro clássico: em `America/Sao_Paulo`, `00:00Z` é 21:00 do dia anterior, e um
+ * registro sem hora passaria por "tem hora 21:00".
+ *
+ * Ver docs/incidentes/timezone-cronograma.md.
+ */
+export function hasTimeComponent(value: string | Date | null | undefined): boolean {
+  if (!value) return false;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getUTCHours() !== 0
+    || d.getUTCMinutes() !== 0
+    || d.getUTCSeconds() !== 0
+    || d.getUTCMilliseconds() !== 0;
+}
+
 /** Formata um campo de dia em pt-BR já protegido do deslocamento de fuso. */
 export function formatDay(
   value: string,

@@ -19,6 +19,7 @@ import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
 import { charterApi, contactsApi, usersApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
+import { formatDay } from '@/lib/dates';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
@@ -27,12 +28,22 @@ import { buildCharterHtml } from '@/lib/charter-report';
 
 const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
 
-function fmtDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+// Dois tipos, duas funções — ver CLAUDE.md, "Datas — dia de calendário vs instante".
+// Um helper só para os dois estava errado nas duas pontas: corrigir o dia
+// quebraria o instante, e deixar como estava mantinha o dia deslocado.
+
+/** Dia de calendário (início/término do projeto). */
+function fmtDay(iso: string | null): string {
+  return iso ? formatDay(iso, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 }
 
-function fmtDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+/** Instante carimbado pelo sistema (aprovação, última edição) — hora local. */
+function fmtInstant(iso: string | null, withTime = false): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return withTime
+    ? d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+    : d.toLocaleDateString('pt-BR');
 }
 
 const schema = z.object({
@@ -403,7 +414,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 <h2 className="text-base font-bold text-foreground">{activeData.label}</h2>
                 <p className="text-xs text-muted-foreground">
                   Termo de Abertura do Projeto (TAP)
-                  {lastEdit && <> · editado por {lastEdit.name} em {fmtDateTime(lastEdit.at)}</>}
+                  {lastEdit && <> · editado por {lastEdit.name} em {fmtInstant(lastEdit.at, true)}</>}
                 </p>
               </div>
             </div>
@@ -418,7 +429,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </button>
               {isApproved ? (
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: 'hsl(var(--success) / 0.6)', color: 'hsl(var(--primary-dark))' }}>
-                  <CheckCircle2 size={12} /> Aprovado em {fmtDate(initialData!.approvedAt!)}
+                  <CheckCircle2 size={12} /> Aprovado em {fmtInstant(initialData!.approvedAt!)}
                 </span>
               ) : (
                 <button
@@ -474,11 +485,11 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                   </div>
                   <div>
                     <dt className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Início</dt>
-                    <dd className="text-foreground">{fmtDate(project.startDate)}</dd>
+                    <dd className="text-foreground">{fmtDay(project.startDate)}</dd>
                   </div>
                   <div>
                     <dt className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Término (plan.)</dt>
-                    <dd className="text-foreground">{fmtDate(project.endDate)}</dd>
+                    <dd className="text-foreground">{fmtDay(project.endDate)}</dd>
                   </div>
                   {project.objective && (
                     <div className="col-span-2">
