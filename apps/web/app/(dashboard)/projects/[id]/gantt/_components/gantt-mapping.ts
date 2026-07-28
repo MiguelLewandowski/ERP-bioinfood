@@ -9,6 +9,7 @@ import {
   type SystemRole,
   type TaskDependencyType,
 } from '@bioinfood/shared';
+import { parseCalendarDate } from '@/lib/dates';
 
 export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
@@ -31,15 +32,11 @@ export function statusToCss(status: TaskStatus): string {
   return status === 'DONE' ? 'gt-done' : status === 'IN_PROGRESS' ? 'gt-doing' : 'gt-todo';
 }
 
-// Mostra hora na coluna só quando a tarefa tem um horário definido (ver
-// toTimeInput em task-form-dialog.tsx — '00:00' é o sentinel de "sem hora").
-const fmtCol = (d?: Date | string) => {
-  if (!d) return '';
-  const date = new Date(d);
-  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
-    + (hasTime ? ` ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '');
-};
+// Data de cronograma é dia de calendário — sem hora. As datas na store já são
+// meia-noite LOCAL do dia certo (buildGanttTasks), então formatar direto acerta.
+const fmtCol = (d?: Date | string) => (d ? parseCalendarDate(d).toLocaleDateString('pt-BR', {
+  day: '2-digit', month: '2-digit', year: '2-digit',
+}) : '');
 
 /**
  * Duração em dias para a coluna da grade.
@@ -96,8 +93,12 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
   const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
 
   const taskItems: GanttTask[] = visible.map((t) => {
-    const start = new Date(t.startDate!);
-    const end = new Date(t.dueDate!);
+    // `parseCalendarDate` e não `new Date`: o ISO da API é meia-noite UTC, e em
+    // America/Sao_Paulo isso é 21h do dia ANTERIOR — a barra inteira nasceria
+    // deslocada um dia, além da coluna de texto. Aqui a store recebe meia-noite
+    // local do dia certo, e é dela que a persistência deriva o dia a gravar.
+    const start = parseCalendarDate(t.startDate!);
+    const end = parseCalendarDate(t.dueDate!);
     const hasChildren = parents.has(t.id);
     return {
       id: t.id,
@@ -119,16 +120,16 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
-      base_start: t.baselineStart ? new Date(t.baselineStart) : undefined,
-      base_end: t.baselineEnd ? new Date(t.baselineEnd) : undefined,
+      base_start: t.baselineStart ? parseCalendarDate(t.baselineStart) : undefined,
+      base_end: t.baselineEnd ? parseCalendarDate(t.baselineEnd) : undefined,
     };
   });
 
   const msItems: GanttTask[] = milestones.map((m) => ({
     id: `ms-${m.id}`,
     text: m.title,
-    start: new Date(m.date),
-    end: new Date(m.date),
+    start: parseCalendarDate(m.date),
+    end: parseCalendarDate(m.date),
     progress: m.reached ? 100 : 0,
     type: 'milestone',
     parent: 0,
@@ -193,8 +194,9 @@ export interface GanttMarker { start: Date; text: string; css?: string }
 
 // Marcadores: hoje, término planejado e término estimado (maior prazo).
 export function buildMarkers(projectEnd: string | null, ganttTasks: GanttTask[]): GanttMarker[] {
+  // 'Hoje' é instante (agora), não dia vindo da API — `new Date()` está certo aqui.
   const items: GanttMarker[] = [{ start: new Date(), text: 'Hoje' }];
-  if (projectEnd) items.push({ start: new Date(projectEnd), text: 'Término planejado' });
+  if (projectEnd) items.push({ start: parseCalendarDate(projectEnd), text: 'Término planejado' });
   const ends = ganttTasks.map((t) => t.end.getTime());
   if (ends.length) items.push({ start: new Date(Math.max(...ends)), text: 'Término estimado' });
   return items;

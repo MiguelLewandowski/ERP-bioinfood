@@ -31,12 +31,15 @@ interface PersistenceHandles {
 // ─── comparação de campos para o PATCH condicional ─────────────────────────────
 
 /**
- * Chave de comparação de um campo de data — o DIA, pelos componentes locais.
+ * O DIA de um campo de data, como 'YYYY-MM-DD', pelos componentes locais.
  *
- * O evento da SVAR traz `Date`; o DTO traz ISO com `Z`. Os dois lados passam por
- * aqui, e como ambos derivam do MESMO instante, a chave é consistente entre eles.
- * Não é o dia "correto" em termos absolutos (isso é problema do render) — é uma
- * chave de igualdade, e só precisa ser estável dos dois lados.
+ * Serve para duas coisas ao mesmo tempo: comparar (o que mudou de verdade) e
+ * **gravar**. Desde que `buildGanttTasks` monta a store com `parseCalendarDate`,
+ * as datas da SVAR são meia-noite LOCAL do dia certo — então extrair o dia pelos
+ * componentes locais devolve o dia real, e é isso que vai para a API.
+ *
+ * O que NÃO fazer aqui: `toISOString()`. Meia-noite local em UTC-3 vira 03:00Z,
+ * que é o erro que este incidente existe para eliminar.
  */
 function dayKey(value: unknown): string | null {
   if (!value) return null;
@@ -131,7 +134,7 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
       if (isMilestoneId(ev.id)) {
         const data: Record<string, unknown> = {};
         if (t.text !== undefined) data.title = t.text;
-        if (t.start) data.date = new Date(t.start).toISOString();
+        if (t.start) data.date = dayKey(t.start);
         if (t.progress !== undefined) data.reached = t.progress >= 100;
         if (Object.keys(data).length === 0) return;
         milestonesApi.update(projectId, stripMs(ev.id), data, token).catch(onError);
@@ -162,12 +165,8 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
 
       const data: Record<string, unknown> = {};
       if (t.text !== undefined && next.title !== known?.title) data.title = next.title;
-      if (t.start && next.startDay !== known?.startDay) {
-        data.startDate = new Date(t.start).toISOString();
-      }
-      if (t.end && next.dueDay !== known?.dueDay) {
-        data.dueDate = new Date(t.end).toISOString();
-      }
+      if (t.start && next.startDay !== known?.startDay) data.startDate = next.startDay;
+      if (t.end && next.dueDay !== known?.dueDay) data.dueDate = next.dueDay;
       if (t.progress !== undefined && next.status !== known?.status) data.status = next.status;
 
       if (Object.keys(data).length === 0) return;
@@ -186,8 +185,8 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
           {
             title: t.text || 'Nova atividade',
             status: 'TODO',
-            startDate: t.start ? new Date(t.start).toISOString() : undefined,
-            dueDate: t.end ? new Date(t.end).toISOString() : undefined,
+            startDate: t.start ? dayKey(t.start) ?? undefined : undefined,
+            dueDate: t.end ? dayKey(t.end) ?? undefined : undefined,
             ...(parentId ? { parentId } : {}),
           },
           token,
