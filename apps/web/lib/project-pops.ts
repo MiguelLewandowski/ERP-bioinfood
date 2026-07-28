@@ -23,20 +23,27 @@ export interface PopUsage {
 
 export interface ProjectMethodology {
   pops: PopUsage[];
-  /** Tarefas sem nenhuma POP vinculada — o trabalho sem procedimento registrado. */
+  /** Tarefas que exigem POP e não têm nenhuma — o trabalho sem procedimento registrado. */
   tasksWithoutPop: TaskDto[];
+  /** Denominador da cobertura: só as tarefas que exigem POP. */
   totalTasks: number;
   tasksWithPop: number;
   /** Percentual de tarefas com ao menos uma POP (0–100, inteiro). */
   coverage: number;
+  /** Quantas ficaram de fora por serem administrativas — explica o denominador. */
+  notApplicable: number;
 }
 
 export function computeMethodology(tasks: TaskDto[]): ProjectMethodology {
   const active = tasks.filter((t) => !t.deletedAt);
+  // Tarefa administrativa ("fechar contrato") nunca vai ter procedimento. Contá-la
+  // como descoberta fazia a cobertura medir o tamanho do backlog, não a aderência
+  // ao método. Sai do numerador E do denominador.
+  const applicable = active.filter((t) => t.requiresSOP);
   const byPop = new Map<string, PopUsage>();
   const withoutPop: TaskDto[] = [];
 
-  for (const task of active) {
+  for (const task of applicable) {
     if (task.pops.length === 0) {
       withoutPop.push(task);
       continue;
@@ -69,14 +76,15 @@ export function computeMethodology(tasks: TaskDto[]): ProjectMethodology {
     // Mais usada primeiro; empate resolvido pelo título para a ordem ser estável.
     .sort((a, b) => b.tasks.length - a.tasks.length || a.title.localeCompare(b.title));
 
-  const tasksWithPop = active.length - withoutPop.length;
+  const tasksWithPop = applicable.length - withoutPop.length;
 
   return {
     pops,
     tasksWithoutPop: withoutPop,
-    totalTasks: active.length,
+    totalTasks: applicable.length,
     tasksWithPop,
-    coverage: active.length === 0 ? 0 : Math.round((tasksWithPop / active.length) * 100),
+    coverage: applicable.length === 0 ? 0 : Math.round((tasksWithPop / applicable.length) * 100),
+    notApplicable: active.length - applicable.length,
   };
 }
 

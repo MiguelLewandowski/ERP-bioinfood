@@ -2,10 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
-  FileCheck, ChevronRight, ChevronDown, AlertTriangle, FlaskConical, ListChecks, Search,
+  FileCheck, ChevronRight, ChevronDown, AlertTriangle, FlaskConical, ListChecks, Search, Loader2,
 } from 'lucide-react';
 import type { TaskDto } from '@bioinfood/shared';
+import { useAuth } from '@/components/providers/auth-provider';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/ui/stat-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -55,7 +60,13 @@ function groupByAssignee(tasks: TaskDto[], query: string): AssigneeGroup[] {
 }
 
 export function MethodologyClient({ projectId, methodology }: Props) {
-  const { pops, tasksWithoutPop, totalTasks, tasksWithPop, coverage } = methodology;
+  const { pops, tasksWithoutPop, totalTasks, tasksWithPop, coverage, notApplicable } = methodology;
+  const { token, session } = useAuth();
+  const router = useRouter();
+  // Mesma regra do Gantt: CLIENTE lê o método do projeto, não reclassifica tarefa.
+  const canClassify = session.role === 'ADMIN' || session.role === 'PADRAO';
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [marking, setMarking] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   // Fechada por padrão: 44 linhas abertas empurravam as POPs — o conteúdo
   // principal da tela — para fora da primeira dobra.
@@ -64,6 +75,37 @@ export function MethodologyClient({ projectId, methodology }: Props) {
   const drift = popsWithVersionDrift(pops);
 
   const groups = useMemo(() => groupByAssignee(tasksWithoutPop, query), [tasksWithoutPop, query]);
+
+  function toggleSelected(taskId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  }
+
+  // A classificação acontece AQUI, onde a métrica dói — e não escondida no
+  // formulário da tarefa, que ninguém abre para arrumar denominador.
+  async function markNotApplicable() {
+    setMarking(true);
+    const ids = [...selected];
+    try {
+      await Promise.all(ids.map((id) => (
+        api.patch(`/projects/${projectId}/tasks/${id}`, { requiresSOP: false }, token)
+      )));
+      toast.success(
+        ids.length === 1
+          ? 'Tarefa marcada como não aplicável.'
+          : `${ids.length} tarefas marcadas como não aplicáveis.`,
+      );
+      setSelected(new Set());
+      router.refresh();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setMarking(false);
+    }
+  }
 
   function toggle(popId: string) {
     setOpen((prev) => {
@@ -99,7 +141,11 @@ export function MethodologyClient({ projectId, methodology }: Props) {
         <StatCard
           label="Cobertura"
           value={`${coverage}%`}
-          hint={`${tasksWithPop} de ${totalTasks} tarefas`}
+          hint={
+            notApplicable > 0
+              ? `${tasksWithPop} de ${totalTasks} · ${notApplicable} não aplicável(is)`
+              : `${tasksWithPop} de ${totalTasks} tarefas`
+          }
           icon={ListChecks}
         />
         <StatCard
@@ -184,6 +230,30 @@ export function MethodologyClient({ projectId, methodology }: Props) {
                 />
               </div>
 
+              {selected.size > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-y border-primary/20 bg-primary/5 px-5 py-2.5">
+                  <span className="text-xs font-medium text-foreground">
+                    {selected.size} {selected.size === 1 ? 'tarefa selecionada' : 'tarefas selecionadas'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelected(new Set())}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-white"
+                    >
+                      Limpar
+                    </button>
+                    <button
+                      onClick={markNotApplicable}
+                      disabled={marking}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+                    >
+                      {marking && <Loader2 size={12} className="animate-spin" />}
+                      Não exige POP
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {groups.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-muted-foreground">
                   Nenhuma tarefa sem POP corresponde à busca.
@@ -196,8 +266,16 @@ export function MethodologyClient({ projectId, methodology }: Props) {
                     </p>
                     <ul className="divide-y divide-gray-50">
                       {group.tasks.map((t) => (
-                        // O `pl-5` é onde entra o checkbox da ação em massa da Onda 5.
                         <li key={t.id} className="flex items-center gap-3 px-5 py-2.5">
+                          {canClassify && (
+                            <input
+                              type="checkbox"
+                              checked={selected.has(t.id)}
+                              onChange={() => toggleSelected(t.id)}
+                              aria-label={`Selecionar ${t.title}`}
+                              className="h-4 w-4 shrink-0 rounded border-gray-300 accent-[hsl(var(--primary))]"
+                            />
+                          )}
                           <span className="min-w-0 flex-1 truncate text-sm text-foreground">{t.title}</span>
                           <StatusBadge status={t.status} />
                         </li>
