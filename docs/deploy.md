@@ -71,14 +71,33 @@ git merge --no-ff feat/minha-coisa
 Antes de seguir, com a `develop` já atualizada:
 
 ```bash
-pnpm install          # se package.json ou o lockfile mudaram
-pnpm test             # a suíte inteira, os dois apps
+pnpm install --frozen-lockfile   # PRIMEIRO — é o passo 1 do build do Railway
+pnpm test                        # a suíte inteira, os dois apps
 pnpm lint
-pnpm build            # o build quebra por coisa que o teste não pega
+pnpm build                       # o build quebra por coisa que o teste não pega
 ```
 
 Se algo falhar aqui, **conserte em `develop`**. Foi exatamente para isso que ela
 existe. Nada disso chegou perto dos usuários ainda.
+
+> **Por que `--frozen-lockfile`, e por que ele vem primeiro.** É exatamente o
+> comando que o Railway roda antes de qualquer outra coisa. Ele recusa instalar se
+> o `pnpm-lock.yaml` divergir de qualquer `package.json` — e o lockfile guarda o
+> **specifier**, não só a versão resolvida. Trocar `"^2.7.1"` por `"2.7.1"` num
+> `package.json` muda o specifier mesmo com a versão resolvida idêntica.
+>
+> `pnpm install` sem a flag reconcilia em silêncio, então **essa classe de erro é
+> invisível localmente**: `pnpm test`, `pnpm lint` e `pnpm build` passam todos,
+> porque usam o `node_modules` já instalado. O build do Railway morre no primeiro
+> comando com `ERR_PNPM_OUTDATED_LOCKFILE`.
+>
+> Aconteceu em 2026-07-28 e derrubou dois deploys seguidos. Custa 7 segundos
+> quando está tudo certo.
+>
+> Se falhar: `pnpm install --lockfile-only`, confira que o diff do
+> `pnpm-lock.yaml` é só o que você esperava (nenhum pacote atualizado de
+> carona) e commite o lockfile junto com o `package.json`. **Lockfile e
+> `package.json` viajam sempre no mesmo commit.**
 
 ### Passo 2 — a promoção para `main`
 
@@ -349,6 +368,7 @@ Detalhe de cada um em [`deploy-railway.md`](./deploy-railway.md) §6 e §9.
 
 | Sintoma | Comece por aqui |
 |---|---|
+| Build morre em `ERR_PNPM_OUTDATED_LOCKFILE` | `pnpm-lock.yaml` desalinhado de algum `package.json`. Ver §2 — `pnpm install --lockfile-only` e commitar o lockfile |
 | Site fora do ar | `railway logs --service web` e `--service api`. A API sobe? |
 | API não sobe | Log do boot. Quase sempre é variável faltando ou migration falhando (seção 3). |
 | Login diz "Serviço indisponível" | `NEXT_PUBLIC_API_URL` errada **ou** certa mas sem redeploy do `web` (seção 5, item 2). |
