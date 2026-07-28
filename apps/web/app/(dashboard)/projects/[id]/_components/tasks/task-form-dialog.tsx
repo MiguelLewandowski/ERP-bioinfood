@@ -12,6 +12,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
 import { popsApi, tasksApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
+import { hasTimeComponent } from '@/lib/dates';
 import type { ProjectMember } from '@/lib/project-members';
 import type { TaskDto as Task, TaskChecklistItemDto as TaskChecklistItem, PopDto } from '@bioinfood/shared';
 import { checklistProgress } from '@bioinfood/shared';
@@ -52,11 +53,15 @@ function toDateInput(d: string | null | undefined): string {
   return d.split('T')[0];
 }
 
-// '00:00' é o sentinel de "sem hora definida" (mesma regra de apps/web/lib/activities.ts formatTime).
+// Campo de hora vazio quando a tarefa não tem hora.
+//
+// A versão anterior comparava o horário LOCAL com '00:00'. Registro dia-puro é
+// 00:00Z, que em UTC-3 é 21:00 do dia ANTERIOR — então o formulário abria com
+// "21:00" numa tarefa sem hora, e salvar sem tocar em nada gravava 00:00Z do dia
+// seguinte: abrir e salvar empurrava a tarefa um dia para frente.
 function toTimeInput(d: string | null | undefined): string {
-  if (!d) return '';
-  const time = new Date(d).toTimeString().slice(0, 5);
-  return time === '00:00' ? '' : time;
+  if (!hasTimeComponent(d)) return '';
+  return new Date(d!).toTimeString().slice(0, 5);
 }
 
 /**

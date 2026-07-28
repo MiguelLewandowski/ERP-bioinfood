@@ -135,14 +135,36 @@ describe('TaskFormDialog — create mode', () => {
     expect(postMock).not.toHaveBeenCalled();
   });
 
-  // Tarefa de cronograma virou dia puro (§7 do incidente): os campos de hora
-  // saíram do formulário, e com eles a regra de conflito entre horas. Quem
-  // precisa de hora marcada usa Activity.
-  it('should not offer time fields for a schedule task', () => {
+  // Business rule: times only conflict when both fall on the same day.
+  it('should reject an end time earlier than the start time on the same day', async () => {
+    const user = userEvent.setup();
     setup();
 
-    expect(screen.queryByLabelText('Hora de Início')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Hora Final')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
+    await user.type(screen.getByLabelText('Prazo'), '2026-08-10');
+    await user.type(screen.getByLabelText('Hora de Início'), '14:00');
+    await user.type(screen.getByLabelText('Hora Final'), '09:00');
+    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
+
+    expect(
+      await screen.findByText('A hora final não pode ser anterior à hora de início'),
+    ).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('should accept an earlier end time when the dates differ', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
+    await user.type(screen.getByLabelText('Prazo'), '2026-08-11');
+    await user.type(screen.getByLabelText('Hora de Início'), '14:00');
+    await user.type(screen.getByLabelText('Hora Final'), '09:00');
+    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
   });
 
   // Story points are bounded by the native min/max on `type="number"`, which
@@ -234,7 +256,7 @@ describe('TaskFormDialog — create mode', () => {
    * A asserção é sobre a string crua de propósito: reidratar com `new Date()`
    * antes de comparar é justamente o que mascarava o deslocamento.
    */
-  it('should send the plain calendar day, without shifting it to UTC', async () => {
+  it('should send the plain calendar day when no time is given', async () => {
     const user = userEvent.setup();
     setup();
 
@@ -247,6 +269,22 @@ describe('TaskFormDialog — create mode', () => {
     const payload = postMock.mock.calls[0][1];
     expect(payload.startDate).toBe('2026-08-10');
     expect(payload.dueDate).toBe('2026-08-12');
+  });
+
+  // Com hora preenchida o campo é um INSTANTE, e aí a conversão local→UTC é a
+  // correta: 09:30 em Brasília (UTC-3) é 12:30Z. O fuso do teste está fixado em
+  // America/Sao_Paulo no vitest.config — sem isso esta asserção mudaria no CI.
+  it('should send a UTC instant when a time is given', async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.type(screen.getByLabelText('Título *'), 'Preparar meio');
+    await user.type(screen.getByLabelText('Data de Início'), '2026-08-10');
+    await user.type(screen.getByLabelText('Hora de Início'), '09:30');
+    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    expect(postMock.mock.calls[0][1].startDate).toBe('2026-08-10T12:30:00.000Z');
   });
 
   it('should show the server message and keep the dialog open when creation fails', async () => {
@@ -284,6 +322,37 @@ describe('TaskFormDialog — edit mode', () => {
 
     expect(screen.getByLabelText('Data de Início')).toHaveValue('2026-08-10');
     expect(screen.getByLabelText('Prazo')).toHaveValue('2026-08-20');
+  });
+
+  // EXISTING_TASK é dia puro (00:00Z). Em America/Sao_Paulo isso é 21:00 do dia
+  // anterior, e a versão antiga do toTimeInput — que comparava a hora LOCAL com
+  // '00:00' — preenchia o campo com "21:00" numa tarefa sem hora.
+  it('should leave the time fields empty for a task without a time', () => {
+    setup({ mode: 'edit', task: EXISTING_TASK });
+
+    expect(screen.getByLabelText('Hora de Início')).toHaveValue('');
+    expect(screen.getByLabelText('Hora Final')).toHaveValue('');
+  });
+
+  // A consequência do bug acima: abrir e salvar sem tocar em nada gravava
+  // 00:00Z do dia SEGUINTE, empurrando a tarefa um dia a cada edição.
+  it('should not shift the dates when saving without touching them', async () => {
+    const user = userEvent.setup();
+    setup({ mode: 'edit', task: EXISTING_TASK });
+
+    await user.type(screen.getByLabelText('Título *'), ' revisado');
+    await user.click(screen.getByRole('button', { name: /Salvar|Criar/ }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+    const payload = patchMock.mock.calls[0][1];
+    expect(payload.startDate).toBe('2026-08-10');
+    expect(payload.dueDate).toBe('2026-08-20');
+  });
+
+  it('should keep a real time when the task has one', () => {
+    setup({ mode: 'edit', task: { ...EXISTING_TASK, startDate: '2026-08-10T12:30:00.000Z' } as unknown as Task });
+
+    expect(screen.getByLabelText('Hora de Início')).toHaveValue('09:30');
   });
 
   it('should offer the status field only when editing', () => {
