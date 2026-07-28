@@ -151,7 +151,7 @@ importers:
         specifier: 2.6.0
         version: 2.6.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@svar-ui/react-gantt':
-        specifier: ^2.7.1
+        specifier: 2.7.1
         version: 2.7.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       class-variance-authority:
         specifier: ^0.7.0
