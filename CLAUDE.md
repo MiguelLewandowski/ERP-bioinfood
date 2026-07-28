@@ -180,6 +180,10 @@ Na prática:
 - Classes: PascalCase · funções/vars: camelCase
 - Commits: feat: fix: chore: docs: refactor: test:
 - Nunca apagar migrations — sempre adicionar novas
+- `pnpm-lock.yaml` e `package.json` viajam **no mesmo commit**. O lockfile guarda o
+  *specifier*, não só a versão resolvida — mudar `^2.7.1` para `2.7.1` já o
+  desatualiza. Local passa (o `pnpm install` reconcilia sozinho), o build do
+  Railway morre em `ERR_PNPM_OUTDATED_LOCKFILE`
 - Server Components por padrão no Next.js
 - Sem console.log ou TODO no código commitado
 

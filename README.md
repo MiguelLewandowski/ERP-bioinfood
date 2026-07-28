@@ -230,6 +230,8 @@ Módulos existentes: `activities`, `auth`, `charter`, `contacts`, `crm-activitie
 | [`docs/deploy.md`](docs/deploy.md) | **Como o sistema vai ao ar** — branches, promoção para produção, migration em produção, backup e restauração |
 | [`CLAUDE.md`](CLAUDE.md) | Convenções, arquitetura e decisões de segurança do projeto |
 | [`docs/analise-seguranca.md`](docs/analise-seguranca.md) | Auditoria de segurança viva (RBAC, secrets, infra) |
+| [`docs/planejamento-ui-projetos.md`](docs/planejamento-ui-projetos.md) | Rodada de UI do módulo de Projetos — 7 ondas, estado de cada uma |
+| [`docs/tasks/README.md`](docs/tasks/README.md) | Fila de tarefas detalhadas, prontas para implementar |
 | [`docs/deploy-railway.md`](docs/deploy-railway.md) | Montar o ambiente no Railway do zero (setup inicial) |
 | [`docs/testes-frontend.md`](docs/testes-frontend.md) | Cobertura de testes, bugs encontrados e dívidas |
 | [`docs/design/design-tokens.md`](docs/design/design-tokens.md) | Tokens de design — ler antes de criar qualquer UI |
