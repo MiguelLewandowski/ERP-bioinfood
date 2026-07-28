@@ -410,6 +410,12 @@ export interface TaskDto {
   status: TaskStatus;
   priority: TaskPriority;
   storyPoints: number | null;
+  /**
+   * Se a tarefa exige POP. `false` = administrativa: sai do denominador da
+   * métrica de cobertura da tela de Metodologia. Default `true` no banco, então
+   * tarefa antiga continua contando — o número não se move sozinho num deploy.
+   */
+  requiresSOP: boolean;
   order: number;
   parentId: string | null;
   assignee: { id: string; name: string } | null;
