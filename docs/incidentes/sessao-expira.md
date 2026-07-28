@@ -144,9 +144,17 @@ segura abas concorrentes — e ela é **por processo**.
 > Se o serviço `web` no Railway rodar com mais de uma réplica, abas atendidas por
 > réplicas diferentes voltam a correr, a API vê o mesmo jti duas vezes e a
 > detecção de reuso derruba **todas** as sessões do usuário.
->
-> **Confirmar 1 réplica antes do deploy.** Se escalar, a dedupe precisa ir para
-> um lugar compartilhado (Redis) ou a API precisa tolerar a corrida.
+
+**Verificado no painel do Railway em 2026-07-28: 1 réplica, região única (US
+West).** Multi-região exige plano Pro, que não é o caso hoje. A dedupe por
+processo cobre todas as abas do usuário e o deploy está liberado por este
+critério.
+
+> **Se um dia escalar `web` para 2+ réplicas, isto quebra silenciosamente** — o
+> sintoma é o usuário cair no login sem motivo, igual ao incidente original, e o
+> log da API acusando "Reuso de refresh token detectado". Nesse dia a dedupe
+> precisa ir para um lugar compartilhado (Redis) ou a API precisa tolerar a
+> corrida. Não é opcional: é a condição que sustenta a correção.
 
 ---
 
@@ -223,6 +231,7 @@ teste. É a proteção que faltava justamente no par de tokens.
 
 ## Pendências
 
-- [ ] Confirmar 1 réplica do serviço `web` no Railway **antes do deploy**
+- [x] Confirmar 1 réplica do serviço `web` no Railway — feito em 2026-07-28,
+      1 réplica em US West, multi-região só no plano Pro
 - [ ] Teste de rota para `auth/login` (risco latente, não corrigido nesta rodada)
 - [ ] Teste de comportamento para `proxy/[...path]` (criticidade, não contrato)
