@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | **Correção completa.** Etapa (a) feita e coberta por teste; etapa (b) inexistente (não há dado a corrigir); etapa (c) cancelada. **Falta só teste manual e deploy** |
+| **Estado** | **Correção completa.** Etapa (a) feita e coberta por teste; (b) inexistente (não há dado a corrigir); (c) feita — migration `20260728112520`. **Falta teste manual e deploy** |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -413,16 +413,15 @@ Se a etapa (c) exigir normalização antes da conversão de tipo, o script entra
 filtrado por origem, `SELECT` do depois, transação com rollback fácil. **Nunca
 dentro de migration** — seção 6.
 
-### Etapa (c) — ❌ CANCELADA em 2026-07-28
+### Etapa (c) — feita · migration `20260728112520_calendar_day_columns`
 
-**Não será feita. Nenhuma migration sai deste incidente.** Detalhe e motivo na
-seção 8.
+Cancelada e retomada no mesmo dia. A razão do cancelamento era o risco de mexer
+no schema de um ambiente com dado real; a premissa caiu quando se confirmou que
+**o banco da Railway só tem dado de seed e de teste** — o que as queries da seção
+9 já mostravam: os únicos projetos são `proj-demo-ingredientes`, `proj-001` e
+`proj-002`, todos do seed.
 
-Resumo: com a revogação da §7, os campos de tarefa ficam `TIMESTAMP` porque têm
-hora. Sobravam três campos sem hora nenhuma, e neles `@db.Date` não corrigiria
-bug algum — o `hasTimeComponent` e o `formatDay` já resolvem em código. A troca
-seria uma migration num banco sem backup automático, que aplica sozinha no boot
-da API (seção 6), em favor de higiene de tipo em campos que não estão quebrados.
+Quatro colunas convertidas para `DATE`. Detalhe e o que ficou de fora na seção 8.
 
 ---
 
@@ -472,18 +471,36 @@ registro já tinha no servidor. Arrastar barra move dias e **não apaga hora**.
 
 ---
 
-## 8. Etapa (c) — ❌ cancelada · o levantamento fica como referência
+## 8. Etapa (c) — feita em 2026-07-28
 
-> **Decidido em 2026-07-28: a etapa (c) não será executada.** A tabela abaixo é o
-> levantamento que levou a essa conclusão, não um plano pendente. Ninguém deve
-> abrir migration a partir daqui.
->
-> Se algum dia alguém quiser retomar, o argumento a derrubar é este: os campos
-> que poderiam virar `@db.Date` **não estão quebrados** — a correção de código
-> (`hasTimeComponent`, `formatDay`, `parseCalendarDate`) já garante o dia certo na
-> escrita e na leitura. O que a migration acrescentaria é impedir que um código
-> futuro erre de novo, e isso custa uma alteração de schema em produção que
-> aplica sozinha no boot da API, num banco sem backup automático.
+Migration `20260728112520_calendar_day_columns`. Quatro colunas para `DATE`:
+
+```sql
+ALTER TABLE "Milestone"   ALTER COLUMN "date"              SET DATA TYPE DATE;
+ALTER TABLE "Opportunity" ALTER COLUMN "expectedCloseDate" SET DATA TYPE DATE;
+ALTER TABLE "Project"     ALTER COLUMN "startDate"         SET DATA TYPE DATE,
+                          ALTER COLUMN "endDate"           SET DATA TYPE DATE;
+```
+
+O ganho não é corrigir bug — o código já estava certo depois da etapa (a). É que
+`DATE` **recusa** hora: o banco passa a ser o guarda-costas contra alguém
+reintroduzir o deslocamento por descuido.
+
+**Verificação feita antes de aplicar** (é o que torna a conversão segura, porque
+`SET DATA TYPE DATE` trunca a hora silenciosamente):
+
+```sql
+SELECT count(*) FROM "Milestone"   WHERE "date"::time <> '00:00:00';              -- 0
+SELECT count(*) FROM "Project"     WHERE "startDate"::time <> '00:00:00';         -- 0
+SELECT count(*) FROM "Project"     WHERE "endDate"::time <> '00:00:00';           -- 0
+SELECT count(*) FROM "Opportunity" WHERE "expectedCloseDate"::time <> '00:00:00'; -- 0
+```
+
+**Rodar essas quatro contagens contra a Railway antes do deploy.** Se qualquer uma
+voltar diferente de zero, a migration apaga hora de verdade e o plano muda.
+
+Transparente para o front: os mappers já serializavam para o mesmo ISO de
+meia-noite UTC, e nenhum DTO mudou de forma. Suíte da API 113/113, web 335/335.
 
 ### Levantamento por campo
 
