@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -387,15 +388,18 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
             >
               <Icon size={13} className="shrink-0" />
               <span className="leading-snug flex-1">{i + 1}. {label}</span>
-              {sectionHasContent[id] && (
-                <span
-                  className={cn(
-                    'h-1.5 w-1.5 rounded-full shrink-0',
-                    activeSection === id ? 'bg-white' : 'bg-success',
-                  )}
-                  aria-label="Seção preenchida"
-                />
-              )}
+              {/* Dois estados, duas cores. Antes a bolinha só existia quando havia
+                  conteúdo — daí "todas verdes": o que faltava não era mapa de cor,
+                  era mostrar também o que ainda está vazio. */}
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full shrink-0',
+                  activeSection === id
+                    ? sectionHasContent[id] ? 'bg-white' : 'bg-white/40'
+                    : sectionHasContent[id] ? 'bg-success' : 'bg-border',
+                )}
+                aria-label={sectionHasContent[id] ? 'Seção preenchida' : 'Seção vazia'}
+              />
             </button>
           ))}
         </nav>
@@ -430,9 +434,12 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 Exportar PDF
               </button>
               {isApproved ? (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: 'hsl(var(--success) / 0.6)', color: 'hsl(var(--primary-dark))' }}>
+                // Estado, não ação: badge do catálogo em vez de um pill com o mesmo
+                // peso dos botões vizinhos — era isso que fazia três elementos
+                // competirem no header.
+                <Badge variant="success" className="gap-1.5">
                   <CheckCircle2 size={12} /> Aprovado em {fmtInstant(initialData!.approvedAt!)}
-                </span>
+                </Badge>
               ) : (
                 <button
                   type="button"
