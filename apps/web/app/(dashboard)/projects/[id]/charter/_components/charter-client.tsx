@@ -105,6 +105,8 @@ type FieldDef = {
   placeholder?: string;
   rows?: number;
   options?: readonly string[];
+  /** Ocupa meia largura no grid da seção; sem isso o campo atravessa as duas colunas. */
+  half?: boolean;
 };
 
 const SECTIONS: Array<{
@@ -116,8 +118,8 @@ const SECTIONS: Array<{
     icon: Info,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1 },
-      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS },
+      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1, half: true },
+      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS, half: true },
     ],
   },
   {
@@ -599,33 +601,37 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </>
             )}
 
-            {activeData.fields.map(({ key, label, placeholder, rows, options }) => (
-              <div key={key}>
-                <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
-                {options ? (
-                  <select
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  >
-                    <option value="">—</option>
-                    {options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : rows === 1 ? (
-                  <input
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  />
-                ) : (
-                  <textarea
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    rows={rows}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
-                  />
-                )}
-              </div>
-            ))}
+            {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
+                que são curtos, dividem a linha. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => (
+                <div key={key} className={half ? undefined : 'col-span-2'}>
+                  <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
+                  {options ? (
+                    <select
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    >
+                      <option value="">—</option>
+                      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : rows === 1 ? (
+                    <input
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    />
+                  ) : (
+                    <textarea
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      rows={rows}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </form>
       </div>
