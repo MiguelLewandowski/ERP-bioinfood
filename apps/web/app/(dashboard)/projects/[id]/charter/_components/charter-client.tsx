@@ -124,7 +124,7 @@ const SECTIONS: Array<{
     id: 'contexto',
     label: 'Contexto e Justificativa',
     icon: FlaskConical,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
       { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4 },
       { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3 },
@@ -157,7 +157,7 @@ const SECTIONS: Array<{
     id: 'entregaveis',
     label: 'Entregáveis',
     icon: Package,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
       { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais, um por linha…', rows: 4 },
     ],
