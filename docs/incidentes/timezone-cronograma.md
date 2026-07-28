@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | Em correção — etapa (a) não iniciada |
+| **Estado** | Bloco 1 da etapa (a) implementado — **aguardando teste manual** |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -161,8 +161,27 @@ reescrita em massa fez foi carimbar `updatedAt` em 46 linhas — nenhum dado de
 cronograma foi alterado. É "a torneira está aberta" no sentido de que o volume de
 escrita é desproporcional à ação do usuário, não no sentido de corrupção.
 
-Efeito colateral que atrapalha diagnóstico futuro: **`updatedAt` deixou de servir
-para distinguir "editado por humano" de "tocado pelo sistema"** neste projeto.
+### 🔴 `updatedAt` NÃO é critério de origem neste projeto
+
+**Leia isto antes de escrever qualquer query de diagnóstico sobre `Task`.**
+
+`persistOrder` carimba `updatedAt` em **todas** as tarefas do projeto a cada
+arrastar no Gantt. Logo:
+
+- `updatedAt > createdAt` **não** significa "alguém editou esta tarefa";
+- `updatedAt` idêntico em N linhas **não** significa corrupção em massa — pode ser
+  um único arrastar;
+- ordenar por `updatedAt` para achar "o que mudou por último" devolve o projeto
+  inteiro.
+
+Isto invalidou o filtro de uma das queries deste próprio incidente: a Q2
+classificava origem por `updatedAt > createdAt + 1min` e teria rotulado 46 linhas
+do seed como "editadas depois". A classificação por **hora gravada** (§9) é a que
+se sustenta.
+
+Enquanto `persistOrder` resequenciar o projeto inteiro (item 2 da seção 10), o
+único critério confiável de origem é o conteúdo do dado, não seu carimbo de
+tempo.
 
 ---
 
@@ -312,17 +331,28 @@ em qualquer ordem, e cada um é revertível sozinho.
 > A ordem antiga colocava o `use-gantt-persistence` em 4º "por precaução". Ele é o
 > **1º-3º** porque é o único caminho que ainda escreve dado errado hoje.
 
-### Etapa (b) — corrigir os dados gravados · **praticamente vazia**
+### Etapa (b) — **VAZIA. Não existe.**
 
 As queries não encontraram dado deslocado: tudo em `00:00:00Z`, que é a gravação
-correta de um dia de calendário. **Não haverá `UPDATE` em massa.**
+correta de um dia de calendário.
 
-O que resta é pontual e não precisa de script:
+As duas únicas linhas fora desse padrão eram lixo de teste — a tarefa "New Task"
+criada pela Toolbar da SVAR e a tarefa "teste" em `18:20/18:23` — e foram
+**excluídas pela UI em 2026-07-27**.
 
-| Item | Ação |
-|---|---|
-| Tarefa "New Task", `dueDate` 2027 | Lixo de teste — exclusão manual pela UI |
-| Tarefa "teste" em `18:20/18:23` | Instante gravado por um campo que vai deixar de existir. Decidir: normalizar para o dia ou excluir junto com o teste |
+**Resultado: zero registros a corrigir. Sem script, sem `UPDATE`, sem execução
+manual contra o banco de produção.** A etapa (b) sai do plano.
+
+> Conferência da exclusão (rodar no console do Railway; ambas devem sair das
+> queries por `deletedAt` preenchido ou por não existirem mais):
+>
+> ```sql
+> SELECT id, title, "startDate", "dueDate", "deletedAt"
+> FROM "Task"
+> WHERE title IN ('New Task', 'teste') OR "dueDate"::time <> '00:00:00';
+> ```
+>
+> Se voltar qualquer linha com `deletedAt IS NULL`, a etapa (b) volta a existir.
 
 Se a etapa (c) exigir normalização antes da conversão de tipo, o script entra
 **ali**, não aqui. Requisitos, se vier a existir: `SELECT` do antes, `UPDATE`
@@ -456,11 +486,12 @@ caso de a etapa (c) precisar de normalização.
 
 ## 10. Em aberto
 
-1. **`updatedAt` não é mais sinal confiável de edição humana** neste projeto —
-   `persistOrder` carimba o projeto inteiro a cada arrastar (§2.5). Qualquer
-   diagnóstico futuro que queira separar "editado por gente" de "tocado pelo
-   sistema" precisa de outro sinal. Se o PATCH condicional reduzir o alcance do
-   `reorder`, revisitar.
+1. **Marcos (`Milestone`) seguem sem PATCH condicional.** O guard do commit
+   `4a319df` cobre só tarefas — o hook recebe os `TaskDto` para comparar, mas não
+   os DTOs de marco. O handler de marco continua gravando `date` a qualquer
+   `update-task`. Risco menor (marco não tem normalização de duração, então não
+   há `+1 dia` a propagar), mas é o mesmo padrão de escrita cega. Fechar passando
+   `milestones` para o hook.
 
 2. **`persistOrder` ligado a `move-task` e `indent-task`** resequencia todas as
    tarefas do projeto a cada arrastar. É por desenho (o comentário do arquivo
