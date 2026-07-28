@@ -1,12 +1,14 @@
 'use client'; // interactive tree
 
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package, ListTree, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, GitBranch, User, CheckSquare, Package, ListTree, Pencil, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import type { WbsNodeDto } from '@bioinfood/shared';
 import type { ProjectMember } from '@/lib/project-members';
+import type { WbsRollup } from '@/lib/project-wbs';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { useAuth } from '@/components/providers/auth-provider';
 import { wbsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -39,7 +41,12 @@ interface WbsClientProps {
   initialNodes: WbsNode[];
   /** Equipe do TAP + acessos do projeto — as opções de dono do pacote. */
   members: ProjectMember[];
+  /** Andamento por pacote, já somando os descendentes (ver lib/project-wbs.ts). */
+  rollup: Record<string, WbsRollup>;
 }
+
+/** Pacote recém-criado ainda não está no rollup do servidor — nasce zerado. */
+const EMPTY_ROLLUP: WbsRollup = { total: 0, done: 0, progress: 0 };
 
 interface AddForm {
   parentId: string | null;
@@ -53,7 +60,7 @@ interface EditingNode {
   outputs: string;
 }
 
-export function WbsClient({ projectId, initialNodes, members }: WbsClientProps) {
+export function WbsClient({ projectId, initialNodes, members, rollup }: WbsClientProps) {
   const { token } = useAuth();
   const [nodes, setNodes] = useState<WbsNode[]>(initialNodes);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -196,6 +203,7 @@ export function WbsClient({ projectId, initialNodes, members }: WbsClientProps) 
             key={node.id}
             node={node}
             depth={0}
+            rollup={rollup}
             collapsed={collapsed}
             openDetails={openDetails}
             onToggle={toggleCollapse}
@@ -313,6 +321,7 @@ export function WbsClient({ projectId, initialNodes, members }: WbsClientProps) 
 interface WbsTreeNodeProps {
   node: WbsNodeTree;
   depth: number;
+  rollup: Record<string, WbsRollup>;
   collapsed: Set<string>;
   openDetails: Set<string>;
   onToggle: (id: string) => void;
@@ -321,73 +330,120 @@ interface WbsTreeNodeProps {
   onEdit: (node: WbsNode) => void;
 }
 
-function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDetails, onAdd, onEdit }: WbsTreeNodeProps) {
+// Peso visual por nível: o nível 1 é um marco de leitura da árvore, os de baixo
+// são detalhe. Sem isso "1" e "1.1" têm a mesma voz e a hierarquia some.
+const DEPTH_STYLE = [
+  { row: 'bg-muted/40 py-3',   code: 'text-primary text-sm',            title: 'text-sm font-bold' },
+  { row: 'py-2.5',             code: 'text-success text-xs',            title: 'text-sm font-medium' },
+  { row: 'py-2',               code: 'text-muted-foreground text-xs',   title: 'text-[13px] font-normal' },
+];
+
+function depthStyle(depth: number) {
+  return DEPTH_STYLE[Math.min(depth, DEPTH_STYLE.length - 1)];
+}
+
+function WbsTreeNode({ node, depth, rollup, collapsed, openDetails, onToggle, onToggleDetails, onAdd, onEdit }: WbsTreeNodeProps) {
   const isCollapsed = collapsed.has(node.id);
   const hasChildren = node.children.length > 0;
-
-  const depthColors = ['#147F23', '#46AD48', '#86C175', '#706F6F'];
-  const color = depthColors[Math.min(depth, depthColors.length - 1)];
+  const style = depthStyle(depth);
 
   const hasDetails  = !!(node.owner || node.readyCriteria || node.outputs);
   const detailsOpen = openDetails.has(node.id);
+  const progress    = rollup[node.id] ?? EMPTY_ROLLUP;
+
+  // Critério de pronto e saídas se cobram do pacote de trabalho — a folha, que é
+  // onde o trabalho acontece. Num nó que só agrupa filhos, exigir os dois seria
+  // ruído. Por isso o alerta de lacuna só existe na folha.
+  const missing = hasChildren
+    ? []
+    : [
+        !node.readyCriteria && 'critério de pronto',
+        !node.outputs && 'saídas',
+      ].filter(Boolean) as string[];
 
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 group"
+        className={cn(
+          'flex items-center gap-2 hover:bg-muted/60 transition-colors border-b border-border/40 group',
+          style.row,
+        )}
         style={{ paddingLeft: `${16 + depth * 24}px`, paddingRight: '16px' }}
       >
         <button
           onClick={() => hasChildren ? onToggle(node.id) : onToggleDetails(node.id)}
-          className="w-5 h-5 flex items-center justify-center shrink-0"
-          title={hasChildren ? 'Expandir sub-entregáveis' : 'Ver detalhes do pacote'}
+          className="w-5 h-5 flex items-center justify-center shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={hasChildren ? 'Expandir sub-entregáveis' : 'Ver detalhes do pacote'}
         >
           {(hasChildren ? isCollapsed : !detailsOpen)
-            ? <ChevronRight size={14} style={{ color }} />
-            : <ChevronDown size={14} style={{ color }} />}
+            ? <ChevronRight size={14} />
+            : <ChevronDown size={14} />}
         </button>
 
-        <span className="text-xs font-bold shrink-0 w-12" style={{ color }}>{node.code}</span>
+        <span className={cn('font-bold shrink-0 w-12 tabular-nums', style.code)}>{node.code}</span>
 
         {/* Título sempre abre os detalhes; o chevron cuida da navegação da árvore. */}
         <button
           onClick={() => onToggleDetails(node.id)}
-          className="flex-1 text-left text-sm text-foreground font-medium hover:text-primary transition-colors"
-          title="Ver detalhes"
+          className={cn('flex-1 min-w-0 truncate text-left text-foreground hover:text-primary transition-colors', style.title)}
         >
           {node.title}
         </button>
 
-        {/* Resumo sempre visível: diz o que já está documentado sem exigir clique. */}
+        {/* Andamento do pacote: a única informação da linha que muda sozinha. */}
+        {progress.total > 0 && (
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            <ProgressBar
+              value={progress.progress}
+              label={`${node.code} ${node.title}: ${progress.done} de ${progress.total} tarefas concluídas`}
+              className="w-20"
+            />
+            <span className="w-16 text-right text-[11px] tabular-nums text-muted-foreground">
+              {progress.done}/{progress.total} tarefas
+            </span>
+            <span className="w-9 text-right text-xs font-semibold tabular-nums text-foreground">
+              {progress.progress}%
+            </span>
+          </div>
+        )}
+        {progress.total === 0 && (
+          <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">sem tarefas</span>
+        )}
+
+        {/* Alerta por exceção: a linha só fala quando falta alguma coisa. Marcar
+            o que já está preenchido em toda linha vira ruído e some no meio. */}
         <div className="flex items-center gap-1.5 shrink-0">
-            {node.owner && (
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-gray-100 px-2 py-0.5 rounded-full">
-                <User size={9} /> {node.owner}
-              </span>
-            )}
-            {node.readyCriteria && (
-              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-success/20 text-primary-dark" title="Tem critério de pronto">
-                <CheckSquare size={9} /> pronto
-              </span>
-            )}
-            {node.outputs && (
-              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-success/20 text-primary-dark" title="Tem saídas definidas">
-                <Package size={9} /> saídas
-              </span>
-            )}
-            {!hasDetails && (
-              <button
-                onClick={() => onEdit(node)}
-                className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
-              >
-                + detalhes
-              </button>
-            )}
+          {node.owner ? (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              <User size={9} /> {node.owner}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+              <User size={9} /> sem dono
+            </span>
+          )}
+          {missing.length > 0 && (
+            <button
+              onClick={() => onEdit(node)}
+              className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] text-accent hover:bg-accent/20 transition-colors"
+            >
+              <AlertCircle size={9} /> falta {missing.join(' e ')}
+            </button>
+          )}
+          {!hasDetails && !missing.length && (
+            <button
+              onClick={() => onEdit(node)}
+              className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+            >
+              + detalhes
+            </button>
+          )}
         </div>
 
+        {/* Visível sempre (esmaecido) — escondido no hover, ninguém descobre. */}
         <button
           onClick={() => onAdd(node.id, node.code)}
-          className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 text-[10px] text-primary font-semibold hover:underline transition-opacity shrink-0"
+          className="flex items-center gap-0.5 text-[10px] text-primary font-semibold opacity-40 group-hover:opacity-100 focus-visible:opacity-100 hover:underline transition-opacity shrink-0"
         >
           <Plus size={11} /> sub
         </button>
@@ -402,6 +458,7 @@ function WbsTreeNode({ node, depth, collapsed, openDetails, onToggle, onToggleDe
           key={child.id}
           node={child}
           depth={depth + 1}
+          rollup={rollup}
           collapsed={collapsed}
           openDetails={openDetails}
           onToggle={onToggle}

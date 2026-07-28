@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { MoreVertical } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { formatDay } from '@/lib/dates';
 
 interface ProjectCardProps {
   project: any;
 }
 
 export default function ProjectCard({ project }: ProjectCardProps) {
-  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+  const fmt = (d?: string) => d ? formatDay(d, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
   return (
     <Link href={`/projects/${project.id}`} className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-ring transition-all">

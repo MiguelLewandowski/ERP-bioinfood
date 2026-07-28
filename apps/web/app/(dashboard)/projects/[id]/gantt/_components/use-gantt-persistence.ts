@@ -4,7 +4,8 @@
 // Isola toda a I/O do componente de apresentação.
 
 import { useEffect, useRef, type MutableRefObject } from 'react';
-import type { TaskDto } from '@bioinfood/shared';
+import type { TaskDto, TaskStatus } from '@bioinfood/shared';
+import { hasTimeComponent } from '@/lib/dates';
 import { tasksApi, milestonesApi } from '@/lib/api-hooks';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { isMilestoneId, stripMs, progressToStatus, toPmbokDependencyType, type GanttLink } from './gantt-mapping';
@@ -28,6 +29,63 @@ interface PersistenceHandles {
   menuHandler: MutableRefObject<((e: any) => void) | null>;
 }
 
+// ─── comparação de campos para o PATCH condicional ─────────────────────────────
+
+/**
+ * O DIA de um campo de data, como 'YYYY-MM-DD', pelos componentes locais.
+ *
+ * Serve para duas coisas ao mesmo tempo: comparar (o que mudou de verdade) e
+ * **gravar**. Desde que `buildGanttTasks` monta a store com `parseCalendarDate`,
+ * as datas da SVAR são meia-noite LOCAL do dia certo — então extrair o dia pelos
+ * componentes locais devolve o dia real, e é isso que vai para a API.
+ *
+ * O que NÃO fazer aqui: `toISOString()`. Meia-noite local em UTC-3 vira 03:00Z,
+ * que é o erro que este incidente existe para eliminar.
+ */
+function dayKey(value: unknown): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Valor a enviar para a API a partir do `Date` da store.
+ *
+ * `keepTime` decide o formato, e vem de a tarefa ter hora **no servidor**:
+ * arrastar uma barra move dias, não muda hora, então quem tinha hora continua
+ * com ela e quem não tinha não ganha uma por causa de um arrastar.
+ */
+function toApiValue(value: unknown, keepTime: boolean): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  return keepTime ? d.toISOString() : dayKey(d);
+}
+
+interface TaskSnapshot {
+  title: string;
+  startDay: string | null;
+  dueDay: string | null;
+  status: TaskStatus;
+  /** A tarefa tem hora de verdade? Decide o formato gravado. */
+  startHasTime: boolean;
+  dueHasTime: boolean;
+}
+
+function snapshotOf(task: TaskDto): TaskSnapshot {
+  return {
+    title: task.title,
+    startDay: dayKey(task.startDate),
+    dueDay: dayKey(task.dueDate),
+    status: task.status,
+    startHasTime: hasTimeComponent(task.startDate),
+    dueHasTime: hasTimeComponent(task.dueDate),
+  };
+}
+
 export function useGanttPersistence(api: any, opts: Options): PersistenceHandles {
   const { editable, projectId, token, links, tasks, onError, onEditTask } = opts;
   const confirm = useConfirm();
@@ -43,6 +101,11 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
   // sem precisar religar o listener a cada mudança de `tasks`.
   const allTasksRef = useRef<TaskDto[]>(tasks);
   allTasksRef.current = tasks;
+
+  // Último valor que sabemos estar no servidor, por tarefa. Semeado sob demanda
+  // a partir do DTO e atualizado a cada escrita — é contra ele que o handler
+  // decide o que mudou de verdade.
+  const lastPersisted = useRef(new Map<string, TaskSnapshot>());
 
   // Mantém o alvo (sucessora) de cada link conhecido para montar a URL de remoção.
   useEffect(() => {
@@ -91,20 +154,51 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
       if (isMilestoneId(ev.id)) {
         const data: Record<string, unknown> = {};
         if (t.text !== undefined) data.title = t.text;
-        if (t.start) data.date = new Date(t.start).toISOString();
+        if (t.start) data.date = dayKey(t.start);
         if (t.progress !== undefined) data.reached = t.progress >= 100;
         if (Object.keys(data).length === 0) return;
         milestonesApi.update(projectId, stripMs(ev.id), data, token).catch(onError);
         return;
       }
 
+      // PATCH condicional: a SVAR emite o objeto inteiro da tarefa a cada
+      // `update-task`, não só o campo mexido. Enviar tudo fazia uma edição de
+      // título reescrever também as datas — e com elas o `addDays` que existe só
+      // para desenhar barra de duração zero (gantt-mapping.ts). Comparar com o
+      // último valor conhecido do servidor é o que impede normalização de
+      // exibição de virar dado. Ver docs/incidentes/timezone-cronograma.md §2.4.
+      const taskId = resolveTaskId(ev.id);
+      const known = lastPersisted.current.get(taskId)
+        ?? (() => {
+          const dto = allTasksRef.current.find((x) => x.id === taskId);
+          return dto ? snapshotOf(dto) : null;
+        })();
+
+      const next: TaskSnapshot = {
+        title: t.text !== undefined ? t.text : known?.title ?? '',
+        startDay: t.start ? dayKey(t.start) : known?.startDay ?? null,
+        dueDay: t.end ? dayKey(t.end) : known?.dueDay ?? null,
+        status: t.progress !== undefined
+          ? progressToStatus(t.progress)
+          : known?.status ?? 'TODO',
+        startHasTime: known?.startHasTime ?? false,
+        dueHasTime: known?.dueHasTime ?? false,
+      };
+
       const data: Record<string, unknown> = {};
-      if (t.text !== undefined) data.title = t.text;
-      if (t.start) data.startDate = new Date(t.start).toISOString();
-      if (t.end) data.dueDate = new Date(t.end).toISOString();
-      if (t.progress !== undefined) data.status = progressToStatus(t.progress);
+      if (t.text !== undefined && next.title !== known?.title) data.title = next.title;
+      if (t.start && next.startDay !== known?.startDay) {
+        data.startDate = toApiValue(t.start, next.startHasTime);
+      }
+      if (t.end && next.dueDay !== known?.dueDay) {
+        data.dueDate = toApiValue(t.end, next.dueHasTime);
+      }
+      if (t.progress !== undefined && next.status !== known?.status) data.status = next.status;
+
       if (Object.keys(data).length === 0) return;
-      tasksApi.update(projectId, resolveTaskId(ev.id), data, token).catch(onError);
+
+      lastPersisted.current.set(taskId, next);
+      tasksApi.update(projectId, taskId, data, token).catch(onError);
     });
 
     api.on('add-task', async (ev: any) => {
@@ -117,13 +211,17 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
           {
             title: t.text || 'Nova atividade',
             status: 'TODO',
-            startDate: t.start ? new Date(t.start).toISOString() : undefined,
-            dueDate: t.end ? new Date(t.end).toISOString() : undefined,
+            startDate: t.start ? dayKey(t.start) ?? undefined : undefined,
+            dueDate: t.end ? dayKey(t.end) ?? undefined : undefined,
             ...(parentId ? { parentId } : {}),
           },
           token,
         );
         if (ev.id != null) taskIdMap.current.set(String(ev.id), created.id);
+        // Semeia o snapshot com o que acabou de ser gravado: sem isso, o
+        // primeiro `update-task` da tarefa nova não teria com o que comparar e
+        // reenviaria todos os campos.
+        lastPersisted.current.set(created.id, snapshotOf(created));
       } catch { onError(); }
     });
 

@@ -9,18 +9,24 @@ import {
   type SystemRole,
   type TaskDependencyType,
 } from '@bioinfood/shared';
+import { hasTimeComponent, parseCalendarDate } from '@/lib/dates';
+
+/**
+ * Data da API → `Date` para a store da SVAR, preservando hora quando existe.
+ *
+ * Sem hora, `parseCalendarDate` põe a barra na meia-noite LOCAL do dia certo —
+ * `new Date()` cru a jogaria para 21h do dia anterior. Com hora, o instante é a
+ * informação, e vai inteiro: a barra começa no meio do dia, como deve.
+ */
+function toGanttDate(value: string): Date {
+  return hasTimeComponent(value) ? new Date(value) : parseCalendarDate(value);
+}
 
 export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 
 export const isMilestoneId = (id: unknown) => String(id).startsWith('ms-');
 export const stripMs = (id: unknown) => String(id).slice(3);
-
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
 
 export function taskProgress(t: TaskDto): number {
   if (t.checklist?.length > 0) return checklistProgress(t.checklist);
@@ -37,15 +43,37 @@ export function statusToCss(status: TaskStatus): string {
   return status === 'DONE' ? 'gt-done' : status === 'IN_PROGRESS' ? 'gt-doing' : 'gt-todo';
 }
 
-// Mostra hora na coluna só quando a tarefa tem um horário definido (ver
-// toTimeInput em task-form-dialog.tsx — '00:00' é o sentinel de "sem hora").
+// Mostra a hora só quando a tarefa tem hora. As datas na store já vêm no fuso
+// certo (`toGanttDate`), então formatar direto acerta nos dois casos.
 const fmtCol = (d?: Date | string) => {
   if (!d) return '';
-  const date = new Date(d);
-  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
-    + (hasTime ? ` ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '');
+  const date = d instanceof Date ? d : toGanttDate(d);
+  const day = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  // Na store, ter hora é não estar na meia-noite LOCAL — que é onde
+  // `toGanttDate` põe justamente os registros sem hora.
+  const withTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+  return withTime
+    ? `${day} ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : day;
 };
+
+/**
+ * Duração em dias para a coluna da grade.
+ *
+ * Tarefa que começa e termina no mesmo dia tem diferença zero, e zero é falsy —
+ * a célula saía vazia. Pela convenção de cronograma, algo que acontece na
+ * segunda ocupa **um** dia de trabalho, então o piso é `1d`. É a mesma regra que
+ * a store da SVAR aplica internamente (`duration = 1` quando o diff é zero).
+ *
+ * Só a exibição compensa: o banco continua com `dueDate == startDate`, e a
+ * persistência não vê esta função. Ver docs/incidentes/timezone-cronograma.md §2.4(a).
+ */
+export function fmtDuration(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const days = Number(value);
+  if (!Number.isFinite(days)) return '';
+  return `${Math.max(1, Math.round(days))}d`;
+}
 
 // Escalas localizadas (mês + dia). Com zoom, ajustam automaticamente.
 export const scales = [
@@ -59,7 +87,7 @@ export const columns = [
   { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
   { id: 'start', header: 'Início', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'end', header: 'Término', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
-  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => (v ? `${v}d` : '') },
+  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => fmtDuration(v) },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
 
@@ -84,14 +112,23 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
   const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
 
   const taskItems: GanttTask[] = visible.map((t) => {
-    const start = new Date(t.startDate!);
-    const end = new Date(t.dueDate!);
+    // O ISO da API é meia-noite UTC quando não há hora, e em America/Sao_Paulo
+    // isso é 21h do dia ANTERIOR — a barra inteira nasceria deslocada um dia,
+    // além da coluna de texto. `toGanttDate` corrige isso sem achatar a hora de
+    // quem tem hora de verdade.
+    const start = toGanttDate(t.startDate!);
+    const end = toGanttDate(t.dueDate!);
     const hasChildren = parents.has(t.id);
     return {
       id: t.id,
       text: t.title,
       start,
-      end: end <= start ? addDays(start, 1) : end,
+      // Término REAL, sem normalizar. Tarefa de duração zero teria barra de
+      // largura 0 — isso é resolvido no CSS (`min-width` em gantt-status.css),
+      // não empurrando a data. O valor que entra aqui vai para a store da SVAR
+      // e é o que o `update-task` grava de volta: normalização de exibição não
+      // pode virar dado. Ver docs/incidentes/timezone-cronograma.md §2.4(a).
+      end,
       progress: taskProgress(t),
       type: hasChildren ? 'summary' : 'task',
       // Só referencia o pai se ele estiver visível (com datas); senão fica na raiz.
@@ -102,16 +139,16 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
-      base_start: t.baselineStart ? new Date(t.baselineStart) : undefined,
-      base_end: t.baselineEnd ? new Date(t.baselineEnd) : undefined,
+      base_start: t.baselineStart ? toGanttDate(t.baselineStart) : undefined,
+      base_end: t.baselineEnd ? toGanttDate(t.baselineEnd) : undefined,
     };
   });
 
   const msItems: GanttTask[] = milestones.map((m) => ({
     id: `ms-${m.id}`,
     text: m.title,
-    start: new Date(m.date),
-    end: new Date(m.date),
+    start: parseCalendarDate(m.date),
+    end: parseCalendarDate(m.date),
     progress: m.reached ? 100 : 0,
     type: 'milestone',
     parent: 0,
@@ -176,8 +213,9 @@ export interface GanttMarker { start: Date; text: string; css?: string }
 
 // Marcadores: hoje, término planejado e término estimado (maior prazo).
 export function buildMarkers(projectEnd: string | null, ganttTasks: GanttTask[]): GanttMarker[] {
+  // 'Hoje' é instante (agora), não dia vindo da API — `new Date()` está certo aqui.
   const items: GanttMarker[] = [{ start: new Date(), text: 'Hoje' }];
-  if (projectEnd) items.push({ start: new Date(projectEnd), text: 'Término planejado' });
+  if (projectEnd) items.push({ start: parseCalendarDate(projectEnd), text: 'Término planejado' });
   const ends = ganttTasks.map((t) => t.end.getTime());
   if (ends.length) items.push({ start: new Date(Math.max(...ends)), text: 'Término estimado' });
   return items;

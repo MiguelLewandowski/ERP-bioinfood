@@ -1,3 +1,13 @@
+/* Largura mínima da barra — tarefa de duração zero (dueDate == startDate) tem
+   largura 0 e desapareceria da tela. Antes isso era resolvido em
+   `buildGanttTasks`, empurrando o término em um dia; o valor normalizado ia
+   parar na store da SVAR e era gravado de volta no banco pelo `update-task`.
+   Resolver aqui mantém o dado íntegro: a store guarda o término real e só a
+   renderização compensa. Ver docs/incidentes/timezone-cronograma.md §2.4(a). */
+.wx-gantt .wx-bar {
+  min-width: 3px;
+}
+
 /* Cores das barras do Gantt por status (classe aplicada via task.css da SVAR). */
 .gt-todo .wx-bar,
 .gt-todo.wx-bar,

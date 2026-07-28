@@ -6,12 +6,14 @@ import { Search, X } from 'lucide-react';
 import type { ProjectDto, ProjectStatus } from '@bioinfood/shared';
 import { PROJECT_STATUS_LABELS } from '@/lib/project-report';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { formatDay } from '@/lib/dates';
 
 interface ProjectsTableProps {
   projects: ProjectDto[];
 }
 
-const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
+const fmt = (d: string | null) =>
+  (d ? formatDay(d, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 
 const selectCls =
   'text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:border-ring focus:outline-none text-muted-foreground';
