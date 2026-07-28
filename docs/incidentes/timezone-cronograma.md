@@ -496,8 +496,11 @@ SELECT count(*) FROM "Project"     WHERE "endDate"::time <> '00:00:00';         
 SELECT count(*) FROM "Opportunity" WHERE "expectedCloseDate"::time <> '00:00:00'; -- 0
 ```
 
-**Rodar essas quatro contagens contra a Railway antes do deploy.** Se qualquer uma
-voltar diferente de zero, a migration apaga hora de verdade e o plano muda.
+✅ **Rodadas contra a Railway em 2026-07-28: as quatro voltaram `0`.** A conversão
+não perde dado no ambiente real — a migration está autorizada a subir.
+
+Se algum dia esta migration for reaplicada em outro banco (restauração, ambiente
+novo), rodar as quatro de novo antes. O `0` de hoje vale para o estado de hoje.
 
 Transparente para o front: os mappers já serializavam para o mesmo ISO de
 meia-noite UTC, e nenhum DTO mudou de forma. Suíte da API 113/113, web 335/335.
