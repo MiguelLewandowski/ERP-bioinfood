@@ -32,6 +32,41 @@ export type TaskDependencyType = 'FS' | 'SS' | 'FF' | 'SF';
 export type RiskProbability = 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 export type RiskImpact = 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Par de tokens emitido pela API. Contrato único entre quem **emite**
+ * (`AuthController` / `LoginUseCase` / `RefreshUseCase`) e quem **lê**
+ * (as rotas BFF em `apps/web/app/api/auth/`).
+ *
+ * Existe porque os dois lados divergiram em silêncio: o `/auth/refresh` devolvia
+ * o par achatado e o BFF lia `data.tokens`, que só o `/auth/login` tem. Nada
+ * quebrava em tempo de compilação — a sessão é que morria a cada 15min, com a
+ * API respondendo 200. Ver `docs/incidentes/sessao-expira.md`.
+ *
+ * Ao mexer no shape, mexa **aqui**: os dois lados anotam o tipo por este arquivo,
+ * então a divergência vira erro de build em vez de logout em produção.
+ */
+export interface AuthTokensDto {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/** Resposta de `POST /auth/refresh` — o par **achatado**, sem envelope. */
+export type AuthRefreshResponseDto = AuthTokensDto;
+
+/** Resposta de `POST /auth/login` — o par **envelopado** em `tokens`, com o usuário. */
+export interface AuthLoginResponseDto {
+  tokens: AuthTokensDto;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    mustChangePassword: boolean;
+  };
+}
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export interface UserDto {

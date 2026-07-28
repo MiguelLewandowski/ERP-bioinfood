@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | **Correção completa.** Etapa (a) feita e coberta por teste; (b) inexistente (não há dado a corrigir); (c) feita — migration `20260728112520`. **Falta teste manual e deploy** |
+| **Estado** | ✅ **Fechado.** Etapas (a) e (c) implementadas, cobertas por teste e **verificadas à mão no navegador** em 2026-07-28; (b) inexistente. Publicado em `main` (`f271987`) |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -601,7 +601,39 @@ caso de a etapa (c) precisar de normalização.
 
 ---
 
+## 9b. Verificação manual no navegador — 2026-07-28
+
+Teste unitário não pega regressão de persistência: o que segue foi conferido no
+app rodando, com a aba Network aberta, olhando o payload real.
+
+| Caso | Payload observado | Veredito |
+|---|---|---|
+| Criar tarefa **sem** hora | `"startDate": "2026-07-21"` · `"dueDate": "2026-07-28"` | ✅ dia puro, sem conversão |
+| Editar tarefa sem mexer nas datas | `"startDate": "2026-07-21"` · `"dueDate": "2026-07-28"` — idênticos ao original | ✅ **o bug do +1 dia (§2.6) está morto** |
+| Criar tarefa **com** hora | `"startDate": "2026-07-22T19:19:00.000Z"` (16:19 BRT) | ✅ instante ISO, que é o correto quando há hora |
+| Arrastar barra no Gantt + refresh | — | ✅ dia, ordem **e hora** preservados |
+
+O terceiro e o quarto juntos são a prova de que a decisão de manter hora na tarefa
+(§7, revogação do "dia puro") sobreviveu ao caminho que mais escreve dado no
+sistema: o usuário digita hora, o Gantt exibe, o arrastar persiste, e a hora
+continua lá.
+
+> Nota sobre o payload de edição: o `PATCH` do formulário traz **todos** os campos
+> do form, não só o alterado. Isso é esperado — o PATCH condicional do commit
+> `4a319df` vale para o **Gantt**, onde a SVAR emite o objeto inteiro a cada
+> interação. No formulário, o usuário preencheu tudo, então enviar tudo é correto.
+
+---
+
 ## 10. Em aberto
+
+> Os itens 1, 2 e 3 viraram tarefas em `docs/tasks/` em 2026-07-28 — é lá que o
+> trabalho pendente mora. O texto aqui fica como registro do **porquê**; o plano
+> de execução está no doc de cada uma.
+>
+> - `docs/tasks/bug-gantt-marco-grava-sem-comparar.md`
+> - `docs/tasks/test-suite-web-instavel-sob-carga.md`
+> - `docs/tasks/perf-gantt-reordenar-reescreve-projeto-inteiro.md`
 
 1. **🔶 A suíte web é instável sob carga — e `pnpm test` é o portão de deploy.**
    Verificado em 2026-07-28: a suíte completa falhou 11-12 testes, em conjuntos

@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger, UnauthorizedException } from '@nestjs/common';
+import type { AuthRefreshResponseDto } from '@bioinfood/shared';
 import { IAuthRepository, AUTH_REPOSITORY } from '../domain/auth.repository';
 import { ITokenService, TOKEN_SERVICE } from '../domain/token.service';
-import { TokenPair } from '../domain/auth.types';
 
 @Injectable()
 export class RefreshUseCase {
@@ -12,7 +12,9 @@ export class RefreshUseCase {
     @Inject(TOKEN_SERVICE) private tokenService: ITokenService,
   ) {}
 
-  async execute(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  // Devolve o par ACHATADO (sem o envelope `tokens` do login) — é o contrato
+  // `AuthRefreshResponseDto`, pelo qual o BFF lê esta resposta.
+  async execute(refreshToken: string): Promise<AuthRefreshResponseDto> {
     const payload = this.tokenService.verifyRefresh(refreshToken);
 
     if (!payload.jti) throw new UnauthorizedException('Token inválido');

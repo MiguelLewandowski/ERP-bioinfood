@@ -28,7 +28,8 @@ bioinfood-erp/
 ├── docs/
 │   ├── agents/             → papéis usados pelas skills — não modificar
 │   ├── design/             → identidade visual (PDFs) + design-tokens.md
-│   └── regras-negocio/     → regras de negócio documentadas
+│   ├── regras-negocio/     → regras de negócio documentadas
+│   └── tasks/              → tarefas detalhadas (bugs/features) prontas para implementar
 ├── .claude/commands/       → skills (slash commands)
 ├── turbo.json
 ├── package.json
@@ -68,6 +69,7 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | Skill | Quando usar |
 |---|---|
 | `/planejar <feature>` | Antes de qualquer feature nova — plano, fluxo, riscos |
+| `/nova-tarefa <anotação>` | Transformar anotação crua de bug/melhoria em tarefa detalhada em `docs/tasks/` |
 | `/implementar-plano <plano>` | Orquestrar a execução de um plano já definido, tarefa a tarefa, delegando às skills |
 | `/novo-modulo <nome>` | Criar módulo NestJS completo (Clean Architecture + RBAC) |
 | `/nova-migration <desc>` | Alterar schema Prisma |
@@ -150,6 +152,27 @@ Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
   aplica **sozinha** ao banco de produção.
 - Runbook completo (promoção, migration em produção, backup, restauração,
   variáveis de ambiente): `docs/deploy.md`.
+
+### Teste de rota BFF (`apps/web/app/api/**`)
+
+> **Mocke o upstream com o shape REAL da API, nunca com o shape que o BFF espera.**
+> Mock que devolve a suposição do próprio código não testa integração nenhuma —
+> ele confirma a suposição e fica verde enquanto a produção quebra.
+
+Caso real: o `/auth/refresh` da API devolve o par de tokens **achatado**
+(`{ accessToken, refreshToken }`), mas o BFF lia `data.tokens`, que só existe na
+resposta do `/auth/login`. O teste mockava a rota devolvendo `{ ok: true }` — o
+shape que o BFF **produz** — então cobria só o salto navegador → BFF e passava.
+O salto BFF → API não tinha teste, e a sessão morria a cada 15min em produção.
+Ver `docs/incidentes/sessao-expira.md`.
+
+Na prática:
+- Antes de escrever o mock, **abra o use-case da API** e copie o shape que ele
+  realmente retorna. Não deduza do que o BFF lê.
+- Todo contrato de fronteira API↔BFF mora em `packages/shared` e é anotado nos
+  **dois** lados — assim a divergência vira erro de build, não logout em produção.
+- Rotas do App Router precisam de `// @vitest-environment node` no topo do
+  arquivo: `NextRequest`/`NextResponse` não funcionam em jsdom.
 
 ## Convenções
 - TypeScript strict em todos os projetos

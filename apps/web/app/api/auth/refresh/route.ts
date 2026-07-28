@@ -1,7 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { AuthTokensDto } from '@bioinfood/shared';
 
-type Tokens = { accessToken: string; refreshToken: string };
+// Ancorado no contrato compartilhado: se a API mudar o shape do par de tokens,
+// o build quebra aqui em vez de a sessão morrer em produção.
+type Tokens = AuthTokensDto;
 type Result = { ok: true; tokens: Tokens } | { ok: false; status: 401 | 503 };
+
+/**
+ * O `/auth/refresh` da API devolve o par **achatado** (`{ accessToken,
+ * refreshToken }`), enquanto o `/auth/login` devolve **envelopado**
+ * (`{ user, tokens }`). Ler só `data.tokens` aqui descartava toda renovação
+ * bem-sucedida e derrubava o usuário no login a cada 15min, com a API tendo
+ * respondido 200 e já rotacionado o token — ver docs/incidentes/sessao-expira.md.
+ *
+ * Aceita as duas formas para não depender de qual lado normalize primeiro, e
+ * exige os dois campos preenchidos: resposta inesperada vira 401 explícito em
+ * vez de gravar cookie vazio e quebrar mais adiante.
+ */
+function parseTokens(data: unknown): Tokens | null {
+  if (!data || typeof data !== 'object') return null;
+  const raw = (data as { tokens?: unknown }).tokens ?? data;
+  if (!raw || typeof raw !== 'object') return null;
+
+  const { accessToken, refreshToken } = raw as Partial<Tokens>;
+  if (typeof accessToken !== 'string' || accessToken === '') return null;
+  if (typeof refreshToken !== 'string' || refreshToken === '') return null;
+
+  return { accessToken, refreshToken };
+}
 
 /**
  * Renovações concorrentes com o MESMO refresh token compartilham uma única
@@ -37,10 +63,8 @@ async function callApi(refreshToken: string): Promise<Result> {
 
   if (!apiRes.ok) return { ok: false, status: 401 };
 
-  const data = await apiRes.json();
-  return data.tokens
-    ? { ok: true, tokens: data.tokens as Tokens }
-    : { ok: false, status: 401 };
+  const tokens = parseTokens(await apiRes.json().catch(() => null));
+  return tokens ? { ok: true, tokens } : { ok: false, status: 401 };
 }
 
 function refreshOnce(refreshToken: string): Promise<Result> {

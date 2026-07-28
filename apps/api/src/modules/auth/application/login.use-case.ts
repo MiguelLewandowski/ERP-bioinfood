@@ -1,13 +1,14 @@
 import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import type { AuthLoginResponseDto } from '@bioinfood/shared';
 import { IAuthRepository, AUTH_REPOSITORY } from '../domain/auth.repository';
 import { ITokenService, TOKEN_SERVICE } from '../domain/token.service';
-import { TokenPair } from '../domain/auth.types';
 
-export interface LoginResult {
-  tokens: TokenPair;
-  user: { id: string; name: string; email: string; role: string; mustChangePassword: boolean };
-}
+/**
+ * O shape da resposta é o contrato compartilhado — ver `AuthLoginResponseDto`
+ * em `@bioinfood/shared`, que o BFF usa para ler esta mesma resposta.
+ */
+export type LoginResult = AuthLoginResponseDto;
 
 @Injectable()
 export class LoginUseCase {

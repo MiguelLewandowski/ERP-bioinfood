@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { AuthLoginResponseDto } from '@bioinfood/shared';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -22,7 +23,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const data = await apiRes.json();
+  // Mesmo contrato compartilhado do /auth/refresh — aqui o par vem envelopado
+  // em `tokens`, e é essa assimetria entre os dois endpoints que causou o bug
+  // de sessão (docs/incidentes/sessao-expira.md). Tipar deixa a diferença
+  // explícita em vez de implícita.
+  const data: AuthLoginResponseDto = await apiRes.json();
   const res = NextResponse.json({ user: data.user });
 
   res.cookies.set('access_token', data.tokens.accessToken, {
