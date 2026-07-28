@@ -63,6 +63,18 @@ describe('buildGanttTasks — dia de calendário', () => {
     expect(item.start.getDate()).toBe(30);
   });
 
+  // Tarefa COM hora é outro caso: o instante é a informação, e achatá-lo para
+  // meia-noite perderia o que o usuário digitou. 12:30Z é 09:30 em Brasília.
+  it('should keep the real time when the task has one', () => {
+    const [task] = buildGanttTasks([
+      makeTask({ startDate: '2026-08-03T12:30:00.000Z' }),
+    ], []);
+
+    expect(task.start.getDate()).toBe(3);
+    expect(task.start.getHours()).toBe(9);
+    expect(task.start.getMinutes()).toBe(30);
+  });
+
   it('should not push the end date when the task starts and ends on the same day', () => {
     const [task] = buildGanttTasks([
       makeTask({ startDate: '2026-08-03T00:00:00.000Z', dueDate: '2026-08-03T00:00:00.000Z' }),

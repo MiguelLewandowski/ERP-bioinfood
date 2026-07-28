@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, type MutableRefObject } from 'react';
 import type { TaskDto, TaskStatus } from '@bioinfood/shared';
+import { hasTimeComponent } from '@/lib/dates';
 import { tasksApi, milestonesApi } from '@/lib/api-hooks';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { isMilestoneId, stripMs, progressToStatus, toPmbokDependencyType, type GanttLink } from './gantt-mapping';
@@ -50,11 +51,28 @@ function dayKey(value: unknown): string | null {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/**
+ * Valor a enviar para a API a partir do `Date` da store.
+ *
+ * `keepTime` decide o formato, e vem de a tarefa ter hora **no servidor**:
+ * arrastar uma barra move dias, não muda hora, então quem tinha hora continua
+ * com ela e quem não tinha não ganha uma por causa de um arrastar.
+ */
+function toApiValue(value: unknown, keepTime: boolean): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  return keepTime ? d.toISOString() : dayKey(d);
+}
+
 interface TaskSnapshot {
   title: string;
   startDay: string | null;
   dueDay: string | null;
   status: TaskStatus;
+  /** A tarefa tem hora de verdade? Decide o formato gravado. */
+  startHasTime: boolean;
+  dueHasTime: boolean;
 }
 
 function snapshotOf(task: TaskDto): TaskSnapshot {
@@ -63,6 +81,8 @@ function snapshotOf(task: TaskDto): TaskSnapshot {
     startDay: dayKey(task.startDate),
     dueDay: dayKey(task.dueDate),
     status: task.status,
+    startHasTime: hasTimeComponent(task.startDate),
+    dueHasTime: hasTimeComponent(task.dueDate),
   };
 }
 
@@ -161,12 +181,18 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
         status: t.progress !== undefined
           ? progressToStatus(t.progress)
           : known?.status ?? 'TODO',
+        startHasTime: known?.startHasTime ?? false,
+        dueHasTime: known?.dueHasTime ?? false,
       };
 
       const data: Record<string, unknown> = {};
       if (t.text !== undefined && next.title !== known?.title) data.title = next.title;
-      if (t.start && next.startDay !== known?.startDay) data.startDate = next.startDay;
-      if (t.end && next.dueDay !== known?.dueDay) data.dueDate = next.dueDay;
+      if (t.start && next.startDay !== known?.startDay) {
+        data.startDate = toApiValue(t.start, next.startHasTime);
+      }
+      if (t.end && next.dueDay !== known?.dueDay) {
+        data.dueDate = toApiValue(t.end, next.dueHasTime);
+      }
       if (t.progress !== undefined && next.status !== known?.status) data.status = next.status;
 
       if (Object.keys(data).length === 0) return;

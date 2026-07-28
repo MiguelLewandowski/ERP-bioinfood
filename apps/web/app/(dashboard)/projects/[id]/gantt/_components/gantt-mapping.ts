@@ -9,7 +9,18 @@ import {
   type SystemRole,
   type TaskDependencyType,
 } from '@bioinfood/shared';
-import { parseCalendarDate } from '@/lib/dates';
+import { hasTimeComponent, parseCalendarDate } from '@/lib/dates';
+
+/**
+ * Data da API → `Date` para a store da SVAR, preservando hora quando existe.
+ *
+ * Sem hora, `parseCalendarDate` põe a barra na meia-noite LOCAL do dia certo —
+ * `new Date()` cru a jogaria para 21h do dia anterior. Com hora, o instante é a
+ * informação, e vai inteiro: a barra começa no meio do dia, como deve.
+ */
+function toGanttDate(value: string): Date {
+  return hasTimeComponent(value) ? new Date(value) : parseCalendarDate(value);
+}
 
 export const EDITABLE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
@@ -32,11 +43,19 @@ export function statusToCss(status: TaskStatus): string {
   return status === 'DONE' ? 'gt-done' : status === 'IN_PROGRESS' ? 'gt-doing' : 'gt-todo';
 }
 
-// Data de cronograma é dia de calendário — sem hora. As datas na store já são
-// meia-noite LOCAL do dia certo (buildGanttTasks), então formatar direto acerta.
-const fmtCol = (d?: Date | string) => (d ? parseCalendarDate(d).toLocaleDateString('pt-BR', {
-  day: '2-digit', month: '2-digit', year: '2-digit',
-}) : '');
+// Mostra a hora só quando a tarefa tem hora. As datas na store já vêm no fuso
+// certo (`toGanttDate`), então formatar direto acerta nos dois casos.
+const fmtCol = (d?: Date | string) => {
+  if (!d) return '';
+  const date = d instanceof Date ? d : toGanttDate(d);
+  const day = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  // Na store, ter hora é não estar na meia-noite LOCAL — que é onde
+  // `toGanttDate` põe justamente os registros sem hora.
+  const withTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+  return withTime
+    ? `${day} ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : day;
+};
 
 /**
  * Duração em dias para a coluna da grade.
@@ -93,12 +112,12 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
   const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
 
   const taskItems: GanttTask[] = visible.map((t) => {
-    // `parseCalendarDate` e não `new Date`: o ISO da API é meia-noite UTC, e em
-    // America/Sao_Paulo isso é 21h do dia ANTERIOR — a barra inteira nasceria
-    // deslocada um dia, além da coluna de texto. Aqui a store recebe meia-noite
-    // local do dia certo, e é dela que a persistência deriva o dia a gravar.
-    const start = parseCalendarDate(t.startDate!);
-    const end = parseCalendarDate(t.dueDate!);
+    // O ISO da API é meia-noite UTC quando não há hora, e em America/Sao_Paulo
+    // isso é 21h do dia ANTERIOR — a barra inteira nasceria deslocada um dia,
+    // além da coluna de texto. `toGanttDate` corrige isso sem achatar a hora de
+    // quem tem hora de verdade.
+    const start = toGanttDate(t.startDate!);
+    const end = toGanttDate(t.dueDate!);
     const hasChildren = parents.has(t.id);
     return {
       id: t.id,
@@ -120,8 +139,8 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
-      base_start: t.baselineStart ? parseCalendarDate(t.baselineStart) : undefined,
-      base_end: t.baselineEnd ? parseCalendarDate(t.baselineEnd) : undefined,
+      base_start: t.baselineStart ? toGanttDate(t.baselineStart) : undefined,
+      base_end: t.baselineEnd ? toGanttDate(t.baselineEnd) : undefined,
     };
   });
 
