@@ -9,6 +9,7 @@ function makeTask(overrides: Partial<TaskDto> = {}): TaskDto {
     status: 'TODO',
     assignee: null,
     pops: [],
+    requiresSOP: true,
     deletedAt: null,
     ...overrides,
   } as unknown as TaskDto;
@@ -105,5 +106,66 @@ describe('popsWithVersionDrift', () => {
     ]);
 
     expect(popsWithVersionDrift(pops)).toHaveLength(0);
+  });
+});
+
+/**
+ * A cobertura contava tarefa administrativa ("fechar contrato") como trabalho
+ * sem procedimento — o denominador media o tamanho do backlog, não a aderência
+ * ao método.
+ *
+ * O default `true` no banco é o que garante que o número NÃO se mexe sozinho no
+ * deploy: só encolhe quando alguém classifica.
+ */
+describe('computeMethodology — requiresSOP', () => {
+  it('should keep an unclassified task in the denominator', () => {
+    const result = computeMethodology([
+      makeTask({ id: 't1', pops: [popLink('pop-1', 'POP', 1)] as TaskDto['pops'] }),
+      makeTask({ id: 't2' }),
+    ]);
+
+    expect(result.totalTasks).toBe(2);
+    expect(result.coverage).toBe(50);
+    expect(result.notApplicable).toBe(0);
+  });
+
+  it('should drop a non-applicable task from both sides of the ratio', () => {
+    const result = computeMethodology([
+      makeTask({ id: 't1', pops: [popLink('pop-1', 'POP', 1)] as TaskDto['pops'] }),
+      makeTask({ id: 't2', requiresSOP: false }),
+    ]);
+
+    expect(result.totalTasks).toBe(1);
+    expect(result.tasksWithPop).toBe(1);
+    expect(result.coverage).toBe(100);
+  });
+
+  it('should report how many tasks were excluded, so the denominator is explainable', () => {
+    const result = computeMethodology([
+      makeTask({ id: 't1', pops: [popLink('pop-1', 'POP', 1)] as TaskDto['pops'] }),
+      makeTask({ id: 't2', requiresSOP: false }),
+      makeTask({ id: 't3', requiresSOP: false }),
+    ]);
+
+    expect(result.notApplicable).toBe(2);
+  });
+
+  // Um item marcado como não aplicável não é "trabalho sem procedimento": ele
+  // não pode continuar aparecendo na lista que cobra POP.
+  it('should not list a non-applicable task as missing a POP', () => {
+    const result = computeMethodology([
+      makeTask({ id: 't1', title: 'Fechar contrato', requiresSOP: false }),
+    ]);
+
+    expect(result.tasksWithoutPop).toHaveLength(0);
+  });
+
+  it('should return zero coverage when every task is non-applicable', () => {
+    const result = computeMethodology([
+      makeTask({ id: 't1', requiresSOP: false }),
+    ]);
+
+    expect(result.totalTasks).toBe(0);
+    expect(result.coverage).toBe(0);
   });
 });
