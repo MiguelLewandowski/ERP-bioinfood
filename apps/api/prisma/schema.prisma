@@ -850,6 +850,10 @@ model Task {
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   storyPoints Int?
+  // Se a tarefa exige POP. Default `true` preserva o denominador da métrica de
+  // cobertura no dia do deploy — o número só muda quando alguém classificar uma
+  // tarefa como administrativa. Ver docs/planejamento-ui-projetos.md, Onda 5.
+  requiresSOP Boolean      @default(true)
   // Subtarefa: tarefa-pai (hierarquia de atividades no Gantt).
   parentId    String?
   startDate   DateTime?

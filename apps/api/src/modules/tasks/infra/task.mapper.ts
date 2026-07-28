@@ -26,6 +26,7 @@ export interface TaskDto {
   status: TaskStatus;
   priority: TaskPriority;
   storyPoints: number | null;
+  requiresSOP: boolean;
   order: number;
   parentId: string | null;
   assignee: { id: string; name: string } | null;
@@ -63,6 +64,7 @@ export function toTaskDto(t: TaskWithRelations): TaskDto {
     status: t.status,
     priority: t.priority,
     storyPoints: t.storyPoints,
+    requiresSOP: t.requiresSOP,
     order: t.order,
     parentId: t.parentId,
     assignee: t.assignee,

@@ -11,6 +11,8 @@ export interface TaskEntity {
   status: TaskStatus;
   priority: TaskPriority;
   storyPoints: number | null;
+  /** Se a tarefa exige POP. Falso = administrativa, sai do denominador da cobertura. */
+  requiresSOP: boolean;
   startDate: Date | null;
   dueDate: Date | null;
   baselineStart: Date | null;
@@ -66,6 +68,7 @@ export interface CreateTaskData {
   status?: TaskStatus;
   priority?: TaskPriority;
   storyPoints?: number;
+  requiresSOP?: boolean;
   startDate?: Date;
   dueDate?: Date;
   order?: number;
@@ -80,6 +83,7 @@ export interface UpdateTaskData {
   status?: TaskStatus;
   priority?: TaskPriority;
   storyPoints?: number | null;
+  requiresSOP?: boolean;
   startDate?: Date | null;
   dueDate?: Date | null;
   actualStart?: Date | null;

@@ -25,6 +25,7 @@ const schema = z
     priority:    z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
     assigneeId:  z.string().optional(),
     storyPoints: z.coerce.number().int().min(1, 'Mínimo 1').max(100, 'Máximo 100').optional().or(z.literal('')),
+    requiresSOP: z.boolean().default(true),
     // Input date="" quando vazio — mantém string aqui e normaliza pra undefined no onSubmit,
     // nunca envia "" pro backend (que rejeitaria com @IsDateString()).
     startDate:   z.string().optional(),
@@ -154,12 +155,13 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
           priority:    task!.priority,
           assigneeId:  task!.assignee?.id ?? '',
           storyPoints: task!.storyPoints ?? ('' as unknown as number),
+          requiresSOP: task!.requiresSOP,
           startDate:   toDateInput(task!.startDate),
           dueDate:     toDateInput(task!.dueDate),
           startTime:   toTimeInput(task!.startDate),
           endTime:     toTimeInput(task!.dueDate),
         }
-      : { priority: 'MEDIUM' },
+      : { priority: 'MEDIUM', requiresSOP: true },
   });
 
   async function onSubmit(values: FormValues) {
@@ -172,6 +174,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         priority:    values.priority,
         assigneeId:  values.assigneeId || undefined,
         storyPoints: values.storyPoints === '' ? undefined : values.storyPoints,
+        requiresSOP: values.requiresSOP,
         startDate:   values.startDate ? toApiDateTime(values.startDate, values.startTime) : undefined,
         dueDate:     values.dueDate ? toApiDateTime(values.dueDate, values.endTime) : undefined,
         ...(isEdit ? { status: values.status } : {}),
@@ -517,6 +520,23 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                 className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-ring focus:outline-none"
               />
             </div>
+
+            {/* Marcado por padrão: o denominador da cobertura de POPs só encolhe
+                quando alguém decide que a tarefa é administrativa. */}
+            <label htmlFor="task-requiresSOP" className="flex cursor-pointer items-start gap-2.5">
+              <input
+                id="task-requiresSOP"
+                {...register('requiresSOP')}
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[hsl(var(--primary))]"
+              />
+              <span>
+                <span className="block text-xs font-semibold text-foreground">Exige POP</span>
+                <span className="block text-xs text-muted-foreground">
+                  Desmarque em tarefa administrativa — ela sai da métrica de cobertura da Metodologia.
+                </span>
+              </span>
+            </label>
 
             <div className="grid grid-cols-2 gap-3">
               <div>

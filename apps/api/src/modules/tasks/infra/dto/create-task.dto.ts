@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsEnum,
   IsInt,
+  IsBoolean,
   IsDateString,
   MinLength,
   MaxLength,
@@ -47,6 +48,10 @@ export class CreateTaskDto {
   @Min(1)
   @Max(100)
   storyPoints?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresSOP?: boolean;
 
   @IsOptional()
   @IsDateString()
