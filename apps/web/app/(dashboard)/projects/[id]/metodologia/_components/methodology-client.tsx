@@ -1,10 +1,11 @@
 'use client'; // expande/recolhe a lista de tarefas de cada POP
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  FileCheck, ChevronRight, ChevronDown, AlertTriangle, FlaskConical, ListChecks,
+  FileCheck, ChevronRight, ChevronDown, AlertTriangle, FlaskConical, ListChecks, Search,
 } from 'lucide-react';
+import type { TaskDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/ui/stat-card';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -17,10 +18,52 @@ interface Props {
   methodology: ProjectMethodology;
 }
 
+const UNASSIGNED = 'Sem responsável';
+
+interface AssigneeGroup {
+  name: string;
+  tasks: TaskDto[];
+}
+
+/**
+ * Agrupa por responsável e aplica a busca. A lista chegava a 44 linhas planas
+ * sem dono visível — agrupar responde "quem tem trabalho sem procedimento", que
+ * é a pergunta que a tela existe para responder.
+ *
+ * A busca casa título OU responsável: procurar por uma pessoa devolve o balde
+ * dela inteiro.
+ */
+function groupByAssignee(tasks: TaskDto[], query: string): AssigneeGroup[] {
+  const q = query.trim().toLowerCase();
+  const map = new Map<string, AssigneeGroup>();
+
+  for (const task of tasks) {
+    const name = task.assignee?.name ?? UNASSIGNED;
+    if (q && !task.title.toLowerCase().includes(q) && !name.toLowerCase().includes(q)) continue;
+    const group = map.get(name) ?? { name, tasks: [] };
+    group.tasks.push(task);
+    map.set(name, group);
+  }
+
+  // "Sem responsável" por último: é o balde que não é pessoa, e deixá-lo no meio
+  // da ordem alfabética esconde justamente o caso que precisa de ação.
+  return [...map.values()].sort((a, b) => (
+    a.name === UNASSIGNED ? 1
+      : b.name === UNASSIGNED ? -1
+        : a.name.localeCompare(b.name)
+  ));
+}
+
 export function MethodologyClient({ projectId, methodology }: Props) {
   const { pops, tasksWithoutPop, totalTasks, tasksWithPop, coverage } = methodology;
   const [open, setOpen] = useState<Set<string>>(new Set());
+  // Fechada por padrão: 44 linhas abertas empurravam as POPs — o conteúdo
+  // principal da tela — para fora da primeira dobra.
+  const [listOpen, setListOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const drift = popsWithVersionDrift(pops);
+
+  const groups = useMemo(() => groupByAssignee(tasksWithoutPop, query), [tasksWithoutPop, query]);
 
   function toggle(popId: string) {
     setOpen((prev) => {
@@ -110,23 +153,61 @@ export function MethodologyClient({ projectId, methodology }: Props) {
 
       {tasksWithoutPop.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <div className="border-b border-gray-100 px-5 py-3">
-            <h3 className="text-sm font-bold text-foreground">
-              Tarefas sem POP <span className="font-normal text-muted-foreground">({tasksWithoutPop.length})</span>
-            </h3>
-            <p className="text-xs text-muted-foreground">Nem toda tarefa precisa de POP — administrativas normalmente não.</p>
-          </div>
-          <ul className="divide-y divide-gray-50">
-            {tasksWithoutPop.map((t) => (
-              <li key={t.id} className="flex items-center gap-3 px-5 py-2.5">
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">{t.title}</span>
-                {t.assignee && (
-                  <span className="shrink-0 text-xs text-muted-foreground">{t.assignee.name}</span>
-                )}
-                <StatusBadge status={t.status} />
-              </li>
-            ))}
-          </ul>
+          <button
+            onClick={() => setListOpen((v) => !v)}
+            aria-expanded={listOpen}
+            className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50"
+          >
+            {listOpen
+              ? <ChevronDown size={14} className="shrink-0 text-primary" />
+              : <ChevronRight size={14} className="shrink-0 text-muted-foreground" />}
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-foreground">
+                Tarefas sem POP <span className="font-normal text-muted-foreground">({tasksWithoutPop.length})</span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Nem toda tarefa precisa de POP — administrativas normalmente não.
+              </span>
+            </span>
+          </button>
+
+          {listOpen && (
+            <div className="border-t border-gray-100">
+              <div className="relative px-5 py-3">
+                <Search size={13} className="pointer-events-none absolute left-8 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Buscar tarefas sem POP"
+                  placeholder="Buscar por tarefa ou responsável…"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none"
+                />
+              </div>
+
+              {groups.length === 0 ? (
+                <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma tarefa sem POP corresponde à busca.
+                </p>
+              ) : (
+                groups.map((group) => (
+                  <div key={group.name}>
+                    <p className="border-y border-gray-100 bg-gray-50 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {group.name} <span className="font-normal">({group.tasks.length})</span>
+                    </p>
+                    <ul className="divide-y divide-gray-50">
+                      {group.tasks.map((t) => (
+                        // O `pl-5` é onde entra o checkbox da ação em massa da Onda 5.
+                        <li key={t.id} className="flex items-center gap-3 px-5 py-2.5">
+                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">{t.title}</span>
+                          <StatusBadge status={t.status} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -165,8 +246,17 @@ function PopRow({ pop, isOpen, onToggle }: { pop: PopUsage; isOpen: boolean; onT
           </span>
         </span>
 
-        <span className="hidden w-28 shrink-0 sm:block">
-          <ProgressBar value={progress} label={`Tarefas concluídas que usam ${pop.title}`} />
+        {/* Antes `w-28` sem número: a barra era curta demais para diferenciar 40% de
+            60%, e não havia valor escrito para desempatar. */}
+        <span className="hidden w-48 shrink-0 items-center gap-2 sm:flex">
+          <ProgressBar
+            value={progress}
+            label={`Tarefas concluídas que usam ${pop.title}`}
+            className="h-2.5 flex-1"
+          />
+          <span className="w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
+            {progress}%
+          </span>
         </span>
 
         <span
