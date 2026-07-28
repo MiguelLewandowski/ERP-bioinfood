@@ -117,6 +117,27 @@ Cobertura atual, bugs encontrados e dívidas: `docs/testes-frontend.md`.
 > `apps/web/lib/dates.ts` ao formatar `date`/`dueDate`/`startDate`. `new Date('2026-10-01')`
 > é meia-noite **UTC** e renderiza um dia antes em `America/Sao_Paulo`.
 
+### Teste de rota BFF (`apps/web/app/api/**`)
+
+> **Mocke o upstream com o shape REAL da API, nunca com o shape que o BFF espera.**
+> Mock que devolve a suposição do próprio código não testa integração nenhuma —
+> ele confirma a suposição e fica verde enquanto a produção quebra.
+
+Caso real: o `/auth/refresh` da API devolve o par de tokens **achatado**
+(`{ accessToken, refreshToken }`), mas o BFF lia `data.tokens`, que só existe na
+resposta do `/auth/login`. O teste mockava a rota devolvendo `{ ok: true }` — o
+shape que o BFF **produz** — então cobria só o salto navegador → BFF e passava.
+O salto BFF → API não tinha teste, e a sessão morria a cada 15min em produção.
+Ver `docs/incidentes/sessao-expira.md`.
+
+Na prática:
+- Antes de escrever o mock, **abra o use-case da API** e copie o shape que ele
+  realmente retorna. Não deduza do que o BFF lê.
+- Todo contrato de fronteira API↔BFF mora em `packages/shared` e é anotado nos
+  **dois** lados — assim a divergência vira erro de build, não logout em produção.
+- Rotas do App Router precisam de `// @vitest-environment node` no topo do
+  arquivo: `NextRequest`/`NextResponse` não funcionam em jsdom.
+
 ## Convenções
 - TypeScript strict em todos os projetos
 - Arquivos: kebab-case
