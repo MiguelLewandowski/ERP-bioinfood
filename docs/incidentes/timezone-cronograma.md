@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | Blocos 1 e 2 da etapa (a) implementados e cobertos por teste — **aguardando teste manual**. Falta o bloco 3 |
+| **Estado** | **Etapa (a) completa** (blocos 1, 2 e 3), coberta por teste — aguardando teste manual e deploy. Etapa (b) não existe. Falta a etapa (c) |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -39,9 +39,12 @@ primeiros; as queries revelaram o quarto.
 | # | Caminho | Grava | Estado |
 |---|---|---|---|
 | 1 | Seed (`new Date('2025-07-01')`) | `00:00:00Z` | **correto** |
-| 2 | `TaskFormDialog` → `combineDateTime` | hora local → UTC (`03:00Z` se sem hora) | **bug latente** (§2.1) |
+| 2 | `TaskFormDialog` → `combineDateTime` | hora local → UTC (`03:00Z` se sem hora) | ~~bug latente~~ **corrigido** (§2.1) |
 | 3 | API direta (`new Date('YYYY-MM-DD')`) | `00:00:00Z` | correto |
-| 4 | **SVAR → `use-gantt-persistence`** | ISO de `Date` local, com `+1 dia` embutido | **bug ativo** (§2.4) |
+| 4 | **SVAR → `use-gantt-persistence`** | ISO de `Date` local, com `+1 dia` embutido | ~~bug ativo~~ **corrigido** (§2.4) |
+
+Os quatro caminhos gravam agora `YYYY-MM-DD`, que a API persiste como `00:00Z` —
+o mesmo formato que o banco já tinha. Nenhum converte mais para UTC.
 
 O erro de leitura (§2.2) é ortogonal e atinge todos eles.
 
@@ -500,20 +503,37 @@ caso de a etapa (c) precisar de normalização.
 
 ## 10. Em aberto
 
-1. **Marcos (`Milestone`) seguem sem PATCH condicional.** O guard do commit
+1. **🔶 A suíte web é instável sob carga — e `pnpm test` é o portão de deploy.**
+   Verificado em 2026-07-28: a suíte completa falhou 11-12 testes, em conjuntos
+   **diferentes a cada execução** (`project-dialog`, `pops-client`,
+   `risks-client`, `roadmap-client`, `crm/task-dialog`). Os mesmos arquivos
+   rodados isoladamente passam 32/32.
+
+   Padrão comum: testes que digitam 200+ caracteres com `userEvent.type` para
+   exercitar limite de tamanho, estourando timeout quando a suíte roda em
+   paralelo. Não é regressão deste incidente — a base já falhava antes das
+   mudanças, confirmado por `git stash`.
+
+   Por que importa: [`docs/deploy.md`](../deploy.md) §2 manda rodar `pnpm test`
+   antes de promover para `main`. Uma suíte que falha aleatoriamente treina quem
+   opera a ignorar falha vermelha — que é exatamente o hábito que o portão existe
+   para impedir. Corrigir fora deste incidente (timeout maior nesses testes, ou
+   preencher campo longo via `fireEvent.change` em vez de tecla a tecla).
+
+2. **Marcos (`Milestone`) seguem sem PATCH condicional.** O guard do commit
    `4a319df` cobre só tarefas — o hook recebe os `TaskDto` para comparar, mas não
    os DTOs de marco. O handler de marco continua gravando `date` a qualquer
    `update-task`. Risco menor (marco não tem normalização de duração, então não
    há `+1 dia` a propagar), mas é o mesmo padrão de escrita cega. Fechar passando
    `milestones` para o hook.
 
-2. **`persistOrder` ligado a `move-task` e `indent-task`** resequencia todas as
+3. **`persistOrder` ligado a `move-task` e `indent-task`** resequencia todas as
    tarefas do projeto a cada arrastar. É por desenho (o comentário do arquivo
    explica: `order` é global por projeto), mas 46 escritas para uma ação de
    usuário é desproporcional e vai piorar conforme os projetos crescerem.
    Otimização fora do escopo deste incidente — registrar como dívida.
 
-3. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
+4. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
    cada uma reimplementa `new Date(\`${x.slice(0,10)}T00:00:00\`)` à mão. Está
    **correto hoje**, e por isso ficou fora do escopo deste incidente: mexer nele
    agora seria alterar código que funciona no meio de uma correção de produção.
