@@ -28,7 +28,8 @@ bioinfood-erp/
 ├── docs/
 │   ├── agents/             → papéis usados pelas skills — não modificar
 │   ├── design/             → identidade visual (PDFs) + design-tokens.md
-│   └── regras-negocio/     → regras de negócio documentadas
+│   ├── regras-negocio/     → regras de negócio documentadas
+│   └── tasks/              → tarefas detalhadas (bugs/features) prontas para implementar
 ├── .claude/commands/       → skills (slash commands)
 ├── turbo.json
 ├── package.json
@@ -68,6 +69,7 @@ Use o skill correspondente à tarefa. Os skills estão em `.claude/commands/` e 
 | Skill | Quando usar |
 |---|---|
 | `/planejar <feature>` | Antes de qualquer feature nova — plano, fluxo, riscos |
+| `/nova-tarefa <anotação>` | Transformar anotação crua de bug/melhoria em tarefa detalhada em `docs/tasks/` |
 | `/implementar-plano <plano>` | Orquestrar a execução de um plano já definido, tarefa a tarefa, delegando às skills |
 | `/novo-modulo <nome>` | Criar módulo NestJS completo (Clean Architecture + RBAC) |
 | `/nova-migration <desc>` | Alterar schema Prisma |
