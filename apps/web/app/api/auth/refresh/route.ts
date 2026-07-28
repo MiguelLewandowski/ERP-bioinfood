@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { AuthTokensDto } from '@bioinfood/shared';
 
-type Tokens = { accessToken: string; refreshToken: string };
+// Ancorado no contrato compartilhado: se a API mudar o shape do par de tokens,
+// o build quebra aqui em vez de a sessão morrer em produção.
+type Tokens = AuthTokensDto;
 type Result = { ok: true; tokens: Tokens } | { ok: false; status: 401 | 503 };
 
 /**
