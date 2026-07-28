@@ -40,6 +40,7 @@ primeiros; as queries revelaram o quarto.
 |---|---|---|---|
 | 1 | Seed (`new Date('2025-07-01')`) | `00:00:00Z` | **correto** |
 | 2 | `TaskFormDialog` → `combineDateTime` | hora local → UTC (`03:00Z` se sem hora) | ~~bug latente~~ **corrigido** (§2.1) |
+| 2b | `TaskFormDialog` → `toTimeInput` (round-trip de edição) | empurrava +1 dia a cada abrir-e-salvar | ~~bug ativo~~ **corrigido** (§2.6) |
 | 3 | API direta (`new Date('YYYY-MM-DD')`) | `00:00:00Z` | correto |
 | 4 | **SVAR → `use-gantt-persistence`** | ISO de `Date` local, com `+1 dia` embutido | ~~bug ativo~~ **corrigido** (§2.4) |
 
@@ -163,6 +164,42 @@ global por projeto.
 reescrita em massa fez foi carimbar `updatedAt` em 46 linhas — nenhum dado de
 cronograma foi alterado. É "a torneira está aberta" no sentido de que o volume de
 escrita é desproporcional à ação do usuário, não no sentido de corrupção.
+
+### 2.6 Round-trip do formulário — abrir e salvar empurrava a tarefa um dia
+
+Encontrado em 2026-07-28, ao restaurar o horário da tarefa. **Quinto defeito, e o
+único que corrompia dado de forma silenciosa e repetida.**
+
+`toTimeInput` decidia se havia hora comparando o horário **LOCAL** com `'00:00'`:
+
+```ts
+const time = new Date(d).toTimeString().slice(0, 5);
+return time === '00:00' ? '' : time;
+```
+
+Registro dia-puro é `00:00Z`, que em `America/Sao_Paulo` é **21:00 do dia
+anterior**. Então o formulário de edição abria com "Hora de Início: 21:00" numa
+tarefa que não tinha hora — e ao salvar, `21:00` local virava `00:00Z do dia
+seguinte`.
+
+Verificado em node com `TZ=America/Sao_Paulo`:
+
+```
+registro dia-puro 2026-08-10T00:00:00.000Z
+  toTimeInput devolveria: 21:00
+  salvar sem mexer grava: 2026-08-11T00:00:00.000Z
+```
+
+**Cada abrir-e-salvar empurrava a tarefa um dia para frente**, cumulativamente, em
+todos os 46 registros de produção — que são todos `00:00Z`. Ninguém precisava
+tocar na data.
+
+Corrigido em `ef1c7c6`: a detecção passou a ser `hasTimeComponent`, que checa
+componentes UTC. Três testes travam o comportamento, incluindo o round-trip
+completo (abrir → salvar → conferir que a data não mexeu).
+
+> Este defeito **não aparecia nas queries**: ele exigia alguém abrir e salvar uma
+> tarefa pelo formulário, o que quase não acontecia. Estava armado, não disparado.
 
 ### 🔴 `updatedAt` NÃO é critério de origem neste projeto
 
@@ -402,13 +439,29 @@ Toda migration presente em `main` é aplicada ao banco de produção no boot da 
 
 ## 7. Decisões de produto tomadas
 
-**Tarefa de cronograma é dia puro, sem horário.** Os campos `startTime`/`endTime`
-saem do `TaskFormDialog`. Razão: o Gantt trabalha em dias, duração é em dias e
-baseline é em dias. Quem precisa marcar compromisso com hora usa **Activity**, que
-já existe e já tem semântica de agenda.
+### ⚠️ REVOGADA — "tarefa de cronograma é dia puro, sem horário"
 
-Consequência direta: com dia puro, o `combineDateTime` deixa de ter razão de
-existir — some junto com os campos.
+> Decidida em 2026-07-27, implementada no commit `9b256b3`, **revogada em
+> 2026-07-28** e revertida no commit `409dfac`. **Tarefa TEM horário.** Os campos
+> "Hora de Início" e "Hora Final" continuam no `TaskFormDialog`.
+>
+> Está registrada aqui porque três commits do incidente citam a decisão antiga na
+> mensagem, e quem for ler o histórico precisa saber que ela caiu.
+
+### Vigente — hora é opcional, e o formato do que se grava depende disso
+
+| Caso | Enviado à API | Por quê |
+|---|---|---|
+| Data **sem** hora | `'2026-08-10'` | Dia de calendário não tem instante. Era aqui que morava o bug: o `combineDateTime` convertia para UTC mesmo sem hora, e `00:00` local virava `03:00Z` |
+| Data **com** hora | `'2026-08-10T12:30:00.000Z'` | Aí existe um momento de verdade: 09:30 em Brasília **é** 12:30Z. Converter está correto — é o que Atividades já faz |
+
+Quem decide o formato é `hasTimeComponent` (`lib/dates.ts`), que checa os
+componentes **UTC**. Fazer essa checagem pelo horário local é o erro que gerou o
+bug da seção 2.6.
+
+Consequência no Gantt: `toGanttDate` preserva o instante de quem tem hora e usa
+`parseCalendarDate` para quem não tem; a persistência grava no formato que o
+registro já tinha no servidor. Arrastar barra move dias e **não apaga hora**.
 
 ---
 
@@ -416,21 +469,28 @@ existir — some junto com os campos.
 
 | Campo | Vira | Motivo |
 |---|---|---|
-| `Task.startDate`, `Task.dueDate` | `@db.Date` | dia de calendário |
-| `Task.baselineStart`, `Task.baselineEnd` | `@db.Date` | dia de calendário |
+| `Task.startDate`, `Task.dueDate` | 🚫 **continua `TIMESTAMP`** | tarefa tem hora opcional (§7). `@db.Date` **apagaria a hora de todos os registros, sem volta** |
+| `Task.baselineStart`, `Task.baselineEnd` | **continua `TIMESTAMP`** | é snapshot de `startDate`/`dueDate`; tipo diferente do original quebraria a comparação de desvio |
 | `Project.startDate`, `Project.endDate` | `@db.Date` | dia de calendário |
 | `Milestone.date` | `@db.Date` | dia de calendário |
 | `Opportunity.expectedCloseDate` | `@db.Date` | ver nota abaixo |
-| `Task.actualStart`, `Task.actualEnd` | `@db.Date` | ver nota abaixo |
+| `Task.actualStart`, `Task.actualEnd` | **continua `TIMESTAMP`** | mesma razão da baseline: são comparados com `startDate`/`dueDate`, que ficam `TIMESTAMP`. Ver nota abaixo |
 | `Activity.dueDate` | **continua `TIMESTAMP`** | é agenda, hora é significativa |
 
-**`Task.actualStart` / `actualEnd`** — decidido em 2026-07-27: `@db.Date`, junto
-com o resto. O desvio de cronograma do dashboard ("11 dias além do planejado") é
-`actual` menos `baseline`, contado em **dias**. Se a baseline vira `Date` e o
-actual fica `TIMESTAMP`, a comparação é entre tipos diferentes e reintroduz erro
-de fronteira: tarefa concluída às 22h contaria um dia a mais de atraso. A
-auditoria de "quando foi marcada" já está coberta por `updatedAt` — não precisa
-ser duplicada em `actualEnd`.
+**`Task.actualStart` / `actualEnd`** — o raciocínio de 2026-07-27 continua válido,
+mas a conclusão inverteu junto com a revogação da §7. O argumento era: *não
+misturar tipos entre `actual` e `baseline`, senão a conta de desvio em dias ganha
+erro de fronteira*. Como `startDate`/`dueDate` **ficam `TIMESTAMP`** (tarefa tem
+hora), o que mantém a coerência é `actual` e `baseline` ficarem `TIMESTAMP`
+também. Mesma regra, resultado oposto.
+
+**Sobra desta etapa, então, muito pouco.** Só três campos que comprovadamente não
+têm hora em lugar nenhum: `Milestone.date`, `Project.startDate`/`endDate` e
+`Opportunity.expectedCloseDate`. Nenhum corrige bug — é alinhamento de tipo à
+semântica, para impedir que alguém no futuro renderize esses campos com
+`toLocaleDateString` e reintroduza o deslocamento. **Vale reavaliar se a etapa (c)
+justifica uma migration em produção**, dado que o `hasTimeComponent` e o
+`formatDay` já resolvem o problema no código.
 
 **`Opportunity.expectedCloseDate`** — verificado em 2026-07-27: escrito só por
 `<Input type="date">` (`opportunity-dialog.tsx:197`), lido só com `.slice(0,10)`
