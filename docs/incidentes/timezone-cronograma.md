@@ -5,7 +5,7 @@
 | **Estado** | Em correção — etapa (a) não iniciada |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
-| **Impacto** | Datas de tarefa, marco e projeto exibem o dia errado em parte dos registros |
+| **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
 | **Ambiente** | Produção (Railway), ~10 usuários ativos, todos em UTC-3 |
 
 > **Sobre a procedência deste documento.** O diagnóstico original foi feito numa
@@ -13,22 +13,39 @@
 > 2026-07-27, com uma exceção marcada explicitamente na seção 3. Onde este
 > documento diverge da memória de alguém, o código é a fonte.
 
+> **Revisão de 2026-07-27, após as queries de produção (seção 9).** O diagnóstico
+> mudou de forma: **não há dado corrompido no banco**. O bug é inteiramente de
+> renderização, e o risco real está num caminho de escrita que ninguém tinha
+> mapeado. A prioridade da etapa (a) foi reordenada por causa disso.
+
 ---
 
 ## 1. Sintoma
 
 Datas de dia (prazo de tarefa, data de marco, início/término de projeto) aparecem
-um dia antes do gravado em parte dos registros. Nem todos — e é justamente a
-inconsistência que tornou o diagnóstico difícil.
+um dia antes do gravado. Confirmado pelas queries: **o dado no banco está certo, a
+tela é que mente.**
+
+Além disso, apareceu no Gantt uma tarefa "New Task" que ninguém criou pelo
+formulário, com prazo em 2027 — ver seção 2.4.
 
 ---
 
 ## 2. Causa raiz
 
-Há **dois erros independentes**, um na escrita e um na leitura. Em parte dos
-registros eles se cancelam; em parte, não.
+São **quatro** caminhos de escrita, não dois. O inventário original tinha os dois
+primeiros; as queries revelaram o quarto.
 
-### Erro de escrita — `combineDateTime`
+| # | Caminho | Grava | Estado |
+|---|---|---|---|
+| 1 | Seed (`new Date('2025-07-01')`) | `00:00:00Z` | **correto** |
+| 2 | `TaskFormDialog` → `combineDateTime` | hora local → UTC (`03:00Z` se sem hora) | **bug latente** (§2.1) |
+| 3 | API direta (`new Date('YYYY-MM-DD')`) | `00:00:00Z` | correto |
+| 4 | **SVAR → `use-gantt-persistence`** | ISO de `Date` local, com `+1 dia` embutido | **bug ativo** (§2.4) |
+
+O erro de leitura (§2.2) é ortogonal e atinge todos eles.
+
+### 2.1 Escrita — `combineDateTime` (latente)
 
 `apps/web/app/(dashboard)/projects/[id]/_components/tasks/task-form-dialog.tsx:62`
 
@@ -40,9 +57,15 @@ function combineDateTime(date: string, time: string | undefined): string {
 
 `new Date('2026-10-01T00:00:00')` — sem `Z` — é interpretado como meia-noite
 **local**. `.toISOString()` converte para UTC e produz `2026-10-01T03:00:00.000Z`.
-O banco recebe 03:00Z para o que o usuário digitou como "1º de outubro".
+O banco receberia 03:00Z para o que o usuário digitou como "1º de outubro".
 
-### Erro de leitura — `fmtCol` e os renderizadores
+**Por que "latente": não existe um único registro `03:00:00` em produção.** O
+formulário mal foi usado para datas de cronograma — a única tarefa criada por ele
+tinha hora real (15:20 BRT → `18:20:00Z`, que é a gravação correta de um instante).
+O bug é real e continua armado; só não produziu massa ainda. Corrigir segue sendo
+necessário — como **prevenção**, não como contenção.
+
+### 2.2 Leitura — `fmtCol` e os renderizadores
 
 `apps/web/app/(dashboard)/projects/[id]/gantt/_components/gantt-mapping.ts:42`
 
@@ -66,24 +89,80 @@ export function parseCalendarDate(value: string | Date): Date {
 }
 ```
 
-### Por que ninguém percebeu antes
+### 2.3 Por que ninguém percebeu antes
 
-| Origem do registro | Gravado | Lido com `new Date()` em UTC-3 | Resultado |
+| Origem | Gravado | Lido com `new Date()` em UTC-3 | Resultado |
 |---|---|---|---|
-| Seed (`new Date('2025-07-01')`) | `00:00:00Z` | 30/06 21:00 | **dia errado** |
-| Formulário (caminho A) | `03:00:00Z` | 01/07 00:00 | **dia certo, por acidente** |
+| Seed / API direta | `00:00:00Z` | 30/06 21:00 | **dia errado** |
+| Formulário com hora real | `18:20:00Z` | 15:20 do dia certo | dia certo |
 
-Tarefa criada pelo formulário exibe o dia correto porque o erro de escrita
-cancela o de leitura. Isso só é verdade em UTC-3 — **e todos os usuários estão em
-UTC-3**. Um usuário em qualquer outro fuso veria as duas classes erradas.
+Praticamente todo o cronograma é `00:00:00Z`, então **quase tudo exibe o dia
+anterior** — o que salvou a percepção foi ninguém conferir data contra o banco.
 
-Confirmado empiricamente em 2026-07-27: tarefa criada pelo `TaskFormDialog` exibe
-data e hora corretas no Gantt. O "+1 dia" relatado originalmente era leitura de
-uma linha do seed.
+> **Hipótese descartada.** O diagnóstico original supunha que escrita e leitura se
+> cancelavam para os registros do formulário, e concluía daí que `combineDateTime`
+> e `fmtCol` tinham que ir no mesmo deploy. **Isso caiu:** sem nenhum registro em
+> `03:00Z`, não há massa para quebrar. Os dois commits são independentes. A ordem
+> abaixo é por risco, não por dependência técnica.
 
-**Consequência para o plano:** corrigir só a leitura faz os registros do caminho A
-passarem a exibir 03:00 — quebra o que hoje funciona. Escrita e leitura têm que
-ir no **mesmo deploy**.
+### 2.4 Escrita descontrolada — a SVAR (o problema de verdade)
+
+Duas coisas separadas, ambas em `use-gantt-persistence.ts`.
+
+**(a) Round-trip com `+1 dia` embutido.** `gantt-mapping.ts:94` normaliza a barra
+para exibição:
+
+```ts
+end: end <= start ? addDays(start, 1) : end,
+```
+
+É legítimo como *display* — barra de duração zero não teria largura. O problema é
+que esse valor normalizado entra na store da SVAR, e o handler `update-task`
+(`use-gantt-persistence.ts:103-104`) **grava de volta o que está na store**:
+
+```ts
+if (t.start) data.startDate = new Date(t.start).toISOString();
+if (t.end)   data.dueDate   = new Date(t.end).toISOString();
+```
+
+Qualquer interação que dispare `update-task` numa tarefa de duração zero persiste
+o `+1 dia` que existia só para desenhar. **Normalização de exibição virando dado.**
+Esse é o "+1 dia" relatado no sintoma original.
+
+Agrava: `new Date(t.start)` recebe um `Date` local da SVAR e `.toISOString()` o
+converte para UTC — o mesmo erro do `combineDateTime`, agora no caminho que
+efetivamente é usado.
+
+**(b) Botão azul duplicado = criação sem formulário.** `gantt-client.tsx:233`
+renderiza `<Toolbar api={api} />` da SVAR além do botão "Nova Tarefa" próprio
+(linha 108). O da SVAR dispara `add-task`
+(`use-gantt-persistence.ts:110-128`), que cria a tarefa direto na API com título
+padrão "New Task" e datas vindas da escala visível.
+
+Confirmado em produção: existe uma tarefa "New Task" com `dueDate` em **2027**,
+criada às 16:45, que ninguém digitou. Não é questão estética — é **caminho de
+escrita não controlado**, e por isso a remoção do `<Toolbar>` migrou da rodada de
+UI (onda 6) para dentro deste incidente.
+
+### 2.5 Reescrita em massa — o que de fato aconteceu
+
+Os 46 registros do seed têm `updatedAt` idêntico ao milissegundo
+(`2026-07-27 17:20:24.149`), sete segundos após uma interação no Gantt. É escrita
+em massa, não edição humana.
+
+Mecanismo: `persistOrder` (`use-gantt-persistence.ts:148-159`) está ligado a
+`move-task` **e** a `indent-task`. Um único arrastar resequencia o projeto inteiro
+— por desenho, documentado no comentário do próprio arquivo, porque `order` é
+global por projeto.
+
+**Precisão importante:** `tasksApi.reorder` (`api-hooks.ts:56`) envia apenas
+`{ id, order }`. **As datas nunca estiveram em risco por esse caminho.** O que a
+reescrita em massa fez foi carimbar `updatedAt` em 46 linhas — nenhum dado de
+cronograma foi alterado. É "a torneira está aberta" no sentido de que o volume de
+escrita é desproporcional à ação do usuário, não no sentido de corrupção.
+
+Efeito colateral que atrapalha diagnóstico futuro: **`updatedAt` deixou de servir
+para distinguir "editado por humano" de "tocado pelo sistema"** neste projeto.
 
 ---
 
@@ -193,37 +272,62 @@ Consequência de calendário: a onda do Gantt (onda 6 da rodada de UI) está
 
 ## 5. Plano de correção
 
-### Etapa (a) — parar o sangramento · front puro · 1 deploy
+Reordenado em 2026-07-27 após as queries. **Critério: fechar caminho de escrita
+descontrolada primeiro, corrigir exibição depois.** Antes, a ordem partia do
+pressuposto de que havia dado corrompido — não há.
 
-Ordem dos commits:
+### Etapa (a) — front puro · 1 deploy
 
-1. **`combineDateTime` + `fmtCol` juntos.** Interdependentes: separá-los faz os
-   registros do caminho A passarem a exibir 03:00. `combineDateTime` passa a
-   emitir `YYYY-MM-DD`; `fmtCol` passa a usar `parseCalendarDate`.
-2. **Os 6 renderizadores de troca simples** — `backlog-row`, `kanban-card`,
+**Bloco 1 — fechar a torneira (o crítico).**
+
+1. **Remover o `<Toolbar>` da SVAR** (`gantt-client.tsx:233`). Elimina a criação
+   de tarefa sem formulário. O botão "Nova Tarefa" da linha 108 já cobre a função,
+   e passa pelo `TaskFormDialog` com validação. **Menor mudança, maior redução de
+   risco de todo o incidente.**
+2. **PATCH condicional no `update-task`** (`use-gantt-persistence.ts:87-108`) —
+   commit isolado, revertível sozinho. Só enviar campo que **de fato mudou**, em
+   vez de reenviar o que está na store. Fecha o round-trip de §2.4(a).
+3. **Separar normalização de exibição da de persistência** — o `addDays(start,1)`
+   de `gantt-mapping.ts:94` não pode chegar ao que se grava. Ou a normalização sai
+   do objeto persistido, ou a duração zero passa a ser resolvida no render.
+
+**Bloco 2 — corrigir a exibição.** Independentes entre si (ver §2.3); podem ir
+em qualquer ordem, e cada um é revertível sozinho.
+
+4. **`fmtCol` com `parseCalendarDate`** (`gantt-mapping.ts:42`).
+5. **Os 6 renderizadores de troca simples** — `backlog-row`, `kanban-card`,
    `project-card`, `projects-table`, `dashboard/page` (global) e
-   `lib/project-report`. Troca de implementação, sem mudar assinatura. **Sem**
-   tocar `pop-row` (falso positivo verificado) e **sem** o `charter-client`.
-3. **Split do `charter-client` em `fmtInstant` / `fmtDay`** — commit próprio. É o
+   `lib/project-report`. **Sem** tocar `pop-row` (falso positivo verificado) e
+   **sem** o `charter-client`.
+6. **Split do `charter-client` em `fmtInstant` / `fmtDay`** — commit próprio. É o
    único ponto que muda **assinatura de função** em vez de trocar implementação,
-   e misturá-lo com o commit 2 esconderia essa diferença no diff.
-4. **`use-gantt-persistence` com PATCH condicional** — commit isolado. É o mais
-   arriscado (escrita otimista com reversão) e precisa poder ser revertido
-   sozinho.
-5. **Remoção dos campos de hora do `TaskFormDialog`** — ver decisão de produto
-   na seção 7.
+   e misturá-lo com o commit 5 esconderia essa diferença no diff.
 
-### Etapa (b) — corrigir os dados já gravados · script manual
+**Bloco 3 — fechar a origem latente.**
 
-Script em `scripts/`, **executado à mão** depois que (a) estiver no ar e
-confirmado. Requisitos:
+7. **`combineDateTime` emitindo `YYYY-MM-DD`** — prevenção, não contenção (§2.1).
+8. **Remoção dos campos de hora do `TaskFormDialog`** — decisão de produto na
+   seção 7. Com dia puro, o `combineDateTime` some junto.
 
-- `SELECT` do antes nas linhas afetadas;
-- `UPDATE` filtrado **por origem**, nunca global;
-- `SELECT` do depois;
-- transação com rollback fácil.
+> A ordem antiga colocava o `use-gantt-persistence` em 4º "por precaução". Ele é o
+> **1º-3º** porque é o único caminho que ainda escreve dado errado hoje.
 
-**Não pode ir dentro de migration** — ver seção 6.
+### Etapa (b) — corrigir os dados gravados · **praticamente vazia**
+
+As queries não encontraram dado deslocado: tudo em `00:00:00Z`, que é a gravação
+correta de um dia de calendário. **Não haverá `UPDATE` em massa.**
+
+O que resta é pontual e não precisa de script:
+
+| Item | Ação |
+|---|---|
+| Tarefa "New Task", `dueDate` 2027 | Lixo de teste — exclusão manual pela UI |
+| Tarefa "teste" em `18:20/18:23` | Instante gravado por um campo que vai deixar de existir. Decidir: normalizar para o dia ou excluir junto com o teste |
+
+Se a etapa (c) exigir normalização antes da conversão de tipo, o script entra
+**ali**, não aqui. Requisitos, se vier a existir: `SELECT` do antes, `UPDATE`
+filtrado por origem, `SELECT` do depois, transação com rollback fácil. **Nunca
+dentro de migration** — seção 6.
 
 ### Etapa (c) — alinhar o tipo no banco · duas publicações
 
@@ -292,18 +396,50 @@ Higiene, não correção.
 
 ## 9. Resultado das queries de produção
 
-> Queries entregues em 2026-07-27, aguardando execução no console do Railway.
-> **Colar o resultado aqui quando vier.**
+Executadas no console do Railway em **2026-07-27**.
 
-Assinaturas conhecidas antes de rodar:
+### Q1 — distribuição de horários
 
-| Hora gravada | Origem esperada |
-|---|---|
-| `00:00:00` | seed (`new Date('2025-07-01')` → UTC exato) |
-| `03:00:00` | caminho A — `combineDateTime` em UTC-3 |
-| qualquer outra | **não mapeado — para tudo e reavalia o plano** |
+| Coluna | Hora | Linhas |
+|---|---|---|
+| `Task.startDate` | `00:00:00` | 46 |
+| `Task.startDate` | `18:20:00` | 1 |
+| `Task.dueDate` | `00:00:00` | 46 |
+| `Task.dueDate` | `18:23:00` | 1 |
+| `Task.baselineStart` / `baselineEnd` | `00:00:00` | 45 cada |
+| `Milestone.date` | `00:00:00` | 10 |
+| `Project.startDate` | `00:00:00` | 3 |
+| `Project.endDate` | `00:00:00` | 2 |
+| `Activity.dueDate` | `00:00:00` | 2 |
+| `Opportunity.expectedCloseDate` | `00:00:00` | 1 |
 
-Projetos criados por seed (para o filtro por origem da etapa (b)):
+**Nenhum registro em `03:00:00`.** A assinatura que o diagnóstico previa como a
+massa contaminada **não existe**.
+
+### As três conclusões
+
+**1. Os dados estão corretos.** `00:00:00Z` é a gravação correta de um dia de
+calendário. Não há dado deslocado, não há `UPDATE` de correção a fazer. **O bug é
+100% de renderização.** A etapa (b) esvaziou.
+
+**2. As duas linhas fora de `00:00`** são a tarefa "teste" criada pelo
+`TaskFormDialog` com hora real 15:20 BRT → `18:20:00Z`. Gravação **correta** de um
+instante, por um campo que a decisão da seção 7 vai remover.
+
+**3. Reescrita em massa confirmada.** 46 registros com `updatedAt` idêntico ao
+milissegundo (`17:20:24.149`), 7s após uma interação no Gantt. Mecanismo e alcance
+real em §2.5 — atingiu só `order`, nunca as datas.
+
+### Q4 — o "+1 dia" tem culpado
+
+`RECORD 2`: tarefa com `title` "New Task" (rótulo padrão da SVAR), `createdAt`
+16:45, `startDate` 2026-08-02, `dueDate` **2027-06-29**. Não veio do formulário —
+veio do botão azul duplicado da SVAR. É o quarto caminho de escrita (§2.4), que o
+inventário original não tinha.
+
+Ação: lixo de teste, excluir pela UI.
+
+### Contexto de origem (levantado antes das queries, mantido para referência)
 
 | id | Nome | Datas |
 |---|---|---|
@@ -311,37 +447,28 @@ Projetos criados por seed (para o filtro por origem da etapa (b)):
 | `proj-001` | Desenvolvimento de Levedura Especializada | `2024-01-15` / `2024-12-31` |
 | `proj-002` | Otimização de Processo Fermentativo | `2024-03-01`, sem término |
 
-`proj-001` e `proj-002` **não têm tarefas nem marcos** no seed — só
-`Project.startDate`/`endDate`. Um `UPDATE` de `Project` que os classifique como
-"cadastro real" aplicaria shift errado neles.
-
-### Q1 — distribuição de horários
-
-```
-(colar)
-```
-
-### Q2 — origem por assinatura
-
-```
-(colar)
-```
-
-### Q3 — linhas que exibem o dia errado
-
-```
-(colar)
-```
+`proj-001` e `proj-002` não têm tarefas nem marcos — só `Project.startDate`/
+`endDate`. O risco de classificá-los como "cadastro real" num `UPDATE` de
+`Project` **deixou de existir** junto com o `UPDATE`, mas fica registrado para o
+caso de a etapa (c) precisar de normalização.
 
 ---
 
 ## 10. Em aberto
 
-1. **"Caminho B" não está definido neste documento.** O rótulo vem do diagnóstico
-   original e não foi recuperado. As queries classificam por assinatura
-   observável; o mapeamento assinatura → caminho precisa ser feito quando o
-   resultado voltar.
-2. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
+1. **`updatedAt` não é mais sinal confiável de edição humana** neste projeto —
+   `persistOrder` carimba o projeto inteiro a cada arrastar (§2.5). Qualquer
+   diagnóstico futuro que queira separar "editado por gente" de "tocado pelo
+   sistema" precisa de outro sinal. Se o PATCH condicional reduzir o alcance do
+   `reorder`, revisitar.
+
+2. **`persistOrder` ligado a `move-task` e `indent-task`** resequencia todas as
+   tarefas do projeto a cada arrastar. É por desenho (o comentário do arquivo
+   explica: `order` é global por projeto), mas 46 escritas para uma ação de
+   usuário é desproporcional e vai piorar conforme os projetos crescerem.
+   Otimização fora do escopo deste incidente — registrar como dívida.
+
+3. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
    cada uma reimplementa `new Date(\`${x.slice(0,10)}T00:00:00\`)` à mão. Está
    **correto hoje**, e por isso ficou fora do escopo deste incidente: mexer nele
    agora seria alterar código que funciona no meio de uma correção de produção.
