@@ -4,7 +4,7 @@
 // Isola toda a I/O do componente de apresentação.
 
 import { useEffect, useRef, type MutableRefObject } from 'react';
-import type { TaskDto } from '@bioinfood/shared';
+import type { TaskDto, TaskStatus } from '@bioinfood/shared';
 import { tasksApi, milestonesApi } from '@/lib/api-hooks';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { isMilestoneId, stripMs, progressToStatus, toPmbokDependencyType, type GanttLink } from './gantt-mapping';
@@ -28,6 +28,41 @@ interface PersistenceHandles {
   menuHandler: MutableRefObject<((e: any) => void) | null>;
 }
 
+// ─── comparação de campos para o PATCH condicional ─────────────────────────────
+
+/**
+ * Chave de comparação de um campo de data — o DIA, pelos componentes locais.
+ *
+ * O evento da SVAR traz `Date`; o DTO traz ISO com `Z`. Os dois lados passam por
+ * aqui, e como ambos derivam do MESMO instante, a chave é consistente entre eles.
+ * Não é o dia "correto" em termos absolutos (isso é problema do render) — é uma
+ * chave de igualdade, e só precisa ser estável dos dois lados.
+ */
+function dayKey(value: unknown): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+interface TaskSnapshot {
+  title: string;
+  startDay: string | null;
+  dueDay: string | null;
+  status: TaskStatus;
+}
+
+function snapshotOf(task: TaskDto): TaskSnapshot {
+  return {
+    title: task.title,
+    startDay: dayKey(task.startDate),
+    dueDay: dayKey(task.dueDate),
+    status: task.status,
+  };
+}
+
 export function useGanttPersistence(api: any, opts: Options): PersistenceHandles {
   const { editable, projectId, token, links, tasks, onError, onEditTask } = opts;
   const confirm = useConfirm();
@@ -43,6 +78,11 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
   // sem precisar religar o listener a cada mudança de `tasks`.
   const allTasksRef = useRef<TaskDto[]>(tasks);
   allTasksRef.current = tasks;
+
+  // Último valor que sabemos estar no servidor, por tarefa. Semeado sob demanda
+  // a partir do DTO e atualizado a cada escrita — é contra ele que o handler
+  // decide o que mudou de verdade.
+  const lastPersisted = useRef(new Map<string, TaskSnapshot>());
 
   // Mantém o alvo (sucessora) de cada link conhecido para montar a URL de remoção.
   useEffect(() => {
@@ -98,13 +138,42 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
         return;
       }
 
+      // PATCH condicional: a SVAR emite o objeto inteiro da tarefa a cada
+      // `update-task`, não só o campo mexido. Enviar tudo fazia uma edição de
+      // título reescrever também as datas — e com elas o `addDays` que existe só
+      // para desenhar barra de duração zero (gantt-mapping.ts). Comparar com o
+      // último valor conhecido do servidor é o que impede normalização de
+      // exibição de virar dado. Ver docs/incidentes/timezone-cronograma.md §2.4.
+      const taskId = resolveTaskId(ev.id);
+      const known = lastPersisted.current.get(taskId)
+        ?? (() => {
+          const dto = allTasksRef.current.find((x) => x.id === taskId);
+          return dto ? snapshotOf(dto) : null;
+        })();
+
+      const next: TaskSnapshot = {
+        title: t.text !== undefined ? t.text : known?.title ?? '',
+        startDay: t.start ? dayKey(t.start) : known?.startDay ?? null,
+        dueDay: t.end ? dayKey(t.end) : known?.dueDay ?? null,
+        status: t.progress !== undefined
+          ? progressToStatus(t.progress)
+          : known?.status ?? 'TODO',
+      };
+
       const data: Record<string, unknown> = {};
-      if (t.text !== undefined) data.title = t.text;
-      if (t.start) data.startDate = new Date(t.start).toISOString();
-      if (t.end) data.dueDate = new Date(t.end).toISOString();
-      if (t.progress !== undefined) data.status = progressToStatus(t.progress);
+      if (t.text !== undefined && next.title !== known?.title) data.title = next.title;
+      if (t.start && next.startDay !== known?.startDay) {
+        data.startDate = new Date(t.start).toISOString();
+      }
+      if (t.end && next.dueDay !== known?.dueDay) {
+        data.dueDate = new Date(t.end).toISOString();
+      }
+      if (t.progress !== undefined && next.status !== known?.status) data.status = next.status;
+
       if (Object.keys(data).length === 0) return;
-      tasksApi.update(projectId, resolveTaskId(ev.id), data, token).catch(onError);
+
+      lastPersisted.current.set(taskId, next);
+      tasksApi.update(projectId, taskId, data, token).catch(onError);
     });
 
     api.on('add-task', async (ev: any) => {
@@ -124,6 +193,10 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
           token,
         );
         if (ev.id != null) taskIdMap.current.set(String(ev.id), created.id);
+        // Semeia o snapshot com o que acabou de ser gravado: sem isso, o
+        // primeiro `update-task` da tarefa nova não teria com o que comparar e
+        // reenviaria todos os campos.
+        lastPersisted.current.set(created.id, snapshotOf(created));
       } catch { onError(); }
     });
 
