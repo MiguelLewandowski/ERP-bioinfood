@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | Bloco 1 da etapa (a) implementado — **aguardando teste manual** |
+| **Estado** | Blocos 1 e 2 da etapa (a) implementados e cobertos por teste — **aguardando teste manual**. Falta o bloco 3 |
 | **Aberto em** | 2026-07-27 |
 | **Branch** | `fix/timezone-cronograma` (a partir de `develop`) |
 | **Impacto** | Datas exibem o dia errado. **Os dados gravados estão corretos** — ver seção 9 |
@@ -321,6 +321,20 @@ em qualquer ordem, e cada um é revertível sozinho.
 6. **Split do `charter-client` em `fmtInstant` / `fmtDay`** — commit próprio. É o
    único ponto que muda **assinatura de função** em vez de trocar implementação,
    e misturá-lo com o commit 5 esconderia essa diferença no diff.
+
+> **Bloco 2 fechado em 2026-07-27.** Os três itens estão implementados
+> (`9e802dc`, `16bd373`, `b4071ec`). O `new Date()` restante em
+> `lib/project-report.ts:72` é a data de geração do relatório — instante, correto.
+>
+> O item 6 era o único sem teste, justamente sendo o de maior risco. Coberto em
+> `charter-client.test.tsx` com os **dois** tipos no mesmo describe: dia de
+> calendário (`startDate` em `00:00Z` → 01/10, não 30/09) e instante (aprovação
+> às 22h de Brasília, `01:00Z` do dia seguinte → 01/10, não 02/10). Verificado
+> que o caso de instante falha contra o helper único de antes do split.
+>
+> O fuso passou a ser fixado em `vitest.config.ts` (`TZ=America/Sao_Paulo`):
+> teste de instante depende do relógio local e, sem isso, mudaria de resultado
+> entre a máquina do dev (UTC-3) e o CI/Railway (UTC).
 
 **Bloco 3 — fechar a origem latente.**
 
