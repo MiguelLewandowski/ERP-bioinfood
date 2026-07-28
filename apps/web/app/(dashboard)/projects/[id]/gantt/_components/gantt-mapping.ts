@@ -16,12 +16,6 @@ export const BASELINE_ROLES: SystemRole[] = ['ADMIN', 'PADRAO'];
 export const isMilestoneId = (id: unknown) => String(id).startsWith('ms-');
 export const stripMs = (id: unknown) => String(id).slice(3);
 
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
 export function taskProgress(t: TaskDto): number {
   if (t.checklist?.length > 0) return checklistProgress(t.checklist);
   return t.status === 'DONE' ? 100 : t.status === 'IN_PROGRESS' ? 50 : 0;
@@ -91,7 +85,12 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       id: t.id,
       text: t.title,
       start,
-      end: end <= start ? addDays(start, 1) : end,
+      // Término REAL, sem normalizar. Tarefa de duração zero teria barra de
+      // largura 0 — isso é resolvido no CSS (`min-width` em gantt-status.css),
+      // não empurrando a data. O valor que entra aqui vai para a store da SVAR
+      // e é o que o `update-task` grava de volta: normalização de exibição não
+      // pode virar dado. Ver docs/incidentes/timezone-cronograma.md §2.4(a).
+      end,
       progress: taskProgress(t),
       type: hasChildren ? 'summary' : 'task',
       // Só referencia o pai se ele estiver visível (com datas); senão fica na raiz.
