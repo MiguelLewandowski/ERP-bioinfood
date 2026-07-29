@@ -196,12 +196,15 @@ describe('CharterClient — progresso das seções no nav', () => {
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
+  // A contagem sai do próprio nav: acrescentar uma seção ao TAP não deve
+  // quebrar este teste por um número fixo desatualizado.
   it('should mark every section as empty when the charter has no content', () => {
     renderWithProviders(
       <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
     );
 
-    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(8);
+    const sections = screen.getAllByRole('button').filter((b) => /^\d+\./.test(b.textContent ?? ''));
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(sections.length);
     expect(screen.queryByLabelText('Seção preenchida')).not.toBeInTheDocument();
   });
 
@@ -215,8 +218,24 @@ describe('CharterClient — progresso das seções no nav', () => {
       <CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />,
     );
 
+    const sections = screen.getAllByRole('button').filter((b) => /^\d+\./.test(b.textContent ?? ''));
     expect(screen.getAllByLabelText('Seção preenchida')).toHaveLength(1);
-    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(7);
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(sections.length - 1);
+  });
+
+  // A seção Riscos não tem campo de formulário — quem a preenche são os riscos
+  // cadastrados na aba. Sem isso ela ficaria eternamente cinza.
+  it('should mark the risks section as filled when the project has risks', () => {
+    renderWithProviders(
+      <CharterClient
+        projectId="proj-1"
+        initialData={null}
+        project={PROJECT}
+        risks={[{ id: 'r-1', title: 'Fornecedor único', score: 12, probability: 3, impact: 4, owner: null }] as never}
+      />,
+    );
+
+    expect(screen.getAllByLabelText('Seção preenchida')).toHaveLength(1);
   });
 });
 
