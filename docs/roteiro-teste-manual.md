@@ -142,6 +142,49 @@ Com o **agrupamento ligado**:
 - [ ] Conferir que a tarefa ganhou data real de início **e** de fim
 - [ ] Reabrir tarefa concluída direto para "A fazer" → salva
 
+### 7.4 TAP — campo Restrições e seção Riscos
+
+- [ ] Seção "Escopo" do TAP **não tem mais** o campo "Restrições"
+      *(a coluna continua no banco — remover coluna é destrutivo e apagaria o
+      que já foi escrito. Se você quiser apagar de vez, é uma segunda publicação)*
+- [ ] Nova seção **"Riscos"** no menu lateral do TAP
+- [ ] Ela **lista** os riscos do projeto, do maior score para o menor
+- [ ] Bolinha colorida bate com a faixa usada na aba Riscos
+- [ ] Botão "Gerenciar riscos" leva para a aba
+- [ ] Projeto sem risco → estado vazio com atalho para mapear o primeiro
+- [ ] A bolinha da seção Riscos no menu fica **verde** quando há riscos
+
+### 7.5 Tipo de projeto
+
+- [ ] Campo "Tipo" no TAP virou **lista**: Interno, Parceria, Contrato, Serviço,
+      Subvenção
+- [ ] ⚠️ **Abrir um TAP que já tinha tipo escrito à mão** (ex.: "P&D Interno") →
+      o valor antigo continua aparecendo e selecionado. Salvar **não** pode
+      apagá-lo
+
+### 7.6 Corresponsáveis (⚠️ traz migration)
+
+> `20260729120000_co_responsibles`. Aditiva: cria duas tabelas, não altera
+> nenhuma linha existente. `assigneeId`/`ownerId` continuam sendo o
+> **responsável principal**; a lista nova é quem divide.
+
+- [ ] Formulário de tarefa: campo **"Corresponsáveis"** com checkboxes
+- [ ] Quem está como responsável principal **não aparece** na lista de
+      corresponsáveis
+- [ ] Salvar com 2 corresponsáveis e reabrir → continuam marcados
+- [ ] No **kanban**, o card mostra a inicial do principal e **"+2"**
+- [ ] Passar o mouse no "+2" → nomes dos corresponsáveis
+- [ ] Mesma coisa no formulário de **risco**
+- [ ] Na lista de riscos, aparece "Responsável +N"
+- [ ] Tarefa/risco **sem** corresponsável continua igual a antes
+
+### 7.7 Rolagem horizontal do Gantt
+
+- [ ] Abrir o Gantt de um projeto com muitas tarefas → a **barra de rolagem
+      horizontal fica visível na base da tela**, sem precisar rolar a página
+- [ ] A página do Gantt **não** rola verticalmente como um todo; quem rola é a
+      grade
+
 ---
 
 ## Estado da sessão
@@ -154,8 +197,36 @@ Com o **agrupamento ligado**:
 
 ### Triagem — progresso
 
-- [x] `bug-admin-nao-aparece-nos-selects`
-- [x] `bug-nao-salva-status-todo-para-done`
-- [ ] as outras 15
+Feitas:
+
+- [x] `bug-admin-nao-aparece-nos-selects` — causa era outra (ver §7.2)
+- [x] `bug-nao-salva-status-todo-para-done` — regra intencional, derrubada
+- [x] `feat-remover-restricoes-tap` — só da tela; coluna preservada
+- [x] `feat-secao-riscos-no-tap`
+- [x] `feat-gantt-barra-horizontal-fixa`
+- [x] `feat-tipos-de-projeto` — lista na tela, sem enum no banco
+- [x] `feat-multiplos-responsaveis-risco`
+- [x] `feat-multiplos-responsaveis-tarefa`
+
+Pendentes:
+
+- [ ] `feat-padronizar-form-nova-tarefa`
+- [ ] `feat-calendario-mostrar-mais-atividades`
+- [ ] `feat-melhoria-visual-atividades`
+- [ ] `feat-gantt-ctrl-z`
+- [ ] `feat-hierarquia-texto-tap`
+- [ ] `feat-materiais-insumo-recursos-tap`
+- [ ] `feat-checklist-equipamentos-projeto`
+- [ ] `feat-modulo-anotacoes-pessoais`
+
+### Migrations acumuladas em `develop`
+
+| Migration | O que faz | Destrutiva? |
+|---|---|---|
+| `20260728180000_add_requires_sop` | `Task.requiresSOP` com default `true` | não — aditiva |
+| `20260729120000_co_responsibles` | tabelas `TaskCoAssignee` e `RiskCoOwner` | não — aditiva |
+
+Nenhuma exige as duas publicações do procedimento de migration destrutiva.
+As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
 
 *(esta seção é atualizada conforme a sessão avança)*
