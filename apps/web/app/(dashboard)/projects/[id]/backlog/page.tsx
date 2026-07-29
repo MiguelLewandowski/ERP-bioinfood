@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { projectsApi, tasksApi } from '@/lib/api-hooks';
 import { BacklogClient } from './_components/backlog-client';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,5 +17,5 @@ export default async function BacklogPage({ params }: Props) {
     tasksApi.list(id, token),
   ]);
 
-  return <BacklogClient projectId={id} initialTasks={tasks} members={extractMembers(project)} />;
+  return <BacklogClient projectId={id} initialTasks={tasks} members={await resolveProjectPeople(project, token)} />;
 }
