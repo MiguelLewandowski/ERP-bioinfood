@@ -21,6 +21,7 @@ function makeTask(overrides: Partial<TaskDto> = {}): TaskDto {
     priority: 'MEDIUM',
     storyPoints: null,
     requiresSOP: true,
+    coAssignees: [],
     order: 0,
     parentId: null,
     assignee: null,

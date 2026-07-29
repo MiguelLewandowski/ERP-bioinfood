@@ -5,8 +5,24 @@ import { ITaskRepository } from '../domain/tasks.repository.interface';
 import { CreateTaskData, TaskChecklistItemEntity, TaskFilters, TaskPopUsageEntity, TaskWithRelations, UpdateTaskData } from '../domain/task.entity';
 import { TaskDependencyEntity } from '../domain/task-dependency.entity';
 
+/**
+ * Separa os corresponsáveis do resto dos campos.
+ *
+ * `coAssigneeIds` não é coluna de `Task` — mandá-lo direto para o Prisma
+ * quebraria o update. Ausente significa "não mexer na lista"; presente
+ * substitui a lista inteira, que é o que o formulário envia.
+ */
+function splitCoAssignees<T extends { coAssigneeIds?: string[] }>(data: T) {
+  const { coAssigneeIds, ...rest } = data;
+  const coAssignees = coAssigneeIds === undefined
+    ? undefined
+    : { deleteMany: {}, create: coAssigneeIds.map((userId) => ({ userId })) };
+  return { rest, coAssignees };
+}
+
 const WITH_RELATIONS = {
   assignee: { select: { id: true, name: true } },
+  coAssignees: { select: { user: { select: { id: true, name: true } } } },
   wbsNode: { select: { id: true, code: true, title: true } },
   successors: { select: { id: true, successorId: true, type: true, lag: true } },
   predecessors: { select: { id: true, predecessorId: true, type: true, lag: true } },
@@ -52,16 +68,18 @@ export class TasksPrismaRepository implements ITaskRepository {
   }
 
   create(data: CreateTaskData): Promise<TaskWithRelations> {
+    const { rest, coAssignees } = splitCoAssignees(data);
     return this.prisma.task.create({
-      data,
+      data: { ...rest, ...(coAssignees ? { coAssignees: { create: coAssignees.create } } : {}) },
       include: WITH_RELATIONS,
     }) as Promise<TaskWithRelations>;
   }
 
   update(id: string, data: UpdateTaskData): Promise<TaskWithRelations> {
+    const { rest, coAssignees } = splitCoAssignees(data);
     return this.prisma.task.update({
       where: { id },
-      data,
+      data: { ...rest, ...(coAssignees ? { coAssignees } : {}) },
       include: WITH_RELATIONS,
     }) as Promise<TaskWithRelations>;
   }

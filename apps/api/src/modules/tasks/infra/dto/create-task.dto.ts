@@ -4,6 +4,8 @@ import {
   IsEnum,
   IsInt,
   IsBoolean,
+  IsArray,
+  ArrayMaxSize,
   IsDateString,
   MinLength,
   MaxLength,
@@ -52,6 +54,14 @@ export class CreateTaskDto {
   @IsOptional()
   @IsBoolean()
   requiresSOP?: boolean;
+
+  // Teto de 20: a lista alimenta um seletor de gente da empresa, não é campo
+  // aberto. Sem limite, um payload grande vira N inserts numa transação só.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  coAssigneeIds?: string[];
 
   @IsOptional()
   @IsDateString()

@@ -51,6 +51,8 @@ export interface TaskPopUsageEntity {
 
 export interface TaskWithRelations extends TaskEntity {
   assignee: { id: string; name: string } | null;
+  /** Quem divide a tarefa com o `assignee` (responsável principal). */
+  coAssignees: Array<{ user: { id: string; name: string } }>;
   wbsNode: { id: string; code: string; title: string } | null;
   successors: Array<{ id: string; successorId: string; type: TaskDependencyType; lag: number }>;
   predecessors: Array<{ id: string; predecessorId: string; type: TaskDependencyType; lag: number }>;
@@ -63,6 +65,8 @@ export interface CreateTaskData {
   wbsNodeId?: string;
   parentId?: string | null;
   assigneeId?: string;
+  /** Corresponsáveis, além do principal. */
+  coAssigneeIds?: string[];
   title: string;
   description?: string;
   status?: TaskStatus;
@@ -78,6 +82,8 @@ export interface UpdateTaskData {
   wbsNodeId?: string | null;
   parentId?: string | null;
   assigneeId?: string | null;
+  /** Substitui a lista inteira quando presente; ausente = não mexe. */
+  coAssigneeIds?: string[];
   title?: string;
   description?: string | null;
   status?: TaskStatus;
