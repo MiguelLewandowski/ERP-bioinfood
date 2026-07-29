@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsArray, ArrayMaxSize, MaxLength } from 'class-validator';
 import { RiskProbability, RiskImpact } from '@prisma/client';
 
 export class UpdateRiskDto {
@@ -28,4 +28,11 @@ export class UpdateRiskDto {
   @IsOptional()
   @IsString()
   ownerId?: string | null;
+
+  // Ausente = não mexe na lista. Presente substitui a lista inteira.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  coOwnerIds?: string[];
 }

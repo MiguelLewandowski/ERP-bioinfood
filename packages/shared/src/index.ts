@@ -466,6 +466,14 @@ export interface RiskDto {
   score: number;
   response: string | null;
   owner: { id: string; name: string } | null;
+  /**
+   * Corresponsáveis, além do `owner`.
+   *
+   * `owner` continua sendo o responsável PRINCIPAL — quem responde numa
+   * escalada. Esta lista é quem divide a responsabilidade. Modelado assim para
+   * a mudança ser aditiva: nenhum consumidor de `owner` precisou mudar.
+   */
+  coOwners: Array<{ id: string; name: string }>;
 }
 
 // ── Stakeholders (registro de partes interessadas, PMBOK) ──────────────────────

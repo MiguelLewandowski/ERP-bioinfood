@@ -46,6 +46,7 @@ function makeRisk(overrides: Partial<RiskDto> = {}): RiskDto {
     projectId: 'p1',
     title: 'Risco',
     description: null,
+    coOwners: [],
     probability: 'MEDIUM',
     impact: 'MEDIUM',
     score: 9,
