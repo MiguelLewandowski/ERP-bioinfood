@@ -2,12 +2,33 @@
 tipo: bug
 escopo: web
 complexidade: baixa
-status: aberta
+status: concluída
+concluida: 2026-07-29
 criada: 2026-07-28
 tema: qualidade
 ---
 
 # Estabilizar a suíte web, que falha de forma não determinística sob carga
+
+> ✅ **Concluída em 2026-07-29.** Os seis `userEvent.type` com 201 caracteres
+> viraram `fireEvent.change`. **Nenhum `testTimeout` foi aumentado** — o
+> paliativo do passo 5 não foi necessário.
+>
+> **Ressalva honesta sobre a verificação:** a instabilidade **não reproduziu**
+> nesta máquina em nenhum momento — a suíte já vinha passando 100% antes da
+> mudança, em várias execuções ao longo do dia. Então as 5 execuções verdes do
+> critério de aceite **confirmam que a mudança não quebrou nada, mas não provam
+> que ela consertou o que se propunha**: não houve vermelho para virar verde.
+>
+> O que sustenta a mudança é a análise de causa, que continua sólida (~800
+> eventos e ~200 renders por teste, removidos), não a medição. Se a suíte voltar
+> a falhar sob carga numa máquina mais lenta ou em CI, **reabrir esta tarefa em
+> vez de subir o timeout** — a hipótese estaria incompleta, como o próprio doc
+> previu na seção de riscos.
+>
+> **O segundo critério de aceite foi verificado por mutação:** removendo o
+> `.max(200)` de quatro dos schemas, os quatro testes correspondentes ficaram
+> vermelhos. Eles continuam testando o que diziam testar.
 
 ## Anotação original
 > A suíte de teste do web falha de forma não determinística sob carga. Rodando

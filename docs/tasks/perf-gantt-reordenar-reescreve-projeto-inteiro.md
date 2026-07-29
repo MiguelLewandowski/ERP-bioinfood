@@ -2,12 +2,38 @@
 tipo: feature
 escopo: web
 complexidade: média
-status: aberta
+status: concluída
+concluida: 2026-07-29
 criada: 2026-07-28
 tema: cronograma
 ---
 
 # Reduzir a escrita de reordenar no Gantt, que reescreve o projeto inteiro
+
+> ✅ **Concluída em 2026-07-29.**
+>
+> **Passo 1 confirmou a suspeita:** o Backlog tinha o mesmo padrão
+> (`reordered.map((t, i) => ...)` gravava a lista toda). Os dois foram corrigidos
+> pelo **mesmo helper**, `apps/web/lib/task-order.ts` — eles escrevem no mesmo
+> campo global, e divergir ali é justamente como brigariam.
+>
+> A lista desejada continua **completa** (é o que mantém os dois consistentes);
+> só o delta vai para a API. Arrastar uma posição escreve ~2 linhas; arrastar e
+> devolver ao lugar não escreve nada.
+>
+> **Detalhe que quase virou bug:** o delta precisa comparar contra o que a
+> ÚLTIMA escrita gravou, não contra o `order` do DTO — que fica velho no primeiro
+> arrastar. Sem isso o segundo arrastar **pularia** linhas que precisavam mudar.
+> Resolvido com `lastKnownOrder` no Gantt e `order` atualizado no estado local do
+> Backlog. Coberto por `should compare the second drag against what the first one wrote`.
+>
+> O aviso da §2.5 do incidente de fuso foi atualizado: `updatedAt` voltou a ser
+> critério de origem confiável para dados a partir de 2026-07-29.
+>
+> **A "decisão em aberto" (vale a pena agora?) foi resolvida por contexto:** a
+> Onda 6 de UI ligou o agrupamento por pacote no Gantt, o que aumenta o número de
+> linhas na store e torna o resequenciamento total mais caro. Fazer junto saiu
+> mais barato que fazer depois.
 
 ## Anotação original
 > `persistOrder` está ligado a `move-task` E `indent-task` e resequencia TODAS as
