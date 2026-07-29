@@ -103,7 +103,12 @@ export function GanttClient(props: GanttClientProps) {
     : 'Linha de base não definida';
 
   return (
-    <div className="flex flex-col">
+    // `h-full` + `overflow-hidden` prendem o Gantt à altura da viewport. Antes o
+    // board tinha altura fixa em `calc(100vh - 180px)` e o conjunto
+    // (barras + legenda + board) passava da tela: a barra de rolagem horizontal
+    // ia parar no fim do CONTEÚDO, e era preciso rolar a página para baixo só
+    // para alcançá-la. Com a altura amarrada, ela fica sempre na base da tela.
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Controles de VISUALIZAÇÃO — valem para todo perfil, inclusive CLIENTE:
           não escrevem nada, só mudam o que se enxerga. As ações de escrita ficam
           na barra de baixo, atrás do `editable`. */}
@@ -324,7 +329,9 @@ function GanttBoard({
   }
 
   if (!mounted) {
-    return <div style={{ height: 'calc(100vh - 150px)' }} />;
+    // Reserva de espaço até o widget montar (ele é client-only). Mesma regra de
+    // flex do board, para não haver salto entre um e outro.
+    return <div className="min-h-0 flex-1" />;
   }
 
   const CtxMenu = ContextMenu as any;
@@ -338,7 +345,9 @@ function GanttBoard({
             caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
             O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
-          style={{ height: 'calc(100vh - 180px)' }}
+          // `min-h-0` é o que faz o flex encolher em vez de estourar o pai —
+          // sem ele o filho usa a altura do conteúdo e a rolagem volta a fugir.
+          className="min-h-0 flex-1"
           onContextMenu={(e) => {
             if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
           }}

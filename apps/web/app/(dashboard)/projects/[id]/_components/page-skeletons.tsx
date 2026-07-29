@@ -146,7 +146,9 @@ export function FormSkeleton() {
 /** Gantt: duas barras de controle + grade à esquerda e área do gráfico. */
 export function GanttSkeleton() {
   return (
-    <div className="flex flex-col">
+    // Mesma amarração de altura do Gantt real: sem ela o esqueleto tem tamanho
+    // diferente do conteúdo e a página salta ao carregar.
+    <div className="flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
         <Skeleton className="h-7 w-56 rounded-lg" />
         <Skeleton className="h-7 w-64 rounded-lg" />
@@ -155,7 +157,7 @@ export function GanttSkeleton() {
         <Skeleton className="h-4 w-48" />
         <Skeleton className="h-7 w-56 rounded-lg" />
       </div>
-      <div className="flex gap-px bg-border" style={{ height: 'calc(100vh - 220px)' }}>
+      <div className="flex min-h-0 flex-1 gap-px bg-border">
         <div className="w-[340px] shrink-0 bg-card p-3">
           {Array.from({ length: 10 }).map((_, i) => (
             <Skeleton key={i} className="mb-2.5 h-4" />
