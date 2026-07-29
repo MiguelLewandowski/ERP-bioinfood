@@ -419,6 +419,15 @@ export interface TaskDto {
   order: number;
   parentId: string | null;
   assignee: { id: string; name: string } | null;
+  /**
+   * Corresponsáveis, além do `assignee`.
+   *
+   * `assignee` continua sendo o responsável PRINCIPAL. Mover todos para uma
+   * lista só obrigaria a reescrever kanban, backlog, Gantt, Atividades e os
+   * filtros de "minhas tarefas" de uma vez — e quebraria o `assigneeId` que já
+   * está em produção.
+   */
+  coAssignees: Array<{ id: string; name: string }>;
   wbsNode: { id: string; code: string; title: string } | null;
   startDate: string | null;
   dueDate: string | null;
@@ -466,6 +475,14 @@ export interface RiskDto {
   score: number;
   response: string | null;
   owner: { id: string; name: string } | null;
+  /**
+   * Corresponsáveis, além do `owner`.
+   *
+   * `owner` continua sendo o responsável PRINCIPAL — quem responde numa
+   * escalada. Esta lista é quem divide a responsabilidade. Modelado assim para
+   * a mudança ser aditiva: nenhum consumidor de `owner` precisou mudar.
+   */
+  coOwners: Array<{ id: string; name: string }>;
 }
 
 // ── Stakeholders (registro de partes interessadas, PMBOK) ──────────────────────

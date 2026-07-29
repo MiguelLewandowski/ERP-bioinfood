@@ -94,12 +94,24 @@ export function KanbanCard({ task, isOverlay, onEdit }: KanbanCardProps) {
           )}
         </div>
         {task.assignee && (
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-            style={{ backgroundColor: 'hsl(var(--primary))' }}
-            title={task.assignee.name}
-          >
-            {task.assignee.name.charAt(0).toUpperCase()}
+          <div className="flex shrink-0 items-center gap-1">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              style={{ backgroundColor: 'hsl(var(--primary))' }}
+              title={task.assignee.name}
+            >
+              {task.assignee.name.charAt(0).toUpperCase()}
+            </div>
+            {/* "+2" em vez de empilhar avatares: o card é estreito e três
+                bolinhas comem o espaço do título, que é o que se lê primeiro. */}
+            {(task.coAssignees?.length ?? 0) > 0 && (
+              <span
+                className="text-[10px] font-semibold text-muted-foreground"
+                title={`Também: ${task.coAssignees.map((c) => c.name).join(', ')}`}
+              >
+                +{task.coAssignees.length}
+              </span>
+            )}
           </div>
         )}
       </div>

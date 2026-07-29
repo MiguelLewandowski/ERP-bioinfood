@@ -9,12 +9,12 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, Info, Target, FlaskConical,
   Layers, Package, Users, Link2, Wrench,
-  FileDown, Pencil, Mail, Phone,
+  FileDown, Pencil, Mail, Phone, ShieldAlert, ArrowRight,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
+import type { ProjectDto, ContactListItemDto, RiskDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
@@ -24,10 +24,29 @@ import { formatDay } from '@/lib/dates';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
+import { riskBand } from '@/lib/project-metrics';
 import { PROJECT_STATUS_LABELS, printHtml } from '@/lib/project-report';
 import { buildCharterHtml } from '@/lib/charter-report';
 
 const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
+
+// Tipos pedidos na reunião de 28/07/2026. Ficam como LISTA na tela, não como
+// `enum` no banco: `Charter.projectType` já é `String?` livre e converter a
+// coluna exigiria migrar os valores já gravados, sem ganho — a validação que
+// importa (o usuário escolher em vez de digitar) mora aqui.
+//
+// Valor antigo fora desta lista continua sendo exibido e preservado — ver o
+// `legacyOption` no render do campo.
+const PROJECT_TYPE_OPTIONS = ['Interno', 'Parceria', 'Contrato', 'Serviço', 'Subvenção'] as const;
+
+// Mesmas faixas de `riskBand` (lib/project-metrics.ts) — a bolinha do TAP não
+// pode discordar da cor que a aba Riscos usa para o mesmo risco.
+const RISK_DOT: Record<string, string> = {
+  critical: 'bg-destructive',
+  high:     'bg-accent',
+  medium:   'bg-warning',
+  low:      'bg-success',
+};
 
 // Dois tipos, duas funções — ver CLAUDE.md, "Datas — dia de calendário vs instante".
 // Um helper só para os dois estava errado nas duas pontas: corrigir o dia
@@ -103,6 +122,8 @@ interface CharterClientProps {
   projectId: string;
   initialData: CharterInitialData | null;
   project: ProjectDto | null;
+  /** Riscos do projeto, só para LEITURA — o cadastro continua na aba Riscos. */
+  risks?: RiskDto[];
 }
 
 type FieldDef = {
@@ -124,7 +145,7 @@ const SECTIONS: Array<{
     icon: Info,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1, half: true },
+      { key: 'projectType', label: 'Tipo', options: PROJECT_TYPE_OPTIONS, half: true },
       { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS, half: true },
     ],
   },
@@ -158,7 +179,11 @@ const SECTIONS: Array<{
     fields: [
       { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4 },
       { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3 },
-      { key: 'constraints', label: 'Restrições',     placeholder: 'Limitações de prazo, recursos, regulação…', rows: 2 },
+      // "Restrições" saiu da tela a pedido da reunião de teste de 28/07/2026.
+      // A COLUNA `Charter.constraints` continua no banco de propósito: apagá-la
+      // é migration destrutiva e levaria junto o que já foi escrito. O campo
+      // deixou de ser editável e de ser exportado; a remoção da coluna, se for
+      // desejada, é uma segunda publicação. Ver docs/tasks/feat-remover-restricoes-tap.md.
     ],
   },
   {
@@ -188,6 +213,14 @@ const SECTIONS: Array<{
     ],
   },
   {
+    id: 'riscos',
+    label: 'Riscos',
+    icon: ShieldAlert,
+    color: 'hsl(var(--accent))',
+    // Bloco próprio, só leitura — ver activeSection === 'riscos'.
+    fields: [],
+  },
+  {
     id: 'dependencias',
     label: 'Dependências',
     icon: Link2,
@@ -198,7 +231,7 @@ const SECTIONS: Array<{
   },
 ];
 
-export function CharterClient({ projectId, initialData, project }: CharterClientProps) {
+export function CharterClient({ projectId, initialData, project, risks = [] }: CharterClientProps) {
   const { token, session } = useAuth();
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
@@ -286,6 +319,12 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const sectionHasContent = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const section of SECTIONS) {
+      // Riscos não tem campo de formulário: o que a preenche são os riscos
+      // cadastrados na aba. Sem isto ela apareceria eternamente vazia no nav.
+      if (section.id === 'riscos') {
+        map[section.id] = risks.length > 0;
+        continue;
+      }
       if (section.id === 'recursos') {
         map[section.id] = !!(
           values.infrastructure?.trim()
@@ -297,7 +336,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       map[section.id] = section.fields.some((f) => (values[f.key] ?? '').toString().trim() !== '');
     }
     return map;
-  }, [values]);
+  }, [values, risks.length]);
   const filledCount = Object.values(sectionHasContent).filter(Boolean).length;
 
   function toggleSection(id: string) {
@@ -537,6 +576,63 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </div>
             )}
 
+            {activeSection === 'riscos' && (
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Riscos do projeto</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Leitura do que já está cadastrado — o registro e a resposta vivem na aba Riscos.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/projects/${projectId}/risks`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-gray-50"
+                  >
+                    Gerenciar riscos <ArrowRight size={12} />
+                  </Link>
+                </div>
+
+                {risks.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center">
+                    <ShieldAlert size={24} className="mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Nenhum risco mapeado ainda.</p>
+                    <Link
+                      href={`/projects/${projectId}/risks`}
+                      className="mt-1 inline-block text-sm font-semibold text-primary hover:underline"
+                    >
+                      Mapear o primeiro risco →
+                    </Link>
+                  </div>
+                ) : (
+                  // Maior score primeiro: num TAP, o que importa é o que pode
+                  // derrubar o projeto, não a ordem de cadastro.
+                  <ul className="divide-y divide-gray-100">
+                    {[...risks].sort((a, b) => b.score - a.score).map((r) => (
+                      <li key={r.id} className="flex items-center gap-3 py-2.5">
+                        <span
+                          className={cn('h-2 w-2 shrink-0 rounded-full', RISK_DOT[riskBand(r.score)])}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-foreground">{r.title}</span>
+                          {r.owner && (
+                            <span className="text-xs text-muted-foreground">{r.owner.name}</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          P{r.probability} × I{r.impact}
+                        </span>
+                        <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums text-foreground">
+                          {r.score}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             {activeSection === 'stakeholders' && (
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <h3 className="mb-2 text-xs font-bold text-foreground">Contatos do cliente</h3>
@@ -632,7 +728,14 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
             {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
                 que são curtos, dividem a linha. */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => (
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => {
+                // Valor gravado antes de o campo virar lista fechada. Sem esta
+                // opção o `<select>` apareceria vazio e o primeiro salvamento
+                // apagaria o que o usuário tinha escrito.
+                const current = (values[key] ?? '').toString();
+                const legacyOption = options && current && !options.includes(current) ? current : null;
+
+                return (
                 <div key={key} className={half ? undefined : 'col-span-2'}>
                   <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
                   {options ? (
@@ -641,6 +744,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                       className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
                     >
                       <option value="">—</option>
+                      {legacyOption && <option value={legacyOption}>{legacyOption}</option>}
                       {options.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : rows === 1 ? (
@@ -658,7 +762,8 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                     />
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </form>

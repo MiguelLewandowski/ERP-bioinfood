@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { milestonesApi, projectsApi, tasksApi, wbsApi } from '@/lib/api-hooks';
 import { GanttClient } from './_components/gantt-client';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -26,7 +26,7 @@ export default async function GanttPage({ params }: Props) {
       tasks={tasks}
       milestones={milestones}
       wbsNodes={wbsNodes}
-      members={extractMembers(project)}
+      members={await resolveProjectPeople(project, token)}
       projectStart={project.startDate ?? null}
       projectEnd={project.endDate ?? null}
       baselineSetAt={project.baselineSetAt ?? null}

@@ -26,6 +26,7 @@ const schema = z
     assigneeId:  z.string().optional(),
     storyPoints: z.coerce.number().int().min(1, 'Mínimo 1').max(100, 'Máximo 100').optional().or(z.literal('')),
     requiresSOP: z.boolean().default(true),
+    coAssigneeIds: z.array(z.string()).default([]),
     // Input date="" quando vazio — mantém string aqui e normaliza pra undefined no onSubmit,
     // nunca envia "" pro backend (que rejeitaria com @IsDateString()).
     startDate:   z.string().optional(),
@@ -145,7 +146,7 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
     if (addingItem) newItemRef.current?.focus();
   }, [addingItem]);
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: isEdit
       ? {
@@ -156,13 +157,24 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
           assigneeId:  task!.assignee?.id ?? '',
           storyPoints: task!.storyPoints ?? ('' as unknown as number),
           requiresSOP: task!.requiresSOP,
+          coAssigneeIds: (task!.coAssignees ?? []).map((c) => c.id),
           startDate:   toDateInput(task!.startDate),
           dueDate:     toDateInput(task!.dueDate),
           startTime:   toTimeInput(task!.startDate),
           endTime:     toTimeInput(task!.dueDate),
         }
-      : { priority: 'MEDIUM', requiresSOP: true },
+      : { priority: 'MEDIUM', requiresSOP: true, coAssigneeIds: [] },
   });
+
+  const coAssigneeIds = watch('coAssigneeIds') ?? [];
+  const assigneeId = watch('assigneeId');
+
+  function toggleCoAssignee(userId: string) {
+    const next = coAssigneeIds.includes(userId)
+      ? coAssigneeIds.filter((id) => id !== userId)
+      : [...coAssigneeIds, userId];
+    setValue('coAssigneeIds', next, { shouldDirty: true });
+  }
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
@@ -175,6 +187,8 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
         assigneeId:  values.assigneeId || undefined,
         storyPoints: values.storyPoints === '' ? undefined : values.storyPoints,
         requiresSOP: values.requiresSOP,
+        // O principal não se repete na lista de quem divide.
+        coAssigneeIds: (values.coAssigneeIds ?? []).filter((id) => id !== values.assigneeId),
         startDate:   values.startDate ? toApiDateTime(values.startDate, values.startTime) : undefined,
         dueDate:     values.dueDate ? toApiDateTime(values.dueDate, values.endTime) : undefined,
         ...(isEdit ? { status: values.status } : {}),
@@ -507,6 +521,38 @@ export function TaskFormDialog({ projectId, members, mode, task, onClose, onCrea
                 ))}
               </select>
             </div>
+
+            {members.length > 0 && (
+              <div>
+                <div className="mb-1 flex items-baseline justify-between">
+                  <label className="block text-xs font-semibold text-muted-foreground">
+                    Corresponsáveis
+                  </label>
+                  <span className="text-[11px] text-muted-foreground">
+                    {coAssigneeIds.filter((id) => id !== assigneeId).length} selecionado(s)
+                  </span>
+                </div>
+                {/* Checkbox em vez de `<select multiple>`: o multiple exige
+                    Ctrl+clique e, na prática, marcar o segundo nome desmarcava
+                    o primeiro. */}
+                <div className="max-h-32 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                  {members.filter((m) => m.id !== assigneeId).map((m) => (
+                    <label key={m.id} className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={coAssigneeIds.includes(m.id)}
+                        onChange={() => toggleCoAssignee(m.id)}
+                        className="h-4 w-4 rounded border-gray-300 accent-[hsl(var(--primary))]"
+                      />
+                      <span className="text-sm text-foreground">{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Quem divide a tarefa com o responsável principal.
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="task-storyPoints" className="block text-xs font-semibold text-muted-foreground mb-1">Story Points</label>

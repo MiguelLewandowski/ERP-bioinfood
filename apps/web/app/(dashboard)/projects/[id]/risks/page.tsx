@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { projectsApi, risksApi } from '@/lib/api-hooks';
 import { RisksClient } from './_components/risks-client';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,5 +17,5 @@ export default async function RisksPage({ params }: Props) {
     risksApi.list(id, token),
   ]);
 
-  return <RisksClient projectId={id} initialRisks={risks} members={extractMembers(project)} />;
+  return <RisksClient projectId={id} initialRisks={risks} members={await resolveProjectPeople(project, token)} />;
 }

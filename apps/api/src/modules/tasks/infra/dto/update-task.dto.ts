@@ -4,6 +4,8 @@ import {
   IsEnum,
   IsInt,
   IsBoolean,
+  IsArray,
+  ArrayMaxSize,
   IsDateString,
   MaxLength,
   Min,
@@ -51,6 +53,13 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsBoolean()
   requiresSOP?: boolean;
+
+  // Ausente = não mexe na lista. Presente substitui a lista inteira.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  coAssigneeIds?: string[];
 
   @IsOptional()
   @IsDateString()

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { projectsApi, tasksApi, wbsApi } from '@/lib/api-hooks';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 import { computeWbsRollup } from '@/lib/project-wbs';
 import { WbsClient } from './_components/wbs-client';
 
@@ -28,7 +28,7 @@ export default async function WbsPage({ params }: Props) {
     <WbsClient
       projectId={id}
       initialNodes={nodes}
-      members={extractMembers(project)}
+      members={await resolveProjectPeople(project, token)}
       rollup={rollup}
     />
   );

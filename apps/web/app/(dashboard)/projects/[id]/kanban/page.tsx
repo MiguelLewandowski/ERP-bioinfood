@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { projectsApi, tasksApi } from '@/lib/api-hooks';
 import { KanbanClient } from './_components/kanban-client';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,5 +17,5 @@ export default async function KanbanPage({ params }: Props) {
     tasksApi.list(id, token),
   ]);
 
-  return <KanbanClient projectId={id} initialTasks={tasks} members={extractMembers(project)} />;
+  return <KanbanClient projectId={id} initialTasks={tasks} members={await resolveProjectPeople(project, token)} />;
 }

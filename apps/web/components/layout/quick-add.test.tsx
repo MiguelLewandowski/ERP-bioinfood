@@ -6,7 +6,8 @@ import { renderWithProviders, screen, waitFor, TEST_TOKEN, TEST_SESSION } from '
 import { QuickAdd } from './quick-add';
 
 const listProjectsMock = vi.fn();
-const createTaskMock = vi.fn();
+const listUsersMock = vi.fn();
+const postMock = vi.fn();
 const toastErrorMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const pushMock = vi.fn();
@@ -17,7 +18,20 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/api-hooks', () => ({
   projectsApi: { list: (...args: unknown[]) => listProjectsMock(...args) },
-  tasksApi: { create: (...args: unknown[]) => createTaskMock(...args) },
+  usersApi: { list: (...args: unknown[]) => listUsersMock(...args) },
+  // O `TaskFormDialog` delegado busca POPs para vincular à tarefa.
+  popsApi: { list: vi.fn().mockResolvedValue([]), listVersions: vi.fn().mockResolvedValue([]) },
+}));
+
+// O formulário delegado (`TaskFormDialog`) escreve pelo client `api`, não pelos
+// hooks — mockar só `api-hooks` deixaria a criação passar batido.
+vi.mock('@/lib/api', () => ({
+  api: {
+    post: (...args: unknown[]) => postMock(...args),
+    patch: vi.fn(),
+    get: vi.fn().mockResolvedValue([]),
+    delete: vi.fn(),
+  },
 }));
 
 vi.mock('sonner', () => ({
@@ -39,13 +53,14 @@ function setup(role: SystemRole = 'ADMIN') {
 async function openTaskDialog(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /Novo/ }));
   await user.click(await screen.findByRole('menuitem', { name: /Tarefa/ }));
-  await screen.findByLabelText('Título *');
+  // O diálogo do cabeçalho agora só escolhe o projeto — o resto é delegado.
+  await screen.findByLabelText('Projeto *');
 }
 
 describe('QuickAdd menu — RBAC', () => {
   beforeEach(() => {
     listProjectsMock.mockResolvedValue(PROJECTS);
-    createTaskMock.mockResolvedValue({ id: 'task-new' });
+    listUsersMock.mockResolvedValue([]);
   });
 
   // CLIENTE é externo: não cria nada, nem tarefa.
@@ -80,24 +95,30 @@ describe('QuickAdd menu — RBAC', () => {
   });
 });
 
+/**
+ * O "Novo → Tarefa" criava tarefa com três campos, enquanto o Backlog abre um
+ * formulário completo. Duas portas para a mesma coisa, com resultados
+ * diferentes — e a do cabeçalho gerava tarefa sem responsável nem prioridade.
+ *
+ * Agora este diálogo é só o que ele tem de exclusivo (escolher o projeto, que
+ * nas telas de projeto vem da rota) e delega ao mesmo `TaskFormDialog`.
+ */
 describe('QuickAdd task form', () => {
   beforeEach(() => {
     listProjectsMock.mockResolvedValue(PROJECTS);
-    createTaskMock.mockResolvedValue({ id: 'task-new' });
+    listUsersMock.mockResolvedValue([{ id: 'u-1', name: 'Marina', isActive: true }]);
+    postMock.mockResolvedValue({ id: 'task-new', title: 'Revisar protocolo' });
   });
 
-  it('should keep submit disabled until a project and a title are provided', async () => {
+  it('should keep the continue button disabled until a project is chosen', async () => {
     const user = userEvent.setup();
     setup();
 
     await openTaskDialog(user);
-    expect(screen.getByRole('button', { name: 'Criar tarefa' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeDisabled();
 
     await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    expect(screen.getByRole('button', { name: 'Criar tarefa' })).toBeDisabled();
-
-    await user.type(screen.getByLabelText('Título *'), 'Revisar protocolo');
-    expect(screen.getByRole('button', { name: 'Criar tarefa' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeEnabled();
   });
 
   it('should not offer projects that are already closed', async () => {
@@ -110,74 +131,48 @@ describe('QuickAdd task form', () => {
     expect(screen.queryByRole('option', { name: 'Projeto Encerrado' })).not.toBeInTheDocument();
   });
 
-  it('should create the task on the chosen project with the auth token', async () => {
+  // O ponto da tarefa: o formulário que abre é o MESMO do Backlog, com os
+  // campos que o antigo não tinha.
+  it('should open the full backlog form once a project is chosen', async () => {
     const user = userEvent.setup();
     setup();
 
     await openTaskDialog(user);
     await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    await user.type(screen.getByLabelText('Título *'), 'Revisar protocolo');
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
-    await waitFor(() => expect(createTaskMock).toHaveBeenCalled());
-    const [projectId, payload, token] = createTaskMock.mock.calls[0];
-    expect(projectId).toBe('proj-1');
-    expect(payload).toMatchObject({ title: 'Revisar protocolo' });
-    expect(token).toBe(TEST_TOKEN);
-    expect(toastSuccessMock).toHaveBeenCalled();
+    expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
+    expect(screen.getByLabelText('Responsável')).toBeInTheDocument();
+    expect(screen.getByLabelText('Prioridade')).toBeInTheDocument();
   });
 
-  it('should trim the title before sending it', async () => {
+  it('should create the task on the chosen project', async () => {
     const user = userEvent.setup();
     setup();
 
     await openTaskDialog(user);
     await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    await user.type(screen.getByLabelText('Título *'), '   Revisar protocolo   ');
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
-    await waitFor(() => expect(createTaskMock).toHaveBeenCalled());
-    expect(createTaskMock.mock.calls[0][1].title).toBe('Revisar protocolo');
+    await user.type(await screen.findByLabelText('Título *'), 'Revisar protocolo');
+    await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    expect(postMock.mock.calls[0][0]).toBe('/projects/proj-1/tasks');
+    expect(postMock.mock.calls[0][1]).toMatchObject({ title: 'Revisar protocolo' });
   });
 
-  it('should omit the due date entirely when it is left empty', async () => {
+  // A lista de gente vem de `GET /users`, que CLIENTE não pode chamar. A falha
+  // não pode derrubar o formulário — ela só deixa o select de responsável vazio.
+  it('should still open the form when the people list cannot be loaded', async () => {
     const user = userEvent.setup();
+    listUsersMock.mockRejectedValue(new ApiError(['Forbidden resource'], 403));
     setup();
 
     await openTaskDialog(user);
     await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    await user.type(screen.getByLabelText('Título *'), 'Revisar protocolo');
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
-    await waitFor(() => expect(createTaskMock).toHaveBeenCalled());
-    expect(createTaskMock.mock.calls[0][1]).not.toHaveProperty('dueDate');
-  });
-
-  it('should include the due date when one is chosen', async () => {
-    const user = userEvent.setup();
-    setup();
-
-    await openTaskDialog(user);
-    await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    await user.type(screen.getByLabelText('Título *'), 'Revisar protocolo');
-    await user.type(screen.getByLabelText('Prazo'), '2026-09-15');
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
-
-    await waitFor(() => expect(createTaskMock).toHaveBeenCalled());
-    expect(createTaskMock.mock.calls[0][1].dueDate).toBe('2026-09-15');
-  });
-
-  it('should report the error and keep the dialog open when creation fails', async () => {
-    const user = userEvent.setup();
-    createTaskMock.mockRejectedValue(new ApiError(['Forbidden resource'], 403));
-    setup();
-
-    await openTaskDialog(user);
-    await user.selectOptions(screen.getByLabelText('Projeto *'), 'proj-1');
-    await user.type(screen.getByLabelText('Título *'), 'Revisar protocolo');
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
-
-    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Forbidden resource'));
-    expect(screen.getByLabelText('Título *')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
   });
 });
