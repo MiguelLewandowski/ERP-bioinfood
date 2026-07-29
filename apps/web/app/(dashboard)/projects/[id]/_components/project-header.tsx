@@ -17,7 +17,7 @@ export function ProjectHeader({ name, status, projectId, client }: ProjectHeader
     <div className="border-b border-border bg-card px-6 pb-4 pt-5">
       <RegisterBreadcrumbLabel id={projectId} label={name} />
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="truncate text-xl font-bold text-foreground">{name}</h1>
+        <h1 title={name} className="truncate text-xl font-bold text-foreground">{name}</h1>
         <StatusBadge status={status} />
         {client && (
           <Link

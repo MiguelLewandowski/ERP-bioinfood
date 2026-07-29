@@ -122,7 +122,9 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* `grid-cols-4` fixo espremia os quatro números em telas estreitas — as
+          demais abas já usavam esta escada. */}
+      <div className="grid gap-3 mb-6 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'A fazer',      value: stats.todo,       color: 'hsl(var(--muted-foreground))' },
           { label: 'Em andamento', value: stats.inProgress, color: 'hsl(var(--primary))' },

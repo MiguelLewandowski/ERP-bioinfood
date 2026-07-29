@@ -48,11 +48,17 @@ export function Breadcrumbs() {
         return (
           <span key={crumb.href} className="flex min-w-0 items-center gap-1.5">
             {i > 0 && <ChevronRight size={13} className="shrink-0 text-muted-foreground" />}
+            {/* `title` em todos: o rótulo é truncado por CSS, e nome de projeto
+                passa de 240px com frequência — sem isso não há como ler o nome
+                inteiro em lugar nenhum da tela. */}
             {isLast ? (
-              <span className="max-w-[240px] truncate font-medium text-foreground">{crumb.label}</span>
+              <span title={crumb.label} className="max-w-[240px] truncate font-medium text-foreground">
+                {crumb.label}
+              </span>
             ) : (
               <Link
                 href={crumb.href}
+                title={crumb.label}
                 className="max-w-[200px] truncate text-muted-foreground transition-colors hover:text-primary"
               >
                 {crumb.label}
