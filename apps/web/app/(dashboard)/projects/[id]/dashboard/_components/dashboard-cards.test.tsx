@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { renderWithProviders, screen } from '@/lib/test-utils';
-import type { AssigneeLoad, TaskMetrics } from '@/lib/project-metrics';
+import type { AssigneeLoad, ScheduleHealth, TaskMetrics } from '@/lib/project-metrics';
 import { AssigneeLoadCard } from './assignee-load-card';
 import { TasksCard } from './tasks-card';
+import { ScheduleCard } from './schedule-card';
 
 function metrics(over: Partial<TaskMetrics> = {}): TaskMetrics {
   return {
@@ -109,5 +110,57 @@ describe('AssigneeLoadCard — ordem', () => {
     renderWithProviders(<AssigneeLoadCard loads={[]} />);
 
     expect(screen.getByText('Nenhuma tarefa atribuída ainda.')).toBeInTheDocument();
+  });
+});
+
+/**
+ * O desvio de cronograma é o número que decide se alguém age, e ficava como
+ * texto cinza de rodapé — do mesmo peso do aviso de linha de base.
+ */
+describe('ScheduleCard — peso do desvio', () => {
+  function schedule(over: Partial<ScheduleHealth> = {}): ScheduleHealth {
+    return {
+      startDate: '2026-01-05',
+      endDate: '2026-12-31',
+      forecastEndDate: '2027-01-12',
+      driftDays: 12,
+      status: 'LATE',
+      hasBaseline: true,
+      ...over,
+    };
+  }
+
+  it('should print the drift as a signed number', () => {
+    renderWithProviders(<ScheduleCard schedule={schedule()} />);
+
+    expect(screen.getByText('+12')).toBeInTheDocument();
+  });
+
+  it('should not sign a negative drift twice', () => {
+    renderWithProviders(<ScheduleCard schedule={schedule({ driftDays: -5, status: 'ON_TRACK' })} />);
+
+    expect(screen.getByText('-5')).toBeInTheDocument();
+  });
+
+  // Badge e bloco de desvio são duas leituras do MESMO estado: discordar de cor
+  // faria a tela dizer duas coisas ao mesmo tempo.
+  it('should tone the drift block with the schedule status', () => {
+    renderWithProviders(<ScheduleCard schedule={schedule({ driftDays: 3, status: 'AT_RISK' })} />);
+
+    expect(screen.getByText('+3').parentElement).toHaveClass('bg-warning/20');
+  });
+
+  it('should tone a late schedule as destructive', () => {
+    renderWithProviders(<ScheduleCard schedule={schedule({ driftDays: 12, status: 'LATE' })} />);
+
+    expect(screen.getByText('+12').parentElement).toHaveClass('bg-destructive/10');
+  });
+
+  // Sem as duas datas não há desvio para exibir — e um "0" ali mentiria.
+  it('should explain what is missing instead of showing a fake zero', () => {
+    renderWithProviders(<ScheduleCard schedule={schedule({ driftDays: null, status: 'UNKNOWN' })} />);
+
+    expect(screen.getByText(/Defina a data de término/)).toBeInTheDocument();
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 });
