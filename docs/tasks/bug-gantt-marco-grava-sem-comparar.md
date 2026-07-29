@@ -2,12 +2,29 @@
 tipo: bug
 escopo: web
 complexidade: baixa
-status: aberta
+status: concluída
+concluida: 2026-07-29
 criada: 2026-07-28
 tema: cronograma
 ---
 
 # Aplicar o PATCH condicional também aos marcos no Gantt
+
+> ✅ **Concluída em 2026-07-29.** Implementada como planejado: `milestones` nas
+> `Options`, `MilestoneSnapshot` + `lastPersistedMilestone`, comparação antes de
+> enviar. Testes em `use-gantt-persistence.test.tsx`, com o `fakeGanttApi` que
+> esta tarefa sugeriu.
+>
+> **⚠️ Achado que contraria o "Fora de escopo" desta tarefa:** o ramo de TAREFA
+> **não estava correto**. `snapshotOf` semeava o snapshot com
+> `dayKey(dto.startDate)`, que faz `new Date(string)` — e o ISO de meia-noite UTC
+> da API vira 21h do dia ANTERIOR em Brasília, enquanto a store, montada por
+> `toGanttDate`, calculava o dia certo. Os dois nunca batiam, então o PATCH
+> condicional **se anulava para datas**: renomear uma tarefa reenviava
+> `startDate` e `dueDate` junto — exatamente o que o guard existe para impedir.
+>
+> Corrigido com `dtoDayKey`, que amarra a semeadura à mesma conversão da store.
+> Coberto por `should not resend dates when only the title changed`.
 
 ## Anotação original
 > Marcos (Milestone) ainda não têm PATCH condicional no `use-gantt-persistence`.

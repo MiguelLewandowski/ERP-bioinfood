@@ -307,7 +307,8 @@ function GanttBoard({
   const markers = useMemo(() => buildMarkers(projectEnd, ganttTasks), [projectEnd, ganttTasks]);
 
   const { menuHandler } = useGanttPersistence(api, {
-    editable, projectId, token, links: ganttLinks, tasks, onError: onSaveError, onEditTask,
+    editable, projectId, token, links: ganttLinks, tasks, milestones,
+    onError: onSaveError, onEditTask,
   });
 
   if (ganttTasks.length === 0) {

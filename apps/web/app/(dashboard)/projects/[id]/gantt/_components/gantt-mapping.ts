@@ -20,7 +20,7 @@ import { buildWbsIndex } from '@/lib/project-wbs';
  * `new Date()` cru a jogaria para 21h do dia anterior. Com hora, o instante é a
  * informação, e vai inteiro: a barra começa no meio do dia, como deve.
  */
-function toGanttDate(value: string): Date {
+export function toGanttDate(value: string): Date {
   return hasTimeComponent(value) ? new Date(value) : parseCalendarDate(value);
 }
 

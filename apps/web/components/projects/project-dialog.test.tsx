@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, TEST_TOKEN } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent, TEST_TOKEN } from '@/lib/test-utils';
 import ProjectDialog from './project-dialog';
 
 const createMock = vi.fn();
@@ -59,7 +59,9 @@ describe('ProjectDialog', () => {
     const user = userEvent.setup();
     setup();
 
-    await user.type(screen.getByLabelText('Nome *'), 'x'.repeat(201));
+    // Ver docs/tasks/test-suite-web-instavel-sob-carga.md: 201 caracteres tecla a
+    // tecla estouravam o timeout sob carga. O zod valida no submit, não por tecla.
+    fireEvent.change(screen.getByLabelText('Nome *'), { target: { value: 'x'.repeat(201) } });
     await user.click(screen.getByRole('button', { name: 'Criar Projeto' }));
 
     expect(
