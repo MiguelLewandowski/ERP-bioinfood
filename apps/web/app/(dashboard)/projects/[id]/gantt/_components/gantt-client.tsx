@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Gantt, Editor, Tooltip, ContextMenu, Willow,
@@ -8,16 +8,18 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus } from 'lucide-react';
-import type { TaskDto as Task, MilestoneDto as Milestone } from '@bioinfood/shared';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers } from 'lucide-react';
+import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { projectsApi } from '@/lib/api-hooks';
+import { cn } from '@/lib/utils';
 import type { ProjectMember } from '@/lib/project-members';
 import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
 import {
-  EDITABLE_ROLES, BASELINE_ROLES,
-  buildGanttTasks, buildGanttLinks, buildMarkers, scales, columns,
+  EDITABLE_ROLES, BASELINE_ROLES, ZOOM_LEVELS, DEFAULT_ZOOM_LEVEL, zoomConfig,
+  buildGanttTasks, buildGanttLinks, buildMarkers, buildGroupLabels, scales, columns,
+  type ZoomLevelId,
 } from './gantt-mapping';
 import { useGanttPersistence } from './use-gantt-persistence';
 import { ganttLocalePt } from './gantt-locale-pt';
@@ -26,6 +28,7 @@ interface GanttClientProps {
   projectId: string;
   tasks: Task[];
   milestones: Milestone[];
+  wbsNodes: WbsNodeDto[];
   members: ProjectMember[];
   projectStart: string | null;
   projectEnd: string | null;
@@ -46,6 +49,11 @@ export function GanttClient(props: GanttClientProps) {
   const [baselineBusy, setBaselineBusy] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevelId>(DEFAULT_ZOOM_LEVEL);
+  const [showCriticalPath, setShowCriticalPath] = useState(false);
+  const [grouped, setGrouped] = useState(true);
+  // Instância da SVAR erguida do board: o botão "Hoje" vive na barra de cima.
+  const apiRef = useRef<any>(null);
 
   // Recarrega o board a partir do servidor após criar/editar/excluir uma
   // tarefa pelo TaskFormDialog (mesmo dialog do Kanban/Backlog).
@@ -96,6 +104,62 @@ export function GanttClient(props: GanttClientProps) {
 
   return (
     <div className="flex flex-col">
+      {/* Controles de VISUALIZAÇÃO — valem para todo perfil, inclusive CLIENTE:
+          não escrevem nada, só mudam o que se enxerga. As ações de escrita ficam
+          na barra de baixo, atrás do `editable`. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+          {ZOOM_LEVELS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setZoomLevel(id)}
+              aria-pressed={zoomLevel === id}
+              className={cn(
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                zoomLevel === id
+                  ? 'bg-white text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => apiRef.current?.exec('scroll-chart', { date: new Date() })}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
+          >
+            <CalendarClock size={13} /> Hoje
+          </button>
+          <button
+            onClick={() => setGrouped((v) => !v)}
+            aria-pressed={grouped}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              grouped
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
+            )}
+          >
+            <Layers size={13} /> Agrupar por pacote
+          </button>
+          <button
+            onClick={() => setShowCriticalPath((v) => !v)}
+            aria-pressed={showCriticalPath}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              showCriticalPath
+                ? 'border-destructive bg-destructive/10 text-destructive'
+                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
+            )}
+          >
+            <Route size={13} /> Caminho crítico
+          </button>
+        </div>
+      </div>
+
       {editable && (
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
           {canBaseline ? (
@@ -144,10 +208,30 @@ export function GanttClient(props: GanttClientProps) {
           </button>
         </div>
       )}
+      {/* Legenda: sem ela a barra-fantasma da linha de base parece defeito de
+          renderização, e a cor por status não se explica sozinha. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 bg-gray-50 px-4 py-1.5 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><i className="gt-swatch-todo h-2 w-4 rounded-sm" /> A fazer</span>
+        <span className="flex items-center gap-1.5"><i className="gt-swatch-doing h-2 w-4 rounded-sm" /> Em andamento</span>
+        <span className="flex items-center gap-1.5"><i className="gt-swatch-done h-2 w-4 rounded-sm" /> Concluída</span>
+        <span className="flex items-center gap-1.5"><i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base</span>
+        {showCriticalPath && (
+          <span className="flex items-center gap-1.5 font-medium text-destructive">
+            <i className="h-2 w-4 rounded-sm bg-destructive" /> Caminho crítico
+          </span>
+        )}
+      </div>
+
       <GanttBoard
-        key={reloadKey}
+        // Remonta ao trocar zoom/agrupamento/caminho crítico: a store da SVAR lê
+        // essas configs na inicialização, não a cada render.
+        key={`${reloadKey}-${zoomLevel}-${grouped}-${showCriticalPath}`}
         {...props}
         editable={editable}
+        zoomLevel={zoomLevel}
+        grouped={grouped}
+        showCriticalPath={showCriticalPath}
+        onApi={(a) => { apiRef.current = a; }}
         onSaveError={handleSaveError}
         onEditTask={setEditingTaskId}
       />
@@ -185,12 +269,17 @@ export function GanttClient(props: GanttClientProps) {
 
 interface GanttBoardProps extends GanttClientProps {
   editable: boolean;
+  zoomLevel: ZoomLevelId;
+  grouped: boolean;
+  showCriticalPath: boolean;
+  onApi: (api: any) => void;
   onSaveError: () => void;
   onEditTask: (taskId: string) => void;
 }
 
 function GanttBoard({
-  projectId, tasks, milestones, projectEnd, editable, onSaveError, onEditTask,
+  projectId, tasks, milestones, wbsNodes, projectEnd, editable,
+  zoomLevel, grouped, showCriticalPath, onApi, onSaveError, onEditTask,
 }: GanttBoardProps) {
   const { token } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -198,7 +287,19 @@ function GanttBoard({
 
   useEffect(() => { setMounted(true); }, []);
 
-  const ganttTasks = useMemo(() => buildGanttTasks(tasks, milestones), [tasks, milestones]);
+  // Abre já mostrando hoje. Um projeto de 2 anos abria em jul/25 e obrigava a
+  // rolar até o presente antes de enxergar qualquer coisa em andamento.
+  useEffect(() => {
+    if (!api) return;
+    onApi(api);
+    api.exec('scroll-chart', { date: new Date() });
+  }, [api, onApi]);
+
+  const groupLabels = useMemo(() => buildGroupLabels(tasks, wbsNodes), [tasks, wbsNodes]);
+  const ganttTasks = useMemo(
+    () => buildGanttTasks(tasks, milestones, groupLabels),
+    [tasks, milestones, groupLabels],
+  );
   const ganttLinks = useMemo(() => {
     const visibleIds = new Set(ganttTasks.map((t) => String(t.id)));
     return buildGanttLinks(tasks, visibleIds);
@@ -248,10 +349,16 @@ function GanttBoard({
             scales={scales}
             columns={columns}
             markers={markers}
-            criticalPath={{ type: 'flexible' }}
+            // O caminho crítico SEMPRE foi calculado — o que faltava era poder
+            // desligá-lo. Ligado o tempo todo, ele compete com a cor de status.
+            criticalPath={showCriticalPath ? { type: 'flexible' } : null}
+            // `groupBy` nativo da SVAR: os cabeçalhos de pacote são linhas
+            // gerenciadas pela lib, não sintetizadas aqui. `taskHierarchy`
+            // preserva a hierarquia de subtarefas dentro de cada grupo.
+            groupBy={grouped ? { field: 'group', taskHierarchy: true, ungrouped: 'bottom' } : null}
             baselines
             readonly={!editable}
-            zoom
+            zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}
           />
         </div>
         {api && <Tooltip api={api} />}
