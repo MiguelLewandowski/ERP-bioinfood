@@ -161,7 +161,9 @@ describe('CharterClient — estado de salvamento', () => {
       <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
     );
 
-    await user.type(screen.getByPlaceholderText(/Subvenção/), 'P&D Interno');
+    // "Tipo" virou lista fechada — o autosave se exercita num campo de texto.
+    await user.click(screen.getByRole('button', { name: /Contexto e Justificativa/ }));
+    await user.type(screen.getByPlaceholderText(/Qual o problema/), 'Custo alto');
 
     expect(screen.getByText('Alterações não salvas')).toBeInTheDocument();
     expect(upsertMock).not.toHaveBeenCalled();
@@ -173,7 +175,9 @@ describe('CharterClient — estado de salvamento', () => {
       <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
     );
 
-    await user.type(screen.getByPlaceholderText(/Subvenção/), 'P&D Interno');
+    // "Tipo" virou lista fechada — o autosave se exercita num campo de texto.
+    await user.click(screen.getByRole('button', { name: /Contexto e Justificativa/ }));
+    await user.type(screen.getByPlaceholderText(/Qual o problema/), 'Custo alto');
     await user.tab();
 
     await waitFor(() => expect(upsertMock).toHaveBeenCalled());
@@ -293,5 +297,35 @@ describe('CharterClient — dia de calendário vs instante', () => {
     );
 
     expect(screen.getByText(/Aprovado em 01\/10\/2026/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * "Tipo" era campo de texto livre. Virou lista fechada com os cinco tipos
+ * pedidos na reunião de 28/07/2026 — mas `Charter.projectType` continua
+ * `String?` no banco, então valor antigo fora da lista precisa sobreviver.
+ */
+describe('CharterClient — tipo de projeto', () => {
+  it('should offer the five agreed project types', () => {
+    renderWithProviders(<CharterClient projectId="proj-1" initialData={null} project={PROJECT} />);
+
+    // Tipo é o primeiro dos dois selects da seção (o outro é Prioridade).
+    const [tipo] = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    const options = Array.from(tipo.options).map((o) => o.value).filter(Boolean);
+    expect(options).toEqual(['Interno', 'Parceria', 'Contrato', 'Serviço', 'Subvenção']);
+  });
+
+  // Sem isto o select apareceria vazio e o primeiro salvamento apagaria o que
+  // o usuário já tinha escrito à mão.
+  it('should keep a legacy free-text value selectable', () => {
+    const charter = {
+      projectType: 'P&D Interno (texto antigo)',
+      team: [],
+    } as unknown as Parameters<typeof CharterClient>[0]['initialData'];
+
+    renderWithProviders(<CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />);
+
+    expect(screen.getByRole('option', { name: 'P&D Interno (texto antigo)' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('P&D Interno (texto antigo)')).toBeInTheDocument();
   });
 });

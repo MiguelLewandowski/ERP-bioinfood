@@ -30,6 +30,15 @@ import { buildCharterHtml } from '@/lib/charter-report';
 
 const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
 
+// Tipos pedidos na reunião de 28/07/2026. Ficam como LISTA na tela, não como
+// `enum` no banco: `Charter.projectType` já é `String?` livre e converter a
+// coluna exigiria migrar os valores já gravados, sem ganho — a validação que
+// importa (o usuário escolher em vez de digitar) mora aqui.
+//
+// Valor antigo fora desta lista continua sendo exibido e preservado — ver o
+// `legacyOption` no render do campo.
+const PROJECT_TYPE_OPTIONS = ['Interno', 'Parceria', 'Contrato', 'Serviço', 'Subvenção'] as const;
+
 // Mesmas faixas de `riskBand` (lib/project-metrics.ts) — a bolinha do TAP não
 // pode discordar da cor que a aba Riscos usa para o mesmo risco.
 const RISK_DOT: Record<string, string> = {
@@ -136,7 +145,7 @@ const SECTIONS: Array<{
     icon: Info,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1, half: true },
+      { key: 'projectType', label: 'Tipo', options: PROJECT_TYPE_OPTIONS, half: true },
       { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS, half: true },
     ],
   },
@@ -719,7 +728,14 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
             {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
                 que são curtos, dividem a linha. */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => (
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => {
+                // Valor gravado antes de o campo virar lista fechada. Sem esta
+                // opção o `<select>` apareceria vazio e o primeiro salvamento
+                // apagaria o que o usuário tinha escrito.
+                const current = (values[key] ?? '').toString();
+                const legacyOption = options && current && !options.includes(current) ? current : null;
+
+                return (
                 <div key={key} className={half ? undefined : 'col-span-2'}>
                   <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
                   {options ? (
@@ -728,6 +744,7 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
                       className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
                     >
                       <option value="">—</option>
+                      {legacyOption && <option value={legacyOption}>{legacyOption}</option>}
                       {options.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : rows === 1 ? (
@@ -745,7 +762,8 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
                     />
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </form>
