@@ -119,6 +119,9 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
     // Confirmação antes de excluir — `intercept` roda antes da mutação ser
     // aplicada na store; retornar `false` (ou Promise<false>) cancela a ação.
     api.intercept('delete-task', (ev: any) => {
+      // Grupo não é entidade: cancela antes de perguntar, senão a confirmação
+      // promete uma exclusão que não vai acontecer.
+      if (!isMilestoneId(ev.id) && !isRealTask(ev.id)) return false;
       const label = isMilestoneId(ev.id) ? 'este marco' : 'esta atividade';
       return confirm({
         title: `Excluir ${label}?`,
@@ -130,6 +133,29 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
 
     const resolveTaskId = (id: unknown) => taskIdMap.current.get(String(id)) ?? String(id);
 
+    /**
+     * A linha corresponde a uma tarefa que existe no backend?
+     *
+     * Guardar por PREFIXO (`ms-`) cobria marcos, mas não linhas de GRUPO: com o
+     * `groupBy` da SVAR ligado, o cabeçalho de cada pacote da EAP é uma linha na
+     * store com id gerado pela própria lib, que não segue convenção nossa. Sem
+     * esta guarda, `persistOrder` mandava esses ids para `/tasks/reorder` e
+     * `currentParentId` os gravava como `parentId` — escrita não controlada, a
+     * mesma classe do `<Toolbar>` removido no incidente de fuso.
+     *
+     * Perguntar "isto é uma tarefa?" cobre marco, grupo e qualquer linha
+     * sintética que venha a existir, sem depender de convenção de id.
+     */
+    const isRealTask = (id: unknown): boolean => {
+      if (id == null || id === 0 || isMilestoneId(id)) return false;
+      const key = String(id);
+      // Recém-criada nesta sessão: já tem id real, mas `tasks` só reflete depois
+      // do refresh do servidor.
+      if (taskIdMap.current.has(key)) return true;
+      const resolved = resolveTaskId(id);
+      return allTasksRef.current.some((t) => t.id === resolved);
+    };
+
     // Editor unificado: duplo-clique numa barra (ou "Editar" no menu de
     // contexto) dispara `show-editor`. Para tarefas, cancela o painel nativo
     // da SVAR (que não tem prioridade/responsável/story points/checklist) e
@@ -137,14 +163,22 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
     // continuam no editor nativo, que já dá conta de nome/data/atingido.
     api.intercept('show-editor', (ev: any) => {
       if (isMilestoneId(ev.id)) return true;
+      // Cabeçalho de pacote não tem o que editar — abrir o dialog para um id
+      // que não é tarefa daria um modal vazio.
+      if (!isRealTask(ev.id)) return false;
       onEditTask(resolveTaskId(ev.id));
       return false;
     });
 
     // Pai atual da tarefa na store (0 = raiz → null no backend).
+    //
+    // Com agrupamento ligado, o pai de uma tarefa de primeiro nível é a linha do
+    // PACOTE, não outra tarefa. Gravar aquele id como `parentId` criaria uma
+    // subtarefa de algo que não existe — por isso pai que não é tarefa vira
+    // `null`, que é a verdade: a tarefa está na raiz.
     const currentParentId = (id: unknown): string | null => {
       const parent = api.getTask?.(id)?.parent;
-      return parent && parent !== 0 ? resolveTaskId(parent) : null;
+      return isRealTask(parent) ? resolveTaskId(parent) : null;
     };
 
     api.on('update-task', (ev: any) => {
@@ -160,6 +194,10 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
         milestonesApi.update(projectId, stripMs(ev.id), data, token).catch(onError);
         return;
       }
+
+      // Linha de grupo (cabeçalho de pacote da EAP) não é Task: recalcular suas
+      // datas ao mover um filho dispara `update-task` para ela também.
+      if (!isRealTask(ev.id)) return;
 
       // PATCH condicional: a SVAR emite o objeto inteiro da tarefa a cada
       // `update-task`, não só o campo mexido. Enviar tudo fazia uma edição de
@@ -227,7 +265,7 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
 
     // Reparentar (arrastar para dentro / indentar) → persiste o novo pai.
     const persistParent = (ev: any) => {
-      if (ev.inProgress || isMilestoneId(ev.id)) return;
+      if (ev.inProgress || !isRealTask(ev.id)) return;
       tasksApi
         .update(projectId, resolveTaskId(ev.id), { parentId: currentParentId(ev.id) }, token)
         .catch(onError);
@@ -246,7 +284,10 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
     const persistOrder = (ev: any) => {
       if (ev.inProgress) return;
       const flat = api.getState().tasks.toArray() as Array<{ id: unknown }>;
-      const orderedIds = flat.filter((t) => !isMilestoneId(t.id)).map((t) => resolveTaskId(t.id));
+      // `toArray()` devolve a árvore ACHATADA — com agrupamento ligado, isso
+      // inclui os cabeçalhos de pacote. Filtrar só marcos deixava passar id de
+      // grupo para `/tasks/reorder`, que gravaria ordem em tarefa inexistente.
+      const orderedIds = flat.filter((t) => isRealTask(t.id)).map((t) => resolveTaskId(t.id));
       const orderedSet = new Set(orderedIds);
       const remainingIds = allTasksRef.current
         .filter((t) => !orderedSet.has(t.id))
@@ -266,6 +307,7 @@ export function useGanttPersistence(api: any, opts: Options): PersistenceHandles
         milestonesApi.remove(projectId, stripMs(ev.id), token).catch(onError);
         return;
       }
+      if (!isRealTask(ev.id)) return;
       tasksApi.remove(projectId, resolveTaskId(ev.id), token).catch(onError);
     });
 
