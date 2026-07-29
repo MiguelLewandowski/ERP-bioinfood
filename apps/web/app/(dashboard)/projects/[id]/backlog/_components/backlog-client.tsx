@@ -14,6 +14,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-ki
 import { Plus, UserX, X } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
+import { taskOrderDelta } from '@/lib/task-order';
 import { BacklogRow } from './backlog-row';
 import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
 import type { ProjectMember } from '@/lib/project-members';
@@ -78,9 +79,20 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
     const oldIdx = tasks.findIndex((t) => t.id === active.id);
     const newIdx = tasks.findIndex((t) => t.id === over.id);
     const reordered = arrayMove(tasks, oldIdx, newIdx);
-    setTasks(reordered);
 
-    await api.patch(`/projects/${projectId}/tasks/reorder`, { items: reordered.map((t, i) => ({ id: t.id, order: i })) }, token);
+    // Só as linhas cujo `order` mudou de verdade. O mesmo helper do Gantt: os
+    // dois gravam no mesmo campo global e divergir aqui é como eles brigariam.
+    const items = taskOrderDelta(
+      reordered.map((t) => t.id),
+      (id) => tasks.find((t) => t.id === id)?.order,
+    );
+
+    // O estado local carrega o `order` novo: sem isso o próximo arrastar
+    // compararia contra valores velhos e poderia pular uma linha.
+    setTasks(reordered.map((t, i) => (t.order === i ? t : { ...t, order: i })));
+
+    if (items.length === 0) return;
+    await api.patch(`/projects/${projectId}/tasks/reorder`, { items }, token);
   }
 
   function onTaskCreated(task: Task) {
