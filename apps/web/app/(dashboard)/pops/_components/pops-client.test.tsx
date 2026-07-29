@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { PopDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, within, TEST_TOKEN } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, within, fireEvent, TEST_TOKEN } from '@/lib/test-utils';
 import { PopsClient } from './pops-client';
 
 const createMock = vi.fn();
@@ -81,7 +81,9 @@ describe('PopsClient form', () => {
     setup();
 
     await openForm(user);
-    await user.type(screen.getByLabelText('Título *'), 'x'.repeat(201));
+    // Ver docs/tasks/test-suite-web-instavel-sob-carga.md: 201 caracteres tecla a
+    // tecla estouravam o timeout sob carga. O zod valida no submit, não por tecla.
+    fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'x'.repeat(201) } });
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(

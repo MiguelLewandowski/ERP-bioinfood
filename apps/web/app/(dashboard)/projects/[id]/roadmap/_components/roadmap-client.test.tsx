@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { MilestoneDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, TEST_TOKEN } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent, TEST_TOKEN } from '@/lib/test-utils';
 import { RoadmapClient } from './roadmap-client';
 
 const postMock = vi.fn();
@@ -63,7 +63,11 @@ describe('RoadmapClient milestone form', () => {
     setup();
 
     await openForm(user);
-    await user.type(screen.getByLabelText('Título *'), 'x'.repeat(201));
+    // 201 caracteres tecla a tecla = ~800 eventos e ~200 renders do
+    // react-hook-form, o que estourava o timeout de 5s quando os workers do
+    // Vitest disputavam CPU. O que este teste garante — o zod rejeitar acima de
+    // 200 — não depende de digitação: a validação roda no submit.
+    fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'x'.repeat(201) } });
     await user.type(screen.getByLabelText('Data *'), '2026-10-01');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 

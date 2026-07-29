@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { CrmActivityDto, UserDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, TEST_TOKEN, TEST_SESSION } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent, TEST_TOKEN, TEST_SESSION } from '@/lib/test-utils';
 import { TaskDialog } from './task-dialog';
 
 const createMock = vi.fn();
@@ -87,7 +87,9 @@ describe('TaskDialog — create mode', () => {
     const user = userEvent.setup();
     setup();
 
-    await user.type(screen.getByLabelText('Título *'), 'x'.repeat(201));
+    // Ver docs/tasks/test-suite-web-instavel-sob-carga.md: 201 caracteres tecla a
+    // tecla estouravam o timeout sob carga. O zod valida no submit, não por tecla.
+    fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'x'.repeat(201) } });
     await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
 
     expect(await screen.findByText('Máximo de 200 caracteres')).toBeInTheDocument();
