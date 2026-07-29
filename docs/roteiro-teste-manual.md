@@ -185,6 +185,40 @@ Com o **agrupamento ligado**:
 - [ ] A página do Gantt **não** rola verticalmente como um todo; quem rola é a
       grade
 
+### 7.8 "Novo → Tarefa" do cabeçalho
+
+> Ele criava tarefa com três campos, enquanto o Backlog abre o formulário
+> completo. Agora só escolhe o projeto e delega ao **mesmo** formulário.
+
+- [ ] "Novo → Tarefa" → diálogo pede **só o projeto**
+- [ ] "Continuar" abre o formulário completo (responsável, prioridade,
+      story points, checklist, POPs…)
+- [ ] Criar a tarefa → toast com atalho "Ver kanban"
+- [ ] A tarefa aparece no projeto escolhido, com os campos preenchidos
+
+### 7.9 Calendário de Atividades
+
+- [ ] Semana com **4+ atividades no mesmo dia** → a linha da semana **cresce** e
+      mostra todas, sem "+N mais"
+- [ ] Semana tranquila continua com a altura de antes (não fica esparsa)
+- [ ] Semana com mais de 8 trilhas → volta a aparecer "+N mais" (teto para uma
+      semana atípica não empurrar o resto para fora da tela)
+
+### 7.10 Desfazer no Gantt (⚠️ precisa de verificação especial)
+
+> A SVAR tem desfazer nativo, e a persistência do ERP reage aos eventos da
+> store — então o desfazer **deveria** atravessar até a API pelo caminho já
+> existente. **Não consegui verificar isso sem rodar a aplicação.**
+
+- [ ] Arrastar uma tarefa, apertar **Ctrl+Z** → a barra volta ao lugar
+- [ ] **Dar F5 depois do Ctrl+Z** → a barra continua no lugar original.
+      **Este é o teste que importa**: se ela voltar para onde foi arrastada, o
+      desfazer só mexeu na tela e não chegou ao servidor
+- [ ] **Ctrl+Shift+Z** refaz
+- [ ] Botão "Desfazer" na barra faz o mesmo que o atalho
+- [ ] Ctrl+Z **dentro de um campo de texto** desfaz a digitação, não o Gantt
+- [ ] Perfil CLIENTE não vê o botão
+
 ---
 
 ## Estado da sessão
@@ -208,16 +242,33 @@ Feitas:
 - [x] `feat-multiplos-responsaveis-risco`
 - [x] `feat-multiplos-responsaveis-tarefa`
 
-Pendentes:
+- [x] `feat-padronizar-form-nova-tarefa`
+- [x] `feat-calendario-mostrar-mais-atividades`
+- [x] `feat-gantt-ctrl-z` — nativo da SVAR; **ver ressalva em §7.10**
 
-- [ ] `feat-padronizar-form-nova-tarefa`
-- [ ] `feat-calendario-mostrar-mais-atividades`
-- [ ] `feat-melhoria-visual-atividades`
-- [ ] `feat-gantt-ctrl-z`
-- [ ] `feat-hierarquia-texto-tap`
-- [ ] `feat-materiais-insumo-recursos-tap`
-- [ ] `feat-checklist-equipamentos-projeto`
-- [ ] `feat-modulo-anotacoes-pessoais`
+Pendentes — **e por que não saíram**:
+
+- [ ] `feat-melhoria-visual-atividades` — a anotação ("o mais visual possível")
+      não define resultado verificável. O próprio doc da tarefa diz que é
+      candidata a `/analisar-uiux`, não a implementação direta.
+- [ ] `feat-hierarquia-texto-tap` — depende de escolher **um** editor rico e um
+      formato de persistência (Markdown? HTML? JSON?), com sanitização contra
+      XSS. É decisão de arquitetura, e a mesma decisão vale para o módulo de
+      anotações — fazer as duas com editores diferentes seria o pior desfecho.
+- [ ] `feat-materiais-insumo-recursos-tap` — depende de saber se insumo vem do
+      catálogo do módulo de estoque ou é texto livre no TAP. Se vier do
+      catálogo, depende da tarefa abaixo.
+- [ ] `feat-checklist-equipamentos-projeto` — módulo novo. Existe um **stub** de
+      estoque no schema (`Product`, `StockMovement`) sem módulo NestJS nem tela;
+      decidir se aproveita, reescreve ou ignora é decisão de arquitetura.
+- [ ] `feat-modulo-anotacoes-pessoais` — módulo novo, e esbarra numa questão de
+      RBAC que não é minha para resolver: **nota "pessoal" que nem ADMIN pode
+      ler contraria o RBAC atual** ("ADMIN sempre passa no RolesGuard"). Isso é
+      decisão de privacidade, não de código.
+
+> As quatro últimas caem na **regra de ouro do `CLAUDE.md`**: decisão que
+> impacta arquitetura, banco ou segurança para, documenta e pergunta. Deixei
+> documentado em vez de escolher por você.
 
 ### Migrations acumuladas em `develop`
 
@@ -230,3 +281,22 @@ Nenhuma exige as duas publicações do procedimento de migration destrutiva.
 As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
 
 *(esta seção é atualizada conforme a sessão avança)*
+
+---
+
+## 8. Stakeholder — contato criado na hora
+
+> Das duas saídas possíveis, escolhi a que **não muda o schema**:
+> `ProjectStakeholder.contactId` continua obrigatório, e o contato passa a ser
+> criado na hora. Deixar o `contactId` nulo com um nome solto tiraria a proteção
+> da `@@unique([projectId, contactId, type])` contra duplicata.
+>
+> O preço é um contato "raso" no CRM (só nome) — reversível, é só completar a
+> ficha depois.
+
+- [ ] Aba Partes Interessadas → adicionar → botão **"Novo"** ao lado do select
+- [ ] Digitar só um nome e clicar "Criar" → o contato é criado e já fica
+      selecionado
+- [ ] **Enter** cria; **Esc** cancela
+- [ ] O contato novo aparece no CRM (Pessoas), com só o nome preenchido
+- [ ] Se o perfil não puder criar contato, aparece erro amigável — não quebra

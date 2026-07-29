@@ -8,7 +8,7 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers } from 'lucide-react';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers, Undo2 } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -98,6 +98,21 @@ export function GanttClient(props: GanttClientProps) {
     return () => clearTimeout(id);
   }, [saveError]);
 
+  // Ctrl+Z / Ctrl+Shift+Z (e ⌘ no Mac). Ignora quando o foco está num campo de
+  // texto: ali o desfazer que o usuário espera é o do próprio input.
+  useEffect(() => {
+    if (!editable) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      apiRef.current?.exec(e.shiftKey ? 'redo' : 'undo', {});
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editable]);
+
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
@@ -150,6 +165,15 @@ export function GanttClient(props: GanttClientProps) {
           >
             <Layers size={13} /> Agrupar por pacote
           </button>
+          {editable && (
+            <button
+              onClick={() => apiRef.current?.exec('undo', {})}
+              title="Desfazer (Ctrl+Z)"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
+            >
+              <Undo2 size={13} /> Desfazer
+            </button>
+          )}
           <button
             onClick={() => setShowCriticalPath((v) => !v)}
             aria-pressed={showCriticalPath}
@@ -366,6 +390,11 @@ function GanttBoard({
             // gerenciadas pela lib, não sintetizadas aqui. `taskHierarchy`
             // preserva a hierarquia de subtarefas dentro de cada grupo.
             groupBy={grouped ? { field: 'group', taskHierarchy: true, ungrouped: 'bottom' } : null}
+            // Desfazer NATIVO da SVAR. A store aplica a mutação inversa, que
+            // reemite `update-task`/`move-task` — os mesmos eventos que
+            // `use-gantt-persistence` escuta. Ou seja: o desfazer atravessa até
+            // a API pelo caminho já existente, sem histórico paralelo nosso.
+            undo={editable}
             baselines
             readonly={!editable}
             zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}
