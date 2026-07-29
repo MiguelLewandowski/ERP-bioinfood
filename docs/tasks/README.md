@@ -37,7 +37,7 @@ Status: **🔍 triagem** = só o esqueleto, tipo/escopo/complexidade são palpit
 - [x] [Permitir mais de um responsável por risco](feat-multiplos-responsaveis-risco.md) — feature · db · média · 🔍 triagem
 
 ### Stakeholders
-- [ ] [Stakeholder: tornar o contato opcional e permitir digitar só o nome](feat-stakeholder-contato-opcional.md) — feature · db · média · 🔍 triagem
+- [x] [Stakeholder: tornar o contato opcional e permitir digitar só o nome](feat-stakeholder-contato-opcional.md) — feature · db · média · 🔍 triagem
 
 ### Atividades
 - [x] [Calendário: ver todas as atividades do dia sem precisar clicar](feat-calendario-mostrar-mais-atividades.md) — feature · web · baixa · 🔍 triagem

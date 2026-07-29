@@ -281,3 +281,22 @@ Nenhuma exige as duas publicações do procedimento de migration destrutiva.
 As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
 
 *(esta seção é atualizada conforme a sessão avança)*
+
+---
+
+## 8. Stakeholder — contato criado na hora
+
+> Das duas saídas possíveis, escolhi a que **não muda o schema**:
+> `ProjectStakeholder.contactId` continua obrigatório, e o contato passa a ser
+> criado na hora. Deixar o `contactId` nulo com um nome solto tiraria a proteção
+> da `@@unique([projectId, contactId, type])` contra duplicata.
+>
+> O preço é um contato "raso" no CRM (só nome) — reversível, é só completar a
+> ficha depois.
+
+- [ ] Aba Partes Interessadas → adicionar → botão **"Novo"** ao lado do select
+- [ ] Digitar só um nome e clicar "Criar" → o contato é criado e já fica
+      selecionado
+- [ ] **Enter** cria; **Esc** cancela
+- [ ] O contato novo aparece no CRM (Pessoas), com só o nome preenchido
+- [ ] Se o perfil não puder criar contato, aparece erro amigável — não quebra
