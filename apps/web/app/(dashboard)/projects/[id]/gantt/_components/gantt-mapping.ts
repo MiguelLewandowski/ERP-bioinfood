@@ -8,8 +8,10 @@ import {
   type TaskStatus,
   type SystemRole,
   type TaskDependencyType,
+  type WbsNodeDto,
 } from '@bioinfood/shared';
 import { hasTimeComponent, parseCalendarDate } from '@/lib/dates';
+import { buildWbsIndex } from '@/lib/project-wbs';
 
 /**
  * Data da API → `Date` para a store da SVAR, preservando hora quando existe.
@@ -75,21 +77,100 @@ export function fmtDuration(value: unknown): string {
   return `${Math.max(1, Math.round(days))}d`;
 }
 
+const MONTH_YEAR = (d: Date) => d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+const MONTH_SHORT = (d: Date) => d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+const QUARTER = (d: Date) => `${Math.floor(d.getMonth() / 3) + 1}º tri ${d.getFullYear()}`;
+
 // Escalas localizadas (mês + dia). Com zoom, ajustam automaticamente.
 export const scales = [
-  { unit: 'month', step: 1, format: (d: Date) => d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) },
+  { unit: 'month', step: 1, format: MONTH_YEAR },
   { unit: 'day', step: 1, format: (d: Date) => String(d.getDate()) },
 ];
 
+/** Níveis do controle Dia/Semana/Mês/Trimestre, na ordem do seletor. */
+export const ZOOM_LEVELS = [
+  { id: 'day',     label: 'Dia' },
+  { id: 'week',    label: 'Semana' },
+  { id: 'month',   label: 'Mês' },
+  { id: 'quarter', label: 'Trimestre' },
+] as const;
+
+export type ZoomLevelId = typeof ZOOM_LEVELS[number]['id'];
+
+/** Índice do nível padrão. Mês: um projeto de 2 anos cabe na tela sem rolar. */
+export const DEFAULT_ZOOM_LEVEL: ZoomLevelId = 'month';
+
+// `IZoomConfig` é tipo PÚBLICO da @svar-ui/gantt-store 2.7.1 — nada aqui depende
+// de detalhe interno, então a versão continua podendo ficar fixada sem virar
+// dívida. A ordem dos níveis é a do array e o `level` indexa nela.
+export const zoomConfig = {
+  level: ZOOM_LEVELS.findIndex((l) => l.id === DEFAULT_ZOOM_LEVEL),
+  levels: [
+    {
+      minCellWidth: 28, maxCellWidth: 80,
+      scales: [
+        { unit: 'month', step: 1, format: MONTH_YEAR },
+        { unit: 'day', step: 1, format: (d: Date) => String(d.getDate()) },
+      ],
+    },
+    {
+      minCellWidth: 40, maxCellWidth: 120,
+      scales: [
+        { unit: 'month', step: 1, format: MONTH_YEAR },
+        { unit: 'week', step: 1, format: (d: Date) => `S${weekOfYear(d)}` },
+      ],
+    },
+    {
+      minCellWidth: 60, maxCellWidth: 180,
+      scales: [
+        { unit: 'year', step: 1, format: (d: Date) => String(d.getFullYear()) },
+        { unit: 'month', step: 1, format: MONTH_SHORT },
+      ],
+    },
+    {
+      minCellWidth: 80, maxCellWidth: 220,
+      scales: [
+        { unit: 'year', step: 1, format: (d: Date) => String(d.getFullYear()) },
+        { unit: 'quarter', step: 1, format: QUARTER },
+      ],
+    },
+  ],
+};
+
+/** Semana ISO — só para o rótulo da escala semanal. */
+export function weekOfYear(date: Date): number {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // Quinta-feira da semana corrente define o ano ISO.
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const firstThursday = new Date(d.getFullYear(), 0, 4);
+  firstThursday.setDate(firstThursday.getDate() + 3 - ((firstThursday.getDay() + 6) % 7));
+  return 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
 // Colunas da grade (localizadas) com início, término, duração e responsável.
 // `template` recebe (valor-da-célula, linha, coluna) — não a linha inteira.
+//
+// `duration` era `width: 76` e o cabeçalho "Duração" saía cortado ("Dura…").
 export const columns = [
   { id: 'text', header: 'Tarefa', flexgrow: 2, width: 220 },
   { id: 'start', header: 'Início', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'end', header: 'Término', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
-  { id: 'duration', header: 'Duração', align: 'center' as const, width: 76, template: (v: any) => fmtDuration(v) },
+  { id: 'duration', header: 'Duração', align: 'center' as const, width: 96, template: (v: any) => fmtDuration(v) },
+  { id: 'progress', header: '%', align: 'center' as const, width: 56, template: (v: any) => fmtProgress(v) },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
+
+/**
+ * Percentual na grade. A barra já desenha o preenchimento, mas "quase cheia" não
+ * distingue 80% de 95% — e é essa diferença que decide se a atividade fecha na
+ * semana. Linha de grupo não tem progresso próprio e fica vazia.
+ */
+export function fmtProgress(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const pct = Number(value);
+  if (!Number.isFinite(pct)) return '';
+  return `${Math.round(pct)}%`;
+}
 
 export interface GanttTask {
   id: string;
@@ -104,9 +185,39 @@ export interface GanttTask {
   css: string;
   base_start?: Date;
   base_end?: Date;
+  /** Pacote de nível 1 da EAP — campo lido pelo `groupBy` nativo da SVAR. */
+  group: string;
 }
 
-export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): GanttTask[] {
+export const UNGROUPED_LABEL = 'Sem pacote da EAP';
+
+/**
+ * taskId → rótulo do pacote de NÍVEL 1 que contém a tarefa.
+ *
+ * A ordenação das linhas por `wbsNodeId` sempre esteve certa; o que faltava era
+ * dizer onde um pacote termina e o outro começa. Usa o `rootOf` de
+ * `lib/project-wbs.ts`, que foi separado do rollup na Onda 1 exatamente para
+ * este uso.
+ */
+export function buildGroupLabels(tasks: TaskDto[], nodes: WbsNodeDto[]): Map<string, string> {
+  const { rootOf } = buildWbsIndex(nodes);
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const labels = new Map<string, string>();
+
+  for (const task of tasks) {
+    const nodeId = task.wbsNode?.id;
+    const root = nodeId ? byId.get(rootOf.get(nodeId) ?? nodeId) : undefined;
+    labels.set(task.id, root ? `${root.code}. ${root.title}` : UNGROUPED_LABEL);
+  }
+
+  return labels;
+}
+
+export function buildGanttTasks(
+  tasks: TaskDto[],
+  milestones: MilestoneDto[],
+  groupLabels: Map<string, string> = new Map(),
+): GanttTask[] {
   const visible = tasks.filter((t) => !t.deletedAt && t.startDate && t.dueDate);
   // Tarefas que são pai de outra → renderizadas como resumo (summary) com expansor.
   const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
@@ -138,6 +249,7 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
       ...(hasChildren ? { open: true } : {}),
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
+      group: groupLabels.get(t.id) ?? UNGROUPED_LABEL,
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
       base_start: t.baselineStart ? toGanttDate(t.baselineStart) : undefined,
       base_end: t.baselineEnd ? toGanttDate(t.baselineEnd) : undefined,
@@ -154,6 +266,9 @@ export function buildGanttTasks(tasks: TaskDto[], milestones: MilestoneDto[]): G
     parent: 0,
     assignee: '',
     css: 'gt-milestone',
+    // Marco não pertence a pacote da EAP — cai no balde do fim, junto com as
+    // tarefas sem pacote, em vez de inventar um grupo para ele.
+    group: UNGROUPED_LABEL,
   }));
 
   return [...taskItems, ...msItems];
