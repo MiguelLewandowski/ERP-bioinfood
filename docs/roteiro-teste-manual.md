@@ -8,6 +8,34 @@
 
 ## Como usar
 
+### ⚠️ Passo 0 — aplicar as migrations no banco local
+
+**Faça isto ANTES de subir o app.** Duas migrations entraram nesta rodada e o
+`pnpm dev` **não** as aplica sozinho (só o `startCommand` do Railway faz isso):
+
+```bash
+cd apps/api && pnpm exec prisma migrate deploy
+```
+
+Sem isso, o client Prisma pede colunas que o banco não tem e **qualquer tela que
+liste tarefa ou risco devolve 500** — dashboard, TAP, kanban, backlog, Gantt.
+Foi exatamente o erro visto em 2026-07-29 ao abrir o TAP:
+
+```
+Erro interno do servidor — lib/api.ts (110:11) @ request
+```
+
+Se o `pnpm dev` já estava rodando, **reinicie a API** depois de aplicar: o
+processo pode ter carregado um client Prisma antigo.
+
+Conferir que está tudo aplicado:
+
+```bash
+cd apps/api && pnpm exec prisma migrate status   # → "Database schema is up to date!"
+```
+
+### Depois disso
+
 Suba local (`pnpm dev`), entre num projeto com **muitas tarefas, marcos e uma
 EAP montada** — os itens de Gantt e EAP só mostram problema com volume.
 
