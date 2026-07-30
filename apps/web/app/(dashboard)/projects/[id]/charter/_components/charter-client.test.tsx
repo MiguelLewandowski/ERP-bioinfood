@@ -7,6 +7,7 @@ import { CharterClient } from './charter-client';
 const upsertMock = vi.fn();
 const listUsersMock = vi.fn();
 const listContactsMock = vi.fn();
+const listEquipmentMock = vi.fn();
 
 vi.mock('@/lib/api-hooks', () => ({
   charterApi: {
@@ -15,6 +16,14 @@ vi.mock('@/lib/api-hooks', () => ({
   },
   contactsApi: { list: (...args: unknown[]) => listContactsMock(...args) },
   usersApi: { list: (...args: unknown[]) => listUsersMock(...args) },
+  // A checklist de recursos é buscada na montagem do TAP, para a bolinha do
+  // menu lateral saber contar mesmo com a aba Recursos fechada.
+  charterEquipmentApi: {
+    list: (...args: unknown[]) => listEquipmentMock(...args),
+    add: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
 }));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -57,6 +66,7 @@ describe('CharterClient — equipe do TAP', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
@@ -144,6 +154,7 @@ describe('CharterClient — estado de salvamento', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
@@ -155,15 +166,30 @@ describe('CharterClient — estado de salvamento', () => {
     expect(screen.queryByRole('button', { name: /^Salvar/ })).not.toBeInTheDocument();
   });
 
+  /**
+   * O autosave se exercita no **Orçamento**, e não num campo narrativo.
+   *
+   * Os campos narrativos viraram editor rico (Tiptap), que é `contenteditable`
+   * sobre ProseMirror — e ProseMirror não funciona em jsdom: falta `Range`,
+   * falta `getClientRects`, e o placeholder dele é CSS (`content: attr(...)`),
+   * então nem `getByPlaceholderText` o encontra.
+   *
+   * O que estes testes protegem é o **mecanismo de autosave**, não um campo
+   * específico: "Alterações não salvas" enquanto edita, `PUT` no blur, "Salvo
+   * às HH:MM" depois. O Orçamento é `<input>` de verdade e passa pelo MESMO
+   * `handleFieldBlur`, então o mecanismo continua coberto.
+   *
+   * O que ficou SEM cobertura automática: digitar dentro do editor rico. Isso
+   * é teste manual — está no roteiro.
+   */
   it('should warn that changes are pending while the field is still focused', async () => {
     const user = userEvent.setup();
     renderWithProviders(
       <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
     );
 
-    // "Tipo" virou lista fechada — o autosave se exercita num campo de texto.
-    await user.click(screen.getByRole('button', { name: /Contexto e Justificativa/ }));
-    await user.type(screen.getByPlaceholderText(/Qual o problema/), 'Custo alto');
+    await user.click(screen.getByRole('button', { name: /Recursos e Orçamento/ }));
+    await user.type(screen.getByPlaceholderText('0,00'), '1200');
 
     expect(screen.getByText('Alterações não salvas')).toBeInTheDocument();
     expect(upsertMock).not.toHaveBeenCalled();
@@ -175,9 +201,8 @@ describe('CharterClient — estado de salvamento', () => {
       <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
     );
 
-    // "Tipo" virou lista fechada — o autosave se exercita num campo de texto.
-    await user.click(screen.getByRole('button', { name: /Contexto e Justificativa/ }));
-    await user.type(screen.getByPlaceholderText(/Qual o problema/), 'Custo alto');
+    await user.click(screen.getByRole('button', { name: /Recursos e Orçamento/ }));
+    await user.type(screen.getByPlaceholderText('0,00'), '1200');
     await user.tab();
 
     await waitFor(() => expect(upsertMock).toHaveBeenCalled());
@@ -197,6 +222,7 @@ describe('CharterClient — progresso das seções no nav', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
@@ -262,6 +288,7 @@ describe('CharterClient — dia de calendário vs instante', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 

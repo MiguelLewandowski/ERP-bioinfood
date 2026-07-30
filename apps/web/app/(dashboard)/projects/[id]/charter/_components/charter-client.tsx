@@ -14,19 +14,23 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { ProjectDto, ContactListItemDto, RiskDto } from '@bioinfood/shared';
+import type {
+  ProjectDto, ContactListItemDto, RiskDto, CharterEquipmentDto,
+} from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
-import { charterApi, contactsApi, usersApi } from '@/lib/api-hooks';
+import { charterApi, charterEquipmentApi, contactsApi, usersApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
 import { formatDay } from '@/lib/dates';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
 import { MaskedInput } from '@/components/ui/masked-input';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { CharterEquipmentSection } from './charter-equipment-section';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
 import { riskBand } from '@/lib/project-metrics';
 import { PROJECT_STATUS_LABELS, printHtml } from '@/lib/project-report';
-import { buildCharterHtml } from '@/lib/charter-report';
+import { buildCharterHtml, type CharterPrintEquipment } from '@/lib/charter-report';
 
 const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
 
@@ -134,6 +138,13 @@ type FieldDef = {
   options?: readonly string[];
   /** Ocupa meia largura no grid da seção; sem isso o campo atravessa as duas colunas. */
   half?: boolean;
+  /**
+   * Campo narrativo com editor rico (títulos, listas aninhadas, checklist).
+   * O valor gravado passa a ser HTML, sanitizado no servidor pela allowlist de
+   * `common/sanitize/rich-text.ts`. Campo de lista fechada e numérico NÃO
+   * entram aqui.
+   */
+  rich?: boolean;
 };
 
 const SECTIONS: Array<{
@@ -155,9 +166,9 @@ const SECTIONS: Array<{
     icon: FlaskConical,
     color: 'hsl(var(--success))',
     fields: [
-      { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4 },
-      { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3 },
-      { key: 'assumptions',   label: 'Premissas', placeholder: 'Fatores considerados verdadeiros sem confirmação formal…', rows: 3 },
+      { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4, rich: true },
+      { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3, rich: true },
+      { key: 'assumptions',   label: 'Premissas', placeholder: 'Fatores considerados verdadeiros sem confirmação formal…', rows: 3, rich: true },
     ],
   },
   {
@@ -166,9 +177,9 @@ const SECTIONS: Array<{
     icon: Target,
     color: 'hsl(var(--accent))',
     fields: [
-      { key: 'mainObjective',      label: 'Objetivo Principal',     placeholder: 'O que este projeto precisa alcançar?', rows: 3 },
-      { key: 'specificObjectives', label: 'Objetivos Específicos',  placeholder: 'Liste os objetivos específicos, um por linha…', rows: 4 },
-      { key: 'kpis',               label: 'Critérios de Sucesso / KPIs', placeholder: 'Métricas objetivas que definem o sucesso do projeto…', rows: 3 },
+      { key: 'mainObjective',      label: 'Objetivo Principal',     placeholder: 'O que este projeto precisa alcançar?', rows: 3, rich: true },
+      { key: 'specificObjectives', label: 'Objetivos Específicos',  placeholder: 'Use a lista numerada para os objetivos, e Tab para desdobrar em subitens…', rows: 4, rich: true },
+      { key: 'kpis',               label: 'Critérios de Sucesso / KPIs', placeholder: 'Métricas objetivas que definem o sucesso do projeto…', rows: 3, rich: true },
     ],
   },
   {
@@ -177,8 +188,8 @@ const SECTIONS: Array<{
     icon: Layers,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4 },
-      { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3 },
+      { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4, rich: true },
+      { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3, rich: true },
       // "Restrições" saiu da tela a pedido da reunião de teste de 28/07/2026.
       // A COLUNA `Charter.constraints` continua no banco de propósito: apagá-la
       // é migration destrutiva e levaria junto o que já foi escrito. O campo
@@ -192,7 +203,7 @@ const SECTIONS: Array<{
     icon: Package,
     color: 'hsl(var(--success))',
     fields: [
-      { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais, um por linha…', rows: 4 },
+      { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais — a lista com marcadores ou a checklist ajudam aqui…', rows: 4, rich: true },
     ],
   },
   {
@@ -209,7 +220,7 @@ const SECTIONS: Array<{
     icon: Users,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'governance', label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3 },
+      { key: 'governance', label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3, rich: true },
     ],
   },
   {
@@ -226,7 +237,7 @@ const SECTIONS: Array<{
     icon: Link2,
     color: 'hsl(var(--muted-foreground))',
     fields: [
-      { key: 'dependencies', label: 'Dependências Externas e Internas', placeholder: 'Dependências externas, interfaces entre frentes (ex: Bioprocessos ↔ Genética)…', rows: 3 },
+      { key: 'dependencies', label: 'Dependências Externas e Internas', placeholder: 'Dependências externas, interfaces entre frentes (ex: Bioprocessos ↔ Genética)…', rows: 3, rich: true },
     ],
   },
 ];
@@ -241,6 +252,14 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
   const [contacts, setContacts] = useState<ContactListItemDto[] | null>(null);
+  /**
+   * Checklist de recursos. Vive AQUI, e não dentro da seção, por dois motivos:
+   * a bolinha do menu lateral precisa do número mesmo com a aba Recursos
+   * fechada, e a exportação em PDF precisa da lista sem depender de a seção
+   * ter sido montada. A seção recebe as linhas e devolve as alterações.
+   */
+  const [equipment, setEquipment] = useState<CharterEquipmentDto[]>([]);
+  const equipmentCount = equipment.length;
   const [allUsers, setAllUsers] = useState<ProjectMember[] | null>(null);
   const [lastEdit, setLastEdit] = useState(
     initialData?.lastEditedAt
@@ -277,6 +296,14 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
 
   const values = watch();
 
+  useEffect(() => {
+    let cancelled = false;
+    charterEquipmentApi.list(projectId, token)
+      .then((rows) => { if (!cancelled) setEquipment(rows); })
+      .catch(() => { if (!cancelled) setEquipment([]); });
+    return () => { cancelled = true; };
+  }, [projectId, token]);
+
   // Contatos reais do cliente do projeto, para a seção de Stakeholders.
   useEffect(() => {
     if (!project?.client) { setContacts([]); return; }
@@ -292,6 +319,8 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
   // limitar a lista a `project.accesses` deixava quase todo mundo de fora.
   // `GET /users` exige ADMIN ou PADRAO — CLIENTE cai nos membros do projeto.
   const canListUsers = session.role === 'ADMIN' || session.role === 'PADRAO';
+  // Escrita no TAP é @Roles(PADRAO) no backend — CLIENTE lê e não edita.
+  const canEdit = canListUsers;
 
   useEffect(() => {
     if (!canListUsers) return;
@@ -326,17 +355,20 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
         continue;
       }
       if (section.id === 'recursos') {
+        // A checklist de equipamentos também preenche a seção. Sem contá-la, a
+        // bolinha ficaria cinza num TAP com a lista inteira montada.
         map[section.id] = !!(
           values.infrastructure?.trim()
           || values.budget?.trim()
           || (values.teamUserIds?.length ?? 0) > 0
+          || equipmentCount > 0
         );
         continue;
       }
       map[section.id] = section.fields.some((f) => (values[f.key] ?? '').toString().trim() !== '');
     }
     return map;
-  }, [values, risks.length]);
+  }, [values, risks.length, equipmentCount]);
   const filledCount = Object.values(sectionHasContent).filter(Boolean).length;
 
   function toggleSection(id: string) {
@@ -346,7 +378,7 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
   }
 
   function handleExport() {
-    const html = buildCharterHtml(getValues(), selectedIds, members, SECTIONS);
+    const html = buildCharterHtml(getValues(), selectedIds, members, SECTIONS, equipment);
     printHtml(html);
     setExportOpen(false);
   }
@@ -704,13 +736,29 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
                     {!canListUsers && ' Seu perfil só enxerga quem já tem acesso ao projeto.'}
                   </p>
                 </div>
+                {/* Checklist puxada do cadastro de estoque. O campo de texto
+                    abaixo continua existindo para o que não é item de catálogo
+                    (laboratório de terceiro, sala alugada) e para o que já foi
+                    escrito ali antes de a checklist existir. */}
+                <CharterEquipmentSection
+                  projectId={projectId}
+                  canEdit={canEdit}
+                  rows={equipment}
+                  onChange={setEquipment}
+                />
+
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-1.5">Infraestrutura</label>
-                  <textarea
-                    {...register('infrastructure', { onBlur: handleFieldBlur })}
-                    rows={3}
-                    placeholder="Equipamentos, insumos, laboratórios, ferramentas necessárias…"
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
+                  <label className="block text-sm font-semibold text-foreground mb-1.5">
+                    Observações de infraestrutura
+                  </label>
+                  <RichTextEditor
+                    value={values.infrastructure ?? ''}
+                    onChange={(html) => setValue('infrastructure', html, { shouldDirty: true })}
+                    onBlur={handleFieldBlur}
+                    placeholder="Laboratórios, salas, ferramentas e condições que não são item de cadastro…"
+                    compact
+                    minHeight={102}
+                    aria-label="Observações de infraestrutura"
                   />
                 </div>
                 <div>
@@ -728,7 +776,7 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
             {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
                 que são curtos, dividem a linha. */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-              {activeData.fields.map(({ key, label, placeholder, rows, options, half }) => {
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half, rich }) => {
                 // Valor gravado antes de o campo virar lista fechada. Sem esta
                 // opção o `<select>` apareceria vazio e o primeiro salvamento
                 // apagaria o que o usuário tinha escrito.
@@ -747,6 +795,21 @@ export function CharterClient({ projectId, initialData, project, risks = [] }: C
                       {legacyOption && <option value={legacyOption}>{legacyOption}</option>}
                       {options.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
+                  ) : rich ? (
+                    // `register` não alcança o Tiptap: ele é contenteditable, não
+                    // input. Marcar o campo como dirty no onChange e chamar o
+                    // mesmo handleFieldBlur mantém intacto o autosave que o
+                    // roteiro de teste já validou — inclusive o aviso do
+                    // navegador ao fechar a aba com alteração pendente.
+                    <RichTextEditor
+                      value={current}
+                      onChange={(html) => setValue(key, html, { shouldDirty: true })}
+                      onBlur={handleFieldBlur}
+                      placeholder={placeholder}
+                      compact
+                      minHeight={(rows ?? 3) * 26 + 24}
+                      aria-label={label}
+                    />
                   ) : rows === 1 ? (
                     <input
                       {...register(key, { onBlur: handleFieldBlur })}
