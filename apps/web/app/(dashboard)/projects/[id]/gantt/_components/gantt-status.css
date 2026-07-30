@@ -50,60 +50,25 @@
 .gt-swatch-doing { background-color: #f0b265; }
 .gt-swatch-done  { background-color: #7fc36b; }
 
-/* Contraste do rótulo DENTRO da barra. As três cores de status são claras o
-   bastante para reprovar texto branco (o cinza #b7b7b7 dá ~1.9:1); texto escuro
-   sobre elas passa com folga. */
-.gt-todo .wx-bar-text,
-.gt-doing .wx-bar-text,
-.gt-done .wx-bar-text {
-  color: #1d1d1b !important;
-  font-weight: 500;
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   REGRA DESTE ARQUIVO, aprendida do jeito difícil em 2026-07-29:
+   só entra seletor CONFIRMADO no DOM renderizado da SVAR.
 
-/* Barra estreita: o rótulo não cabe dentro e era cortado no meio da palavra.
-   Jogado para fora, à direita, ele fica legível sem alargar a barra — que
-   representa duração real e não pode crescer por causa de texto. */
-.wx-gantt .wx-bar[style*="width: 0"] .wx-bar-text,
-.wx-gantt .wx-text-out-right {
-  color: #575756 !important;
-}
+   Na Onda 6 foram adicionados quatro blocos com seletores inferidos por analogia
+   (`.wx-bar-text`, `.wx-text-out-right`, `.wx-critical-task`, `.wx-critical-link`
+   e `.wx-grid .wx-cell:first-child` com `position: sticky`). Nenhum foi conferido
+   no elemento real. O resultado foi um Gantt que parou de rolar e de aceitar
+   arraste — `position: sticky` sobre células que a lib posiciona por conta
+   própria é o suspeito principal — e um caminho crítico que não destacava nada,
+   possivelmente porque os `!important` disputavam com o estilo nativo.
 
-/* Caminho crítico: só aparece com o toggle ligado (`criticalPath` null quando
-   desligado), então a cor pode ser forte sem competir com o status o tempo todo. */
-.wx-gantt .wx-critical-task .wx-bar,
-.wx-gantt .wx-bar.wx-critical-task {
-  border-color: #c0392b !important;
-  border-width: 2px !important;
-}
-.wx-gantt .wx-critical-link .wx-link-line,
-.wx-gantt .wx-link.wx-critical-link path {
-  stroke: #c0392b !important;
-  stroke-width: 2px !important;
-}
+   Os quatro blocos foram removidos. Os itens que dependiam deles (coluna fixa,
+   contraste do rótulo dentro da barra, rótulo fora da barra estreita, cor do
+   caminho crítico) ficam PENDENTES até alguém abrir o DevTools e confirmar as
+   classes de verdade. Vale mais um Gantt que funciona sem coluna fixa do que um
+   bonito que não rola.
 
-/* Primeira coluna fixa: ao rolar a grade para ver Início/Término/Duração, o nome
-   da tarefa saía da tela e as datas viravam números sem dono. */
-.wx-gantt .wx-grid .wx-cell:first-child,
-.wx-gantt .wx-grid .wx-header-cell:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background-color: #fff;
-}
-.wx-gantt .wx-grid .wx-header-cell:first-child {
-  z-index: 3;
-}
-/* Sombra sutil marca onde a coluna fixa termina — sem ela o texto rolando por
-   baixo parece sobreposição acidental. */
-.wx-gantt .wx-grid .wx-cell:first-child::after,
-.wx-gantt .wx-grid .wx-header-cell:first-child::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 6px;
-  transform: translateX(100%);
-  background: linear-gradient(to right, rgb(0 0 0 / 6%), transparent);
-  pointer-events: none;
-}
+   O que fica abaixo é o que sempre funcionou: `min-width` da barra e as classes
+   `gt-*`, que são NOSSAS (aplicadas via `task.css` da própria SVAR, em
+   `statusToCss`), mais as amostras `gt-swatch-*` da legenda.
+   ───────────────────────────────────────────────────────────────────────────── */

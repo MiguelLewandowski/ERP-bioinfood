@@ -36,6 +36,36 @@ interface GanttClientProps {
   baselineSetByName: string | null;
 }
 
+/**
+ * Leva o gráfico para hoje.
+ *
+ * `exec('scroll-chart', { date })` não movia nada na prática. Em vez de insistir
+ * numa ação inferida do tipo do payload, isto usa `scrollToTask`, que é **método
+ * documentado** da store da SVAR: acha a tarefa que está em curso hoje (ou a
+ * próxima a começar) e rola até ela. O `scroll-chart` fica só como último
+ * recurso, para o caso de o projeto não ter nenhuma tarefa com data.
+ */
+function scrollToToday(api: any, tasks: Task[]): void {
+  if (!api) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const dated = tasks
+    .filter((t) => !t.deletedAt && t.startDate && t.dueDate)
+    .sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''));
+
+  const current = dated.find((t) => (
+    (t.startDate ?? '').slice(0, 10) <= today && today <= (t.dueDate ?? '').slice(0, 10)
+  ));
+  const next = dated.find((t) => (t.startDate ?? '').slice(0, 10) >= today);
+  // Nada em curso nem à frente → a última que houve, que é o fim do projeto.
+  const target = current ?? next ?? dated[dated.length - 1];
+
+  if (target && typeof api.scrollToTask === 'function') {
+    api.scrollToTask(target.id, 'auto');
+    return;
+  }
+  api.exec?.('scroll-chart', { date: new Date() });
+}
+
 // ─── wrapper: RBAC + barra de baseline + reversão automática em caso de falha ───
 
 export function GanttClient(props: GanttClientProps) {
@@ -107,16 +137,12 @@ export function GanttClient(props: GanttClientProps) {
     : 'Linha de base não definida';
 
   return (
-    // `h-full overflow-hidden`: a página do Gantt ocupa exatamente a altura
-    // disponível e NÃO rola. O `calc(100vh - 13rem)` que estava aqui era um
-    // palpite da altura do cabeçalho + navegação, e errou para mais — sobrava
-    // conteúdo, o container de fora ganhava a própria barra de rolagem e a tela
-    // ficava com DUAS verticais. Pior: a horizontal do Gantt só aparecia depois
-    // de rolar aquela de fora.
-    //
-    // Aqui não há número mágico: a cadeia toda até o layout do dashboard é
-    // `flex` com altura definida, então `h-full` resolve em pixels de verdade.
-    <div className="flex h-full flex-col overflow-hidden">
+    // Sem `h-full` e sem `overflow-hidden` aqui: a SVAR precisa de altura em
+    // PIXELS para montar as próprias barras de rolagem, e amarrar o pai com flex
+    // deixava o widget sem altura medível — resultado, nem rolagem nem arraste.
+    // Quem calcula a altura é o `useGanttHeight` abaixo, medindo. Ver comentário
+    // lá para o histórico das três tentativas que falharam.
+    <div className="flex flex-col">
       {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
           altura, os controles de visualização ficavam separados das ações e
           "Agrupar por pacote" / "Caminho crítico" passavam batido. */}
@@ -140,7 +166,7 @@ export function GanttClient(props: GanttClientProps) {
         </div>
 
         <button
-          onClick={() => apiRef.current?.exec('scroll-chart', { date: new Date() })}
+          onClick={() => scrollToToday(apiRef.current, props.tasks)}
           className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
         >
           <CalendarClock size={13} /> Hoje
@@ -295,6 +321,44 @@ export function GanttClient(props: GanttClientProps) {
   );
 }
 
+/**
+ * Altura do board, em pixels, medida da própria posição na tela até a base da
+ * janela.
+ *
+ * Histórico, para ninguém repetir: a versão original usava
+ * `height: calc(100vh - 180px)`. Funcionava — a SVAR monta as barras de rolagem
+ * quando recebe pixels — mas o `180px` era um palpite da altura do cabeçalho, e
+ * como sobrava conteúdo a barra HORIZONTAL ia para o fim da página, fora de
+ * alcance. Trocar o palpite por outro (`13rem`) só mudou o erro de lado: passou
+ * a faltar espaço e a tela ganhou DUAS barras verticais. Amarrar tudo com
+ * `flex-1 h-full` tirou os dois problemas e criou o pior: sem altura em pixels,
+ * o widget ficou sem rolagem e sem arraste.
+ *
+ * Medir resolve os três de uma vez, e sem número mágico: `getBoundingClientRect`
+ * já sabe onde o board começa, seja qual for a altura das barras acima.
+ */
+function useGanttHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  // Palpite só para o primeiro paint; a medição corrige no efeito.
+  const [height, setHeight] = useState(520);
+
+  useEffect(() => {
+    function measure() {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      // A margem final evita que a barra horizontal fique rente ao limite da
+      // janela, onde alguns navegadores a deixam difícil de pegar.
+      setHeight(Math.max(320, Math.round(window.innerHeight - top - 8)));
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  return { ref, height };
+}
+
 // ─── board: monta os dados e renderiza o widget SVAR ────────────────────────────
 
 interface GanttBoardProps extends GanttClientProps {
@@ -320,6 +384,8 @@ function GanttBoard({
   const onApiRef = useRef(onApi);
   onApiRef.current = onApi;
 
+  const { ref: boardRef, height: boardHeight } = useGanttHeight();
+
   useEffect(() => { setMounted(true); }, []);
 
   // Entrega a instância ao wrapper (é de lá que o botão "Hoje" a usa) e abre já
@@ -335,7 +401,10 @@ function GanttBoard({
     onApiRef.current(api);
     if (scrolledOnMount.current) return;
     scrolledOnMount.current = true;
-    api.exec('scroll-chart', { date: new Date() });
+    // Um tick depois: no momento em que `init` dispara, a SVAR ainda não terminou
+    // de medir a área do gráfico, e rolar antes disso não tem efeito.
+    const id = setTimeout(() => scrollToToday(api, tasks), 0);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
 
@@ -368,9 +437,9 @@ function GanttBoard({
   }
 
   if (!mounted) {
-    // Reserva de espaço até o widget montar (ele é client-only). Mesma regra de
-    // flex do board, para não haver salto entre um e outro.
-    return <div className="min-h-0 flex-1" />;
+    // Reserva de espaço até o widget montar (ele é client-only). Usa o mesmo ref
+    // e a mesma altura do board, para medir antes e não haver salto.
+    return <div ref={boardRef} style={{ height: boardHeight }} />;
   }
 
   const CtxMenu = ContextMenu as any;
@@ -384,16 +453,12 @@ function GanttBoard({
             caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
             O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
-          // `min-h-0 flex-1` faz esta caixa receber a altura que sobra, em
-          // pixels. O `h-full` do filho é o que entrega à SVAR uma altura
-          // concreta — sem ele o widget mede `auto`, cresce com o conteúdo e
-          // perde a própria rolagem vertical.
-          className="min-h-0 flex-1 overflow-hidden"
+          ref={boardRef}
+          style={{ height: boardHeight }}
           onContextMenu={(e) => {
             if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
           }}
         >
-          {/* `h-full` aqui é o que dá à SVAR uma altura concreta para medir. */}
           <div className="h-full">
           <Gantt
             init={setApi}

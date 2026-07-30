@@ -133,7 +133,8 @@ boot da API, mas leia a "Ordem de promoção" em
       desligado, some
 - [ ] Coluna **"Duração"** com o cabeçalho inteiro (antes saía "Dura…")
 - [ ] Coluna **"%"** nova
-- [ ] Rolar a grade para o lado → **nome da tarefa fica fixo** na primeira coluna
+- [ ] ~~Nome da tarefa fixo na primeira coluna~~ — **removido**, dependia de um
+      seletor CSS não confirmado que travava a rolagem. Pendente de DevTools.
 - [ ] **Entrar como CLIENTE** → controles de visualização aparecem, mas os de
       edição (Nova Tarefa, linha de base) não
 
