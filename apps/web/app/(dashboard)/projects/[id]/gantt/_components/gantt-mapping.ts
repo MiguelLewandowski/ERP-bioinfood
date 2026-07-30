@@ -190,6 +190,15 @@ export interface GanttTask {
 }
 
 export const UNGROUPED_LABEL = 'Sem pacote da EAP';
+/**
+ * Grupo próprio dos marcos.
+ *
+ * Antes eles caíam em `UNGROUPED_LABEL`, junto das tarefas sem pacote — e como o
+ * `groupBy` manda o balde "sem grupo" para o fim, todos os marcos apareciam
+ * soltos no rodapé do gráfico, o que lia como defeito. Marco não é "tarefa sem
+ * pacote": é outra coisa, e merece uma seção que se identifica.
+ */
+export const MILESTONE_GROUP_LABEL = 'Marcos';
 
 /**
  * taskId → rótulo do pacote de NÍVEL 1 que contém a tarefa.
@@ -290,9 +299,7 @@ export function buildGanttTasks(
     parent: 0,
     assignee: '',
     css: 'gt-milestone',
-    // Marco não pertence a pacote da EAP — cai no balde do fim, junto com as
-    // tarefas sem pacote, em vez de inventar um grupo para ele.
-    group: UNGROUPED_LABEL,
+    group: MILESTONE_GROUP_LABEL,
   }));
 
   return [...taskItems, ...msItems];

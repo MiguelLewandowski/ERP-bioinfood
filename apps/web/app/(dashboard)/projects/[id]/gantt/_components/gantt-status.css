@@ -34,6 +34,11 @@
    justamente por isso que funciona aqui: nenhum status de tarefa compete com
    ele, então o losango salta. Fica restrito a este arquivo; não virou token,
    porque não é cor de marca e não deve ser reutilizada em outro lugar. */
+/* `.wx-bar.wx-milestone` é seletor CONFIRMADO no DOM (2026-07-29, via DevTools —
+   a própria SVAR usa `.wx-bar:not(.wx-milestone)` nas regras dela). Vale mais que
+   a nossa `gt-milestone`, que depende do campo `css` chegar até o elemento.
+   As duas ficam: uma confirma a outra. */
+.wx-bar.wx-milestone,
 .gt-milestone .wx-bar,
 .gt-milestone.wx-bar,
 .gt-milestone {
@@ -71,4 +76,24 @@
    O que fica abaixo é o que sempre funcionou: `min-width` da barra e as classes
    `gt-*`, que são NOSSAS (aplicadas via `task.css` da própria SVAR, em
    `statusToCss`), mais as amostras `gt-swatch-*` da legenda.
+
+   CLASSES JÁ CONFIRMADAS no DOM (DevTools, 2026-07-29):
+     `.wx-bar`         — a barra
+     `.wx-milestone`   — modificador de marco (a SVAR usa `:not(.wx-milestone)`)
+     `.wx-content`     — o rótulo DENTRO da barra
+     `.wx-GKbcLEGA`    — hash de escopo da lib; NÃO usar, muda a cada build
+   Ainda não confirmada: a classe do caminho crítico.
    ───────────────────────────────────────────────────────────────────────────── */
+
+/* Contraste do rótulo dentro da barra, agora pelo seletor confirmado
+   (`.wx-content`, e não o `.wx-bar-text` que eu havia inferido). As três cores de
+   status são claras: o cinza `#b7b7b7` dá ~1.9:1 com texto branco, que reprova.
+   Só cor e peso — nada de posicionamento, que foi o que travou o widget antes. */
+.wx-bar .wx-content {
+  color: #1d1d1b !important;
+  font-weight: 500;
+}
+/* Marco é escuro: aí o texto branco é o que tem contraste. */
+.wx-bar.wx-milestone .wx-content {
+  color: #ffffff !important;
+}

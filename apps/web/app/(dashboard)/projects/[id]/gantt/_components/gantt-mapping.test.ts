@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { MilestoneDto, TaskDto, WbsNodeDto } from '@bioinfood/shared';
 import {
   buildGanttTasks, buildGroupLabels, fmtDuration, fmtProgress,
-  zoomConfig, ZOOM_LEVELS, UNGROUPED_LABEL,
+  zoomConfig, ZOOM_LEVELS, UNGROUPED_LABEL, MILESTONE_GROUP_LABEL,
 } from './gantt-mapping';
 
 function makeTask(overrides: Partial<TaskDto> = {}): TaskDto {
@@ -186,14 +186,19 @@ describe('buildGroupLabels', () => {
     expect(row.group).toBe('2. Matéria-Prima');
   });
 
-  // Marco não é tarefa e não pertence a pacote — inventar um grupo para ele
-  // criaria uma linha de EAP que não existe na EAP.
-  it('should keep milestones out of the packages', () => {
+  /**
+   * Marco vai para um grupo PRÓPRIO, chamado "Marcos".
+   *
+   * Antes caía em `UNGROUPED_LABEL`, junto das tarefas sem pacote — e como o
+   * `groupBy` manda o balde "sem grupo" para o fim, todos os marcos apareciam
+   * soltos no rodapé do gráfico. Lia como defeito, e era.
+   */
+  it('should put milestones in their own group, not in the ungrouped bucket', () => {
     const rows = buildGanttTasks([], [
       { id: 'm1', title: 'Entrega parcial', date: '2026-09-01T00:00:00.000Z', reached: false },
     ] as unknown as MilestoneDto[]);
 
-    expect(rows[0].group).toBe(UNGROUPED_LABEL);
+    expect(rows[0].group).toBe(MILESTONE_GROUP_LABEL);
   });
 });
 
@@ -287,5 +292,22 @@ describe('buildGanttTasks — ordem das linhas', () => {
     buildGanttTasks(input, []);
 
     expect(input.map((x) => x.id)).toEqual(['c', 'a']);
+  });
+});
+
+describe('buildGanttTasks — grupo dos marcos', () => {
+  // O balde "sem pacote" continua existindo, para TAREFA sem pacote — e não pode
+  // voltar a receber marco, senão eles caem no rodapé de novo.
+  it('should keep the ungrouped bucket for tasks, separate from milestones', () => {
+    const rows = buildGanttTasks(
+      [makeTask({ id: 't1', wbsNode: null } as Partial<TaskDto>)],
+      [{ id: 'm1', title: 'Entrega', date: '2026-09-01T00:00:00.000Z', reached: false }] as unknown as MilestoneDto[],
+    );
+
+    const task = rows.find((r) => r.id === 't1');
+    const milestone = rows.find((r) => r.id === 'ms-m1');
+    expect(task!.group).toBe(UNGROUPED_LABEL);
+    expect(milestone!.group).toBe(MILESTONE_GROUP_LABEL);
+    expect(task!.group).not.toBe(milestone!.group);
   });
 });
