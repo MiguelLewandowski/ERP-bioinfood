@@ -313,19 +313,36 @@ describe('buildGanttTasks — grupo dos marcos', () => {
 });
 
 /**
- * Com `groupBy`, a SVAR ordena os grupos pela PRIMEIRA APARIÇÃO na lista. Anexar
- * os marcos no fim mandava o grupo "Marcos" para o rodapé do gráfico — foi o que
- * apareceu na tela duas vezes seguidas.
+ * Marco é um PONTO NO TEMPO e pertence ao meio do trabalho, na data dele.
+ *
+ * Duas tentativas erraram por tratá-lo como bloco: anexado no fim, o grupo
+ * "Marcos" caía no rodapé do gráfico; anexado no começo, virava uma faixa antes
+ * de todas as tarefas. Nenhuma das duas é como se lê um cronograma.
  */
-describe('buildGanttTasks — marcos vêm antes das tarefas', () => {
-  it('should list milestones before tasks so their group lands on top', () => {
+describe('buildGanttTasks — marcos intercalados por data', () => {
+  it('should place a milestone between the tasks of its period', () => {
     const rows = buildGanttTasks(
-      [makeTask({ id: 't1' } as Partial<TaskDto>)],
+      [
+        makeTask({ id: 'antes', startDate: '2026-07-01T00:00:00.000Z', dueDate: '2026-07-10T00:00:00.000Z' } as Partial<TaskDto>),
+        makeTask({ id: 'depois', startDate: '2026-10-01T00:00:00.000Z', dueDate: '2026-10-10T00:00:00.000Z' } as Partial<TaskDto>),
+      ],
       [{ id: 'm1', title: 'Entrega', date: '2026-09-01T00:00:00.000Z', reached: false }] as unknown as MilestoneDto[],
     );
 
-    expect(rows[0].id).toBe('ms-m1');
-    expect(rows[rows.length - 1].id).toBe('t1');
+    expect(rows.map((r) => r.id)).toEqual(['antes', 'ms-m1', 'depois']);
+  });
+
+  it('should not group every milestone at one end of the chart', () => {
+    const rows = buildGanttTasks(
+      [makeTask({ id: 'meio', startDate: '2026-08-01T00:00:00.000Z', dueDate: '2026-08-10T00:00:00.000Z' } as Partial<TaskDto>)],
+      [
+        { id: 'inicio', title: 'Kickoff', date: '2026-07-01T00:00:00.000Z', reached: true },
+        { id: 'fim', title: 'Entrega final', date: '2026-12-01T00:00:00.000Z', reached: false },
+      ] as unknown as MilestoneDto[],
+    );
+
+    // Um marco antes e outro depois da tarefa — não os dois juntos numa ponta.
+    expect(rows.map((r) => r.id)).toEqual(['ms-inicio', 'meio', 'ms-fim']);
   });
 
   it('should keep every task and milestone in the result', () => {

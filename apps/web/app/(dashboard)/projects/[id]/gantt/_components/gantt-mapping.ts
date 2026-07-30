@@ -302,12 +302,19 @@ export function buildGanttTasks(
     group: MILESTONE_GROUP_LABEL,
   }));
 
-  // Marcos PRIMEIRO. Com `groupBy`, a SVAR ordena os grupos pela primeira
-  // aparição na lista — anexar os marcos no fim jogava o grupo "Marcos" para o
-  // rodapé do gráfico, que foi exatamente o que se viu na tela. Como faixa de
-  // topo eles também ficam mais úteis: marco é referência de prazo, e serve de
-  // régua para as barras que vêm abaixo.
-  return [...msItems, ...taskItems];
+  // Tarefas e marcos numa ORDEM SÓ, por data.
+  //
+  // Duas tentativas anteriores erraram por tratar marco como bloco: anexado no
+  // fim, o grupo "Marcos" caía no rodapé; anexado no começo, virava uma faixa
+  // antes de todas as tarefas. Nenhuma das duas é o que se lê num cronograma —
+  // marco é um ponto no tempo e pertence ao meio do trabalho, na data dele.
+  //
+  // Intercalando, ele aparece entre as tarefas do período. Com `groupBy` ligado a
+  // SVAR reagrupa (e aí "Marcos" existe como seção), mas a ordem de referência
+  // continua sendo a do tempo.
+  return [...taskItems, ...msItems].sort((a, b) => (
+    a.start.getTime() - b.start.getTime() || a.text.localeCompare(b.text)
+  ));
 }
 
 // Formato de link nativo da SVAR (@svar-ui/gantt-store): e2s=FS, s2s=SS, e2e=FF, s2e=SF.
