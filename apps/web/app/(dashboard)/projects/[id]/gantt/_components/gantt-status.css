@@ -121,15 +121,11 @@
   color: #ffffff !important;
 }
 
-/* Contraste do rótulo dentro da barra, agora pelo seletor confirmado
-   (`.wx-content`, e não o `.wx-bar-text` que eu havia inferido). As três cores de
-   status são claras: o cinza `#b7b7b7` dá ~1.9:1 com texto branco, que reprova.
-   Só cor e peso — nada de posicionamento, que foi o que travou o widget antes. */
-.wx-bar .wx-content {
-  color: #1d1d1b !important;
-  font-weight: 500;
-}
-/* Marco é escuro: aí o texto branco é o que tem contraste. */
-.wx-bar.wx-milestone .wx-content {
-  color: #ffffff !important;
-}
+/* Texto da barra: SEM override nosso — fica o branco padrão da SVAR
+   (`--wx-gantt-task-font-color`).
+   Houve aqui um `color: #1d1d1b !important`, escrito supondo que as barras
+   usariam as cores claras de `gt-*`. Não usam: as barras saem AZUIS, a cor
+   padrão da lib, porque `task.css` não chega ao elemento da barra (o bundle monta
+   a classe dela como `wx-bar wx-<tipo>` e nada mais — index.es.js:2129). Texto
+   escuro sobre azul é ilegível, e foi o que apareceu na tela.
+   Só volta a fazer sentido depois que as cores de status realmente funcionarem. */

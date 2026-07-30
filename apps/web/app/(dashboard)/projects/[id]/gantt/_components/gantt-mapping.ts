@@ -156,6 +156,16 @@ export const columns = [
   { id: 'start', header: 'Início', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'end', header: 'Término', align: 'center' as const, width: 108, template: (v: any) => fmtCol(v) },
   { id: 'duration', header: 'Duração', align: 'center' as const, width: 96, template: (v: any) => fmtDuration(v) },
+  // Status como COLUNA, e não como cor de barra.
+  //
+  // Colorir a barra por status não funciona nesta versão da SVAR: o `css` que
+  // passamos na tarefa não chega ao elemento da barra — o bundle monta a classe
+  // dela como `wx-bar wx-<tipo>` e nada mais (index.es.js:2129). Resultado: todas
+  // as barras saem azuis, a cor padrão da lib, e a legenda de cores mentia.
+  //
+  // A coluna é território nosso: `template` é uma função que a gente escreve, e
+  // aqui ela funciona de verdade. Menos bonito que a barra colorida, mas honesto.
+  { id: 'status', header: 'Status', align: 'center' as const, width: 116, template: (v: any) => fmtStatus(v) },
   { id: 'progress', header: '%', align: 'center' as const, width: 56, template: (v: any) => fmtProgress(v) },
   { id: 'assignee', header: 'Responsável', align: 'center' as const, width: 120, template: (v: any) => v || '—' },
 ];
@@ -165,6 +175,16 @@ export const columns = [
  * distingue 80% de 95% — e é essa diferença que decide se a atividade fecha na
  * semana. Linha de grupo não tem progresso próprio e fica vazia.
  */
+/** Rótulo do status na coluna da grade. Marco não tem status de tarefa. */
+export function fmtStatus(value: unknown): string {
+  switch (value) {
+    case 'TODO': return 'A fazer';
+    case 'IN_PROGRESS': return 'Em andamento';
+    case 'DONE': return 'Concluída';
+    default: return '';
+  }
+}
+
 export function fmtProgress(value: unknown): string {
   if (value === null || value === undefined || value === '') return '';
   const pct = Number(value);
@@ -183,6 +203,8 @@ export interface GanttTask {
   open?: boolean;
   assignee: string;
   css: string;
+  /** Alimenta a coluna "Status" da grade. Vazio em marco, que não tem status. */
+  status: TaskStatus | '';
   base_start?: Date;
   base_end?: Date;
   /** Pacote de nível 1 da EAP — campo lido pelo `groupBy` nativo da SVAR. */
@@ -280,6 +302,7 @@ export function buildGanttTasks(
       ...(hasChildren ? { open: true } : {}),
       assignee: t.assignee?.name ?? '',
       css: statusToCss(t.status),
+      status: t.status,
       group: groupLabels.get(t.id) ?? UNGROUPED_LABEL,
       // Linha de base (PMBOK): barra-fantasma do planejado aprovado.
       base_start: t.baselineStart ? toGanttDate(t.baselineStart) : undefined,
@@ -299,6 +322,7 @@ export function buildGanttTasks(
     parent: 0,
     assignee: '',
     css: 'gt-milestone',
+    status: '',
     group: MILESTONE_GROUP_LABEL,
   }));
 

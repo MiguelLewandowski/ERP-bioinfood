@@ -81,7 +81,9 @@ export function GanttClient(props: GanttClientProps) {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevelId>(DEFAULT_ZOOM_LEVEL);
   const [showCriticalPath, setShowCriticalPath] = useState(false);
-  const [grouped, setGrouped] = useState(true);
+  // Desligado por padrão: a leitura útil de um cronograma é a do tempo, e o
+  // agrupamento é um recorte que se pede quando se quer, não o estado inicial.
+  const [grouped, setGrouped] = useState(false);
   // Instância da SVAR erguida do board: o botão "Hoje" vive na barra de cima.
   const apiRef = useRef<any>(null);
 
@@ -132,6 +134,16 @@ export function GanttClient(props: GanttClientProps) {
   // do "cliquei e não fez nada".
   const hasDependencies = props.tasks.some((t) => (t.predecessors?.length ?? 0) > 0);
 
+  /**
+   * Agrupar por pacote só existe se as tarefas estiverem LIGADAS à EAP.
+   *
+   * O vínculo é `Task.wbsNodeId`, preenchido ao apontar o pacote no formulário da
+   * tarefa. Num projeto onde ninguém fez isso, todas caem em "Sem pacote da EAP"
+   * e o botão não muda nada — que foi exatamente o relato. Melhor não oferecer um
+   * controle inerte do que deixar o usuário achando que está quebrado.
+   */
+  const hasWbsLinkedTasks = props.tasks.some((t) => !!t.wbsNode);
+
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
@@ -172,20 +184,23 @@ export function GanttClient(props: GanttClientProps) {
           <CalendarClock size={13} /> Hoje
         </button>
 
-        {/* Ativos ganham fundo colorido para o estado ser óbvio sem clicar. */}
-        <button
-          onClick={() => setGrouped((v) => !v)}
-          aria-pressed={grouped}
-          title="Agrupa as linhas por pacote de nível 1 da EAP, com um cabeçalho por pacote"
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
-            grouped
-              ? 'border-primary bg-primary text-white'
-              : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
-          )}
-        >
-          <Layers size={13} /> Agrupar por pacote
-        </button>
+        {/* Só aparece se ALGUMA tarefa estiver ligada a um pacote da EAP: sem
+            vínculo não há o que agrupar, e o botão parecia quebrado. */}
+        {hasWbsLinkedTasks && (
+          <button
+            onClick={() => setGrouped((v) => !v)}
+            aria-pressed={grouped}
+            title="Agrupa as linhas pelo pacote de nível 1 da EAP a que cada tarefa está ligada"
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
+              grouped
+                ? 'border-primary bg-primary text-white'
+                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
+            )}
+          >
+            <Layers size={13} /> Agrupar por pacote
+          </button>
+        )}
 
         <button
           onClick={() => setShowCriticalPath((v) => !v)}
@@ -229,13 +244,14 @@ export function GanttClient(props: GanttClientProps) {
           </>
         )}
 
-        {/* Legenda no fim da mesma linha, empurrada para a direita. */}
-        <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><i className="gt-swatch-todo h-2 w-4 rounded-sm" /> A fazer</span>
-          <span className="flex items-center gap-1.5"><i className="gt-swatch-doing h-2 w-4 rounded-sm" /> Em andamento</span>
-          <span className="flex items-center gap-1.5"><i className="gt-swatch-done h-2 w-4 rounded-sm" /> Concluída</span>
-          <span className="flex items-center gap-1.5"><i className="gt-swatch-milestone h-3 w-3 rotate-45 rounded-sm" /> Marco</span>
-          <span className="flex items-center gap-1.5"><i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base</span>
+        {/* A legenda de cores por status SAIU: ela descrevia cinza/âmbar/verde nas
+            barras, e as barras são todas azuis — `task.css` não chega ao elemento
+            da barra nesta versão da SVAR (index.es.js:2129). Legenda que não
+            corresponde à tela é pior que nenhuma. O status agora é uma COLUNA da
+            grade, que não depende de estilo da lib.
+            Fica só a linha de base, que a lib desenha de fato. */}
+        <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base
         </div>
       </div>
 

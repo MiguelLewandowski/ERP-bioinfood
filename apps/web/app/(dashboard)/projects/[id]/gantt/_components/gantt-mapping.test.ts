@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { MilestoneDto, TaskDto, WbsNodeDto } from '@bioinfood/shared';
 import {
   buildGanttTasks, buildGroupLabels, fmtDuration, fmtProgress,
-  zoomConfig, ZOOM_LEVELS, UNGROUPED_LABEL, MILESTONE_GROUP_LABEL,
+  zoomConfig, ZOOM_LEVELS, UNGROUPED_LABEL, MILESTONE_GROUP_LABEL, fmtStatus,
 } from './gantt-mapping';
 
 function makeTask(overrides: Partial<TaskDto> = {}): TaskDto {
@@ -352,5 +352,37 @@ describe('buildGanttTasks — marcos intercalados por data', () => {
     );
 
     expect(rows).toHaveLength(3);
+  });
+});
+
+/**
+ * Status virou COLUNA da grade porque colorir a barra não funciona nesta versão
+ * da SVAR: o `css` da tarefa não chega ao elemento da barra (index.es.js:2129) e
+ * todas saem azuis. A coluna é território nosso — `template` é função que a gente
+ * escreve — então aqui o status aparece de verdade.
+ */
+describe('fmtStatus', () => {
+  it('should label each task status in Portuguese', () => {
+    expect(fmtStatus('TODO')).toBe('A fazer');
+    expect(fmtStatus('IN_PROGRESS')).toBe('Em andamento');
+    expect(fmtStatus('DONE')).toBe('Concluída');
+  });
+
+  // Marco não é tarefa e não tem status — célula vazia, não "A fazer".
+  it('should leave the cell empty for a row without status', () => {
+    expect(fmtStatus('')).toBe('');
+    expect(fmtStatus(undefined)).toBe('');
+  });
+
+  it('should carry the status onto the gantt row', () => {
+    const [row] = buildGanttTasks([makeTask({ status: 'IN_PROGRESS' } as Partial<TaskDto>)], []);
+    expect(row.status).toBe('IN_PROGRESS');
+  });
+
+  it('should leave a milestone row without status', () => {
+    const rows = buildGanttTasks([], [
+      { id: 'm1', title: 'Entrega', date: '2026-09-01T00:00:00.000Z', reached: false },
+    ] as unknown as MilestoneDto[]);
+    expect(rows[0].status).toBe('');
   });
 });
