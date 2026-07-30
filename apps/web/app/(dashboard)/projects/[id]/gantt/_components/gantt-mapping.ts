@@ -213,12 +213,34 @@ export function buildGroupLabels(tasks: TaskDto[], nodes: WbsNodeDto[]): Map<str
   return labels;
 }
 
+/**
+ * Ordem das linhas: por **início**, depois término, depois título.
+ *
+ * Antes as linhas saíam na ordem de `Task.order` — o campo global que o Backlog
+ * usa para priorizar. Num cronograma isso não ajuda: a leitura natural é a do
+ * tempo, de cima para baixo. Duas tarefas que começam no mesmo dia ficam
+ * desempatadas pelo término (a mais curta antes) e, em último caso, pelo título,
+ * para a ordem ser estável entre renders.
+ *
+ * Com `groupBy` ligado, a SVAR agrupa por pacote e esta ordem vale **dentro** de
+ * cada pacote.
+ */
+function byStartDate(a: TaskDto, b: TaskDto): number {
+  const start = (a.startDate ?? '').localeCompare(b.startDate ?? '');
+  if (start !== 0) return start;
+  const end = (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
+  if (end !== 0) return end;
+  return a.title.localeCompare(b.title);
+}
+
 export function buildGanttTasks(
   tasks: TaskDto[],
   milestones: MilestoneDto[],
   groupLabels: Map<string, string> = new Map(),
 ): GanttTask[] {
-  const visible = tasks.filter((t) => !t.deletedAt && t.startDate && t.dueDate);
+  const visible = tasks
+    .filter((t) => !t.deletedAt && t.startDate && t.dueDate)
+    .sort(byStartDate);
   // Tarefas que são pai de outra → renderizadas como resumo (summary) com expansor.
   const parents = new Set(visible.map((t) => t.parentId).filter(Boolean) as string[]);
 
@@ -256,7 +278,9 @@ export function buildGanttTasks(
     };
   });
 
-  const msItems: GanttTask[] = milestones.map((m) => ({
+  const msItems: GanttTask[] = [...milestones]
+    .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+    .map((m) => ({
     id: `ms-${m.id}`,
     text: m.title,
     start: parseCalendarDate(m.date),

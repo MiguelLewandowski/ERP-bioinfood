@@ -230,3 +230,62 @@ describe('zoomConfig', () => {
     expect(zoomConfig.levels).toHaveLength(ZOOM_LEVELS.length);
   });
 });
+
+/**
+ * As linhas saíam na ordem de `Task.order` — o campo global que o Backlog usa
+ * para priorizar. Num cronograma a leitura natural é a do TEMPO, de cima para
+ * baixo, e a ordem de prioridade do backlog só confundia.
+ */
+describe('buildGanttTasks — ordem das linhas', () => {
+  const t = (id: string, start: string, due: string, title = id) => makeTask({
+    id, title, startDate: `${start}T00:00:00.000Z`, dueDate: `${due}T00:00:00.000Z`,
+  } as Partial<TaskDto>);
+
+  it('should order rows by start date, not by the backlog order', () => {
+    const rows = buildGanttTasks([
+      t('c', '2026-09-01', '2026-09-10'),
+      t('a', '2026-07-01', '2026-07-10'),
+      t('b', '2026-08-01', '2026-08-10'),
+    ], []);
+
+    expect(rows.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  // Mesma largada: a mais curta primeiro lê melhor no gráfico.
+  it('should break a same-start tie by the earlier end date', () => {
+    const rows = buildGanttTasks([
+      t('longa', '2026-07-01', '2026-09-30'),
+      t('curta', '2026-07-01', '2026-07-05'),
+    ], []);
+
+    expect(rows.map((r) => r.id)).toEqual(['curta', 'longa']);
+  });
+
+  // Ordem estável entre renders: sem o desempate por título a lista "pula"
+  // quando dois registros são idênticos em data.
+  it('should break a full tie by title', () => {
+    const rows = buildGanttTasks([
+      t('z', '2026-07-01', '2026-07-10', 'Zebra'),
+      t('a', '2026-07-01', '2026-07-10', 'Abacate'),
+    ], []);
+
+    expect(rows.map((r) => r.text)).toEqual(['Abacate', 'Zebra']);
+  });
+
+  it('should order milestones by date too', () => {
+    const rows = buildGanttTasks([], [
+      { id: 'm2', title: 'Segundo', date: '2026-10-01T00:00:00.000Z', reached: false },
+      { id: 'm1', title: 'Primeiro', date: '2026-08-01T00:00:00.000Z', reached: false },
+    ] as unknown as MilestoneDto[]);
+
+    expect(rows.map((r) => r.text)).toEqual(['Primeiro', 'Segundo']);
+  });
+
+  // Ordenar não pode reordenar o array que a página passou.
+  it('should not mutate the input array', () => {
+    const input = [t('c', '2026-09-01', '2026-09-10'), t('a', '2026-07-01', '2026-07-10')];
+    buildGanttTasks(input, []);
+
+    expect(input.map((x) => x.id)).toEqual(['c', 'a']);
+  });
+});

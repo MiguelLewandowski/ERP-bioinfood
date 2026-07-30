@@ -98,12 +98,25 @@ export function GanttClient(props: GanttClientProps) {
     return () => clearTimeout(id);
   }, [saveError]);
 
+  // Sem dependência entre tarefas não existe caminho crítico — é a explicação
+  // do "cliquei e não fez nada".
+  const hasDependencies = props.tasks.some((t) => (t.predecessors?.length ?? 0) > 0);
+
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
 
   return (
-    <div className="flex flex-col">
+    // `h-full overflow-hidden`: a página do Gantt ocupa exatamente a altura
+    // disponível e NÃO rola. O `calc(100vh - 13rem)` que estava aqui era um
+    // palpite da altura do cabeçalho + navegação, e errou para mais — sobrava
+    // conteúdo, o container de fora ganhava a própria barra de rolagem e a tela
+    // ficava com DUAS verticais. Pior: a horizontal do Gantt só aparecia depois
+    // de rolar aquela de fora.
+    //
+    // Aqui não há número mágico: a cadeia toda até o layout do dashboard é
+    // `flex` com altura definida, então `h-full` resolve em pixels de verdade.
+    <div className="flex h-full flex-col overflow-hidden">
       {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
           altura, os controles de visualização ficavam separados das ações e
           "Agrupar por pacote" / "Caminho crítico" passavam batido. */}
@@ -151,7 +164,11 @@ export function GanttClient(props: GanttClientProps) {
         <button
           onClick={() => setShowCriticalPath((v) => !v)}
           aria-pressed={showCriticalPath}
-          title="Destaca a sequência de atividades que define a data de término do projeto"
+          title={
+            'Caminho crítico: a sequência de atividades encadeadas que define a data '
+            + 'de término do projeto. Atrasar qualquer uma delas atrasa o projeto inteiro. '
+            + 'Só existe onde há DEPENDÊNCIAS entre tarefas.'
+          }
           className={cn(
             'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
             showCriticalPath
@@ -200,6 +217,20 @@ export function GanttClient(props: GanttClientProps) {
         <div className="flex items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-1.5 text-xs text-muted-foreground">
           <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
           {baselineLabel}
+        </div>
+      )}
+
+      {/* Caminho crítico ligado num projeto SEM dependências não tem o que
+          destacar — e o botão parecia quebrado. Dizer isso é mais honesto que
+          deixar o usuário clicando. */}
+      {showCriticalPath && !hasDependencies && (
+        <div className="flex items-start gap-1.5 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-accent">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          <span>
+            Nenhuma tarefa deste projeto tem dependência, então não há caminho crítico a
+            destacar. Ligue tarefas entre si (arrastando de uma barra para outra no Gantt)
+            para que a sequência que determina o término apareça.
+          </span>
         </div>
       )}
       {!editable && (
@@ -284,15 +315,29 @@ function GanttBoard({
   const [mounted, setMounted] = useState(false);
   const [api, setApi] = useState<any>(undefined);
 
+  // Guarda o callback num ref para o efeito abaixo não depender da identidade
+  // dele (o pai passa arrow inline).
+  const onApiRef = useRef(onApi);
+  onApiRef.current = onApi;
+
   useEffect(() => { setMounted(true); }, []);
 
-  // Abre já mostrando hoje. Um projeto de 2 anos abria em jul/25 e obrigava a
-  // rolar até o presente antes de enxergar qualquer coisa em andamento.
+  // Entrega a instância ao wrapper (é de lá que o botão "Hoje" a usa) e abre já
+  // mostrando hoje.
+  //
+  // `onApi` chegava como arrow inline, mudando a cada render: este efeito
+  // re-disparava sem parar e re-scrollava o gráfico continuamente, o que podia
+  // engolir a rolagem do usuário. Agora depende só de `api`, e o auto-scroll
+  // acontece UMA vez por montagem.
+  const scrolledOnMount = useRef(false);
   useEffect(() => {
     if (!api) return;
-    onApi(api);
+    onApiRef.current(api);
+    if (scrolledOnMount.current) return;
+    scrolledOnMount.current = true;
     api.exec('scroll-chart', { date: new Date() });
-  }, [api, onApi]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
 
   const groupLabels = useMemo(() => buildGroupLabels(tasks, wbsNodes), [tasks, wbsNodes]);
   const ganttTasks = useMemo(
@@ -323,9 +368,9 @@ function GanttBoard({
   }
 
   if (!mounted) {
-    // Reserva de espaço até o widget montar (ele é client-only). Mesma altura do
-    // board, para não haver salto entre um e outro.
-    return <div className="h-[calc(100vh-13rem)] min-h-[24rem]" />;
+    // Reserva de espaço até o widget montar (ele é client-only). Mesma regra de
+    // flex do board, para não haver salto entre um e outro.
+    return <div className="min-h-0 flex-1" />;
   }
 
   const CtxMenu = ContextMenu as any;
@@ -339,17 +384,17 @@ function GanttBoard({
             caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
             O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
-          // Altura EXPLÍCITA, não `flex-1`: a SVAR só mostra as próprias barras
-          // de rolagem (vertical E horizontal) quando recebe uma caixa de altura
-          // conhecida. Com `h-full`/`flex-1` a altura podia resolver para `auto`
-          // dependendo da cadeia de ancestrais — aí o widget crescia com o
-          // conteúdo, a rolagem vertical desaparecia e a horizontal ia para o fim
-          // da página. `min-h` garante que nunca colapse em tela baixa.
-          className="h-[calc(100vh-13rem)] min-h-[24rem]"
+          // `min-h-0 flex-1` faz esta caixa receber a altura que sobra, em
+          // pixels. O `h-full` do filho é o que entrega à SVAR uma altura
+          // concreta — sem ele o widget mede `auto`, cresce com o conteúdo e
+          // perde a própria rolagem vertical.
+          className="min-h-0 flex-1 overflow-hidden"
           onContextMenu={(e) => {
             if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
           }}
         >
+          {/* `h-full` aqui é o que dá à SVAR uma altura concreta para medir. */}
+          <div className="h-full">
           <Gantt
             init={setApi}
             tasks={ganttTasks}
@@ -368,6 +413,7 @@ function GanttBoard({
             readonly={!editable}
             zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}
           />
+          </div>
         </div>
         {api && <Tooltip api={api} />}
         {editable && api && <Editor api={api} />}

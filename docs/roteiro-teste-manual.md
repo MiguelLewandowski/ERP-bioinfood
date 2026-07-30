@@ -151,6 +151,43 @@ Com o **agrupamento ligado**:
 - [ ] Renomear uma **tarefa** → as datas **não andam** (era o defeito encontrado
       ao fechar a tarefa dos marcos)
 
+### 5.3 Terceira rodada do Gantt (2026-07-29, segundo feedback)
+
+O que mudou:
+
+- **Ordem das linhas passou a ser por início da tarefa** (depois término, depois
+  título). Antes era `Task.order`, o campo de prioridade do Backlog — que num
+  cronograma não diz nada. Com agrupamento ligado, a ordem vale dentro de cada
+  pacote. Marcos também ficaram em ordem de data.
+- **Duas barras verticais: corrigido.** O `calc(100vh - 13rem)` era um palpite da
+  altura do cabeçalho e errou para mais; sobrava conteúdo, o container de fora
+  ganhava rolagem própria e a horizontal do Gantt só aparecia depois de rolar
+  aquela. Agora é `flex` com `h-full`, sem número mágico.
+- **"Hoje" — achado um defeito real:** o callback que entregava a instância da
+  SVAR era uma arrow inline, então o efeito de auto-scroll re-disparava a cada
+  render e re-scrollava o gráfico sem parar. Estabilizado, e o auto-scroll agora
+  roda uma vez por montagem.
+- **Caminho crítico** ganhou explicação no `title` e um **aviso quando o projeto
+  não tem dependências** — que é a causa mais provável do "cliquei e não fez
+  nada".
+
+Testar:
+
+- [ ] **Uma** barra de rolagem vertical na tela, não duas
+- [ ] A horizontal do Gantt aparece **sem** precisar rolar nada antes
+- [ ] As linhas estão em ordem de **data de início**, de cima para baixo
+- [ ] Botão "Hoje" leva o gráfico para a data atual
+- [ ] "Caminho crítico" ligado num projeto **sem dependências** → aparece a faixa
+      âmbar explicando que não há o que destacar
+- [ ] Criar uma dependência (arrastar da ponta de uma barra para outra) e ligar o
+      caminho crítico → a sequência aparece destacada
+
+> **O que é caminho crítico:** a sequência de atividades **encadeadas por
+> dependência** que determina a data de término do projeto. Atrasar qualquer uma
+> delas atrasa o projeto inteiro; atrasar uma tarefa fora dela, não. Por isso ele
+> só existe onde há dependências — num projeto de tarefas soltas não há sequência
+> a calcular.
+
 ### 5.2 Reteste do Gantt (2026-07-29, depois do feedback)
 
 - [ ] **Barra única** no topo: Dia/Semana/Mês/Trimestre · Hoje · Agrupar por
