@@ -8,7 +8,7 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers } from 'lucide-react';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Layers } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -80,7 +80,6 @@ export function GanttClient(props: GanttClientProps) {
   const [creating, setCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevelId>(DEFAULT_ZOOM_LEVEL);
-  const [showCriticalPath, setShowCriticalPath] = useState(false);
   // Desligado por padrão: a leitura útil de um cronograma é a do tempo, e o
   // agrupamento é um recorte que se pede quando se quer, não o estado inicial.
   const [grouped, setGrouped] = useState(false);
@@ -130,9 +129,9 @@ export function GanttClient(props: GanttClientProps) {
     return () => clearTimeout(id);
   }, [saveError]);
 
-  // Sem dependência entre tarefas não existe caminho crítico — é a explicação
-  // do "cliquei e não fez nada".
-  const hasDependencies = props.tasks.some((t) => (t.predecessors?.length ?? 0) > 0);
+
+
+
 
   /**
    * Agrupar por pacote só existe se as tarefas estiverem LIGADAS à EAP.
@@ -157,7 +156,7 @@ export function GanttClient(props: GanttClientProps) {
     <div className="flex flex-col">
       {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
           altura, os controles de visualização ficavam separados das ações e
-          "Agrupar por pacote" / "Caminho crítico" passavam batido. */}
+          "Agrupar por pacote" passava batido. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
           {ZOOM_LEVELS.map(({ id, label }) => (
@@ -202,24 +201,6 @@ export function GanttClient(props: GanttClientProps) {
           </button>
         )}
 
-        <button
-          onClick={() => setShowCriticalPath((v) => !v)}
-          aria-pressed={showCriticalPath}
-          title={
-            'Caminho crítico: a sequência de atividades encadeadas que define a data '
-            + 'de término do projeto. Atrasar qualquer uma delas atrasa o projeto inteiro. '
-            + 'Só existe onde há DEPENDÊNCIAS entre tarefas.'
-          }
-          className={cn(
-            'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
-            showCriticalPath
-              ? 'border-destructive bg-destructive text-white'
-              : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
-          )}
-        >
-          <Route size={13} /> Caminho crítico
-        </button>
-
         {editable && (
           <>
             <span className="mx-1 hidden h-5 w-px bg-gray-200 sm:block" />
@@ -262,19 +243,6 @@ export function GanttClient(props: GanttClientProps) {
         </div>
       )}
 
-      {/* Caminho crítico ligado num projeto SEM dependências não tem o que
-          destacar — e o botão parecia quebrado. Dizer isso é mais honesto que
-          deixar o usuário clicando. */}
-      {showCriticalPath && !hasDependencies && (
-        <div className="flex items-start gap-1.5 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-accent">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-          <span>
-            Nenhuma tarefa deste projeto tem dependência, então não há caminho crítico a
-            destacar. Ligue tarefas entre si (arrastando de uma barra para outra no Gantt)
-            para que a sequência que determina o término apareça.
-          </span>
-        </div>
-      )}
       {!editable && (
         <div className="flex items-center gap-1.5 bg-gray-100 text-muted-foreground px-4 py-2 text-xs font-medium">
           <Lock size={13} /> Modo somente leitura — seu perfil ({session.role}) não pode editar o cronograma.
@@ -297,12 +265,11 @@ export function GanttClient(props: GanttClientProps) {
       <GanttBoard
         // Remonta ao trocar zoom/agrupamento/caminho crítico: a store da SVAR lê
         // essas configs na inicialização, não a cada render.
-        key={`${reloadKey}-${zoomLevel}-${grouped}-${showCriticalPath}`}
+        key={`${reloadKey}-${zoomLevel}-${grouped}`}
         {...props}
         editable={editable}
         zoomLevel={zoomLevel}
         grouped={grouped}
-        showCriticalPath={showCriticalPath}
         onApi={(a) => { apiRef.current = a; }}
         onSaveError={handleSaveError}
         onEditTask={setEditingTaskId}
@@ -381,7 +348,6 @@ interface GanttBoardProps extends GanttClientProps {
   editable: boolean;
   zoomLevel: ZoomLevelId;
   grouped: boolean;
-  showCriticalPath: boolean;
   onApi: (api: any) => void;
   onSaveError: () => void;
   onEditTask: (taskId: string) => void;
@@ -389,7 +355,7 @@ interface GanttBoardProps extends GanttClientProps {
 
 function GanttBoard({
   projectId, tasks, milestones, wbsNodes, projectEnd, editable,
-  zoomLevel, grouped, showCriticalPath, onApi, onSaveError, onEditTask,
+  zoomLevel, grouped, onApi, onSaveError, onEditTask,
 }: GanttBoardProps) {
   const { token } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -483,9 +449,12 @@ function GanttBoard({
             scales={scales}
             columns={columns}
             markers={markers}
-            // O caminho crítico SEMPRE foi calculado — o que faltava era poder
-            // desligá-lo. Ligado o tempo todo, ele compete com a cor de status.
-            criticalPath={showCriticalPath ? { type: 'flexible' } : null}
+            // Caminho crítico DESLIGADO e sem botão. A config existe
+            // (`criticalPath={{ type: 'flexible' }}`), mas nunca destacou nada na
+            // tela e não conseguimos confirmar se a lib chega a marcar as barras.
+            // Decisão do dono do produto em 2026-07-29: o Gantt não precisa dele.
+            // Ver docs/tasks/feat-gantt-caminho-critico-descartado.md.
+            criticalPath={null}
             // `groupBy` nativo da SVAR: os cabeçalhos de pacote são linhas
             // gerenciadas pela lib, não sintetizadas aqui. `taskHierarchy`
             // preserva a hierarquia de subtarefas dentro de cada grupo.

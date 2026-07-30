@@ -44,6 +44,7 @@ Status: **🔍 triagem** = só o esqueleto, tipo/escopo/complexidade são palpit
 - [ ] [Melhoria visual da tela de Atividades](feat-melhoria-visual-atividades.md) — feature · web · média · 🔍 triagem
 
 ### Gantt
+- [x] [Caminho crítico no Gantt](feat-gantt-caminho-critico-descartado.md) — feature · web · alta · ❌ DESCARTADA 2026-07-29
 - [x] [Manter a barra de rolagem horizontal sempre visível](feat-gantt-barra-horizontal-fixa.md) — feature · web · baixa · 🔍 triagem
 - [x] [Tentar adicionar desfazer (Ctrl+Z)](feat-gantt-ctrl-z.md) — feature · web · alta · 🔍 triagem
 - [x] [Aplicar o PATCH condicional também aos marcos](bug-gantt-marco-grava-sem-comparar.md) — bug · web · baixa · ✅ CONCLUÍDA 2026-07-29
