@@ -85,6 +85,42 @@
    Ainda não confirmada: a classe do caminho crítico.
    ───────────────────────────────────────────────────────────────────────────── */
 
+/* ── Caminho crítico ──────────────────────────────────────────────────────────
+   A SVAR SEMPRE marcou as barras críticas: a classe é `.wx-critical` (não
+   `.wx-critical-task`, que eu havia inferido), e a regra nativa dela é
+     .wx-task.wx-critical { background-color: var(--wx-gantt-task-critical-color) }
+   com especificidade 0,2,0.
+
+   O motivo de "clico e não faz nada": as regras de status acima usam
+   `background-color: ... !important` com especificidade 0,1,0. `!important` ganha
+   de tudo sem `!important`, então a cor de status pintava por cima do crítico. O
+   cálculo funcionava; a cor é que nunca aparecia.
+
+   Solução: variáveis para o estilo nativo (links, marco, preenchimento de
+   progresso) MAIS um override explícito que combina status + crítico, com
+   especificidade 0,2,0 e `!important`, para vencer o status.
+   Confirmado no `index.css` da @svar-ui/react-gantt 2.7.1. */
+.wx-gantt {
+  --wx-gantt-task-critical-color: #c0392b;
+  --wx-gantt-task-critical-fill-color: #96281b;
+  --wx-gantt-summary-critical-color: #c0392b;
+  --wx-gantt-summary-critical-fill-color: #96281b;
+  --wx-gantt-link-critical-color: #c0392b;
+  --wx-gantt-link-critical-color-hovered: #96281b;
+  --wx-gantt-critical-color: #c0392b;
+}
+.gt-todo.wx-critical,
+.gt-doing.wx-critical,
+.gt-done.wx-critical,
+.wx-task.wx-critical {
+  background-color: #c0392b !important;
+  border-color: #96281b !important;
+}
+/* Texto branco: o vermelho do crítico é escuro. */
+.wx-task.wx-critical .wx-content {
+  color: #ffffff !important;
+}
+
 /* Contraste do rótulo dentro da barra, agora pelo seletor confirmado
    (`.wx-content`, e não o `.wx-bar-text` que eu havia inferido). As três cores de
    status são claras: o cinza `#b7b7b7` dá ~1.9:1 com texto branco, que reprova.

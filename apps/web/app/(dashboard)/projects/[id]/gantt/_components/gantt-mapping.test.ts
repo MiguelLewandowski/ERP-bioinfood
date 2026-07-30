@@ -311,3 +311,29 @@ describe('buildGanttTasks — grupo dos marcos', () => {
     expect(task!.group).not.toBe(milestone!.group);
   });
 });
+
+/**
+ * Com `groupBy`, a SVAR ordena os grupos pela PRIMEIRA APARIÇÃO na lista. Anexar
+ * os marcos no fim mandava o grupo "Marcos" para o rodapé do gráfico — foi o que
+ * apareceu na tela duas vezes seguidas.
+ */
+describe('buildGanttTasks — marcos vêm antes das tarefas', () => {
+  it('should list milestones before tasks so their group lands on top', () => {
+    const rows = buildGanttTasks(
+      [makeTask({ id: 't1' } as Partial<TaskDto>)],
+      [{ id: 'm1', title: 'Entrega', date: '2026-09-01T00:00:00.000Z', reached: false }] as unknown as MilestoneDto[],
+    );
+
+    expect(rows[0].id).toBe('ms-m1');
+    expect(rows[rows.length - 1].id).toBe('t1');
+  });
+
+  it('should keep every task and milestone in the result', () => {
+    const rows = buildGanttTasks(
+      [makeTask({ id: 't1' } as Partial<TaskDto>), makeTask({ id: 't2' } as Partial<TaskDto>)],
+      [{ id: 'm1', title: 'A', date: '2026-09-01T00:00:00.000Z', reached: false }] as unknown as MilestoneDto[],
+    );
+
+    expect(rows).toHaveLength(3);
+  });
+});

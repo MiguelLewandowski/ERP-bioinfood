@@ -302,7 +302,12 @@ export function buildGanttTasks(
     group: MILESTONE_GROUP_LABEL,
   }));
 
-  return [...taskItems, ...msItems];
+  // Marcos PRIMEIRO. Com `groupBy`, a SVAR ordena os grupos pela primeira
+  // aparição na lista — anexar os marcos no fim jogava o grupo "Marcos" para o
+  // rodapé do gráfico, que foi exatamente o que se viu na tela. Como faixa de
+  // topo eles também ficam mais úteis: marco é referência de prazo, e serve de
+  // régua para as barras que vêm abaixo.
+  return [...msItems, ...taskItems];
 }
 
 // Formato de link nativo da SVAR (@svar-ui/gantt-store): e2s=FS, s2s=SS, e2e=FF, s2e=SF.
