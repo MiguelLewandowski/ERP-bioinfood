@@ -403,7 +403,8 @@ As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
 # Rodada de 2026-07-30 — as cinco tarefas que estavam paradas
 
 > ⚠️ **Antes de tudo:** duas migrations novas. `cd apps/api && pnpm exec prisma migrate deploy`,
-> e rode `pnpm db:seed` (ou crie a categoria à mão) para ter a categoria **Equipamento**.
+> e rode **`pnpm seed`** (ou crie a categoria à mão) para ter a categoria **Equipamento**.
+> *(É `pnpm seed`, sem `db:` — os outros são `db:deploy`, `db:reset-data`, `db:unseed`.)*
 > Sem ela, o formulário de novo item não tem o que selecionar.
 
 ## 9. Editor de texto rico no TAP
