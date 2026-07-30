@@ -2,7 +2,7 @@
 tipo: feature
 escopo: api   # palpite
 complexidade: alta   # palpite
-status: triagem
+status: feito
 criada: 2026-07-28
 tema: estoque
 origem: reunião de teste Bruna e Luana — 28/07/2026
@@ -25,4 +25,31 @@ Já existe **stub de estoque** no schema — `Product`, `PurchaseOrder`, `Purcha
 - Tarefa irmã: [[feat-materiais-insumo-recursos-tap]] — provavelmente o mesmo módulo, planejar juntas.
 - **Esta é grande demais para uma tarefa** — deve virar `/planejar`.
 
-> ⚠️ Documento em triagem — **não implementar**. Rode `/nova-tarefa aprofundar docs/tasks/feat-checklist-equipamentos-projeto.md`.
+---
+
+## ✅ Resolvido em 2026-07-30
+
+Decisões do Miguel, que fecharam as perguntas em aberto:
+
+| Pergunta | Decisão |
+|---|---|
+| Aproveitar o stub `Product`? | **Não.** Fica intocado |
+| Entidade | `StockItem` + `StockCategory` (categoria é **dado**, cadastrável) |
+| Categorias | Só **Equipamento** no seed; o resto se cadastra em `/estoque/config` |
+| Onde a checklist vive | **Seção Recursos do TAP** — planejamento, sem reserva nem agenda |
+| RBAC | Escrita `@Roles(PADRAO)`; categoria só ADMIN; CLIENTE não vê o módulo |
+
+**Por que o stub ficou intocado:** `Product`/`PurchaseOrder`/`StockMovement` são compras e
+movimentação — outro problema, sem módulo, sem tela e sem uma linha de dado. Reaproveitar
+`Product` (consumível, com saldo) para equipamento durável distorceria os dois conceitos;
+apagar seria migration destrutiva sem ganho.
+
+**Por que sem reserva:** "checklist de equipamentos" virou *planejamento* (`checked` =
+providenciado), não *alocação*. Sem janela de uso não há conflito de agenda entre
+projetos — é o que manteve o módulo básico, como pedido.
+
+Entregue: módulo `stock` na API (Clean Architecture, espelhando `pops`), migration
+aditiva `20260730120000_stock_module`, telas `/estoque` e `/estoque/config`, e
+`CharterEquipment` ligando o cadastro ao TAP.
+
+Absorveu [[feat-materiais-insumo-recursos-tap]] — as duas eram a mesma coisa.

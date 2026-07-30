@@ -98,10 +98,12 @@ export function CharterEquipmentSection({ projectId, canEdit, rows, onChange }: 
   }, [rows]);
 
   const done = rows.filter((r) => r.checked).length;
-  const linkedIds = new Set(rows.map((r) => r.stockItemId));
 
   const availableCatalog = useMemo(() => {
     if (!catalog) return [];
+    // O Set é montado aqui dentro para o linter enxergar a dependência real
+    // (`rows`) — derivá-lo fora deixava `linkedIds` fora do array de deps.
+    const linkedIds = new Set(rows.map((r) => r.stockItemId));
     const term = search.trim().toLowerCase();
     return catalog.filter((i) => {
       if (linkedIds.has(i.id)) return false;

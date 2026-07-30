@@ -352,29 +352,18 @@ Feitas:
 - [x] `feat-calendario-mostrar-mais-atividades`
 - [x] `feat-gantt-ctrl-z` — nativo da SVAR; **ver ressalva em §7.10**
 
-Pendentes — **e por que não saíram**:
+**Fechadas em 2026-07-30**, depois de você decidir as questões que estavam em
+aberto (editor rico, origem dos insumos, escopo do estoque, privacidade das
+anotações):
 
-- [ ] `feat-melhoria-visual-atividades` — a anotação ("o mais visual possível")
-      não define resultado verificável. O próprio doc da tarefa diz que é
-      candidata a `/analisar-uiux`, não a implementação direta.
-- [ ] `feat-hierarquia-texto-tap` — depende de escolher **um** editor rico e um
-      formato de persistência (Markdown? HTML? JSON?), com sanitização contra
-      XSS. É decisão de arquitetura, e a mesma decisão vale para o módulo de
-      anotações — fazer as duas com editores diferentes seria o pior desfecho.
-- [ ] `feat-materiais-insumo-recursos-tap` — depende de saber se insumo vem do
-      catálogo do módulo de estoque ou é texto livre no TAP. Se vier do
-      catálogo, depende da tarefa abaixo.
-- [ ] `feat-checklist-equipamentos-projeto` — módulo novo. Existe um **stub** de
-      estoque no schema (`Product`, `StockMovement`) sem módulo NestJS nem tela;
-      decidir se aproveita, reescreve ou ignora é decisão de arquitetura.
-- [ ] `feat-modulo-anotacoes-pessoais` — módulo novo, e esbarra numa questão de
-      RBAC que não é minha para resolver: **nota "pessoal" que nem ADMIN pode
-      ler contraria o RBAC atual** ("ADMIN sempre passa no RolesGuard"). Isso é
-      decisão de privacidade, não de código.
+- [x] `feat-hierarquia-texto-tap` — **Tiptap v3**, HTML sanitizado no servidor
+- [x] `feat-materiais-insumo-recursos-tap` — virou a mesma coisa que a de baixo
+- [x] `feat-checklist-equipamentos-projeto` — módulo `stock` + checklist no TAP
+- [x] `feat-modulo-anotacoes-pessoais` — privadas, **nem ADMIN lê**
+- [x] `feat-melhoria-visual-atividades` — `/analisar-uiux` com renderização real;
+      achou **dois 🔴 de correção** antes de qualquer questão estética
 
-> As quatro últimas caem na **regra de ouro do `CLAUDE.md`**: decisão que
-> impacta arquitetura, banco ou segurança para, documenta e pergunta. Deixei
-> documentado em vez de escolher por você.
+> Ver as seções **9 a 12** abaixo para o roteiro de teste dessas cinco.
 
 ### Migrations acumuladas em `develop`
 
@@ -382,6 +371,8 @@ Pendentes — **e por que não saíram**:
 |---|---|---|
 | `20260728180000_add_requires_sop` | `Task.requiresSOP` com default `true` | não — aditiva |
 | `20260729120000_co_responsibles` | tabelas `TaskCoAssignee` e `RiskCoOwner` | não — aditiva |
+| `20260730120000_stock_module` | `StockCategory`, `StockItem`, `CharterEquipment` | não — aditiva |
+| `20260730130000_personal_notes` | tabela `Note` | não — aditiva |
 
 Nenhuma exige as duas publicações do procedimento de migration destrutiva.
 As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
@@ -406,3 +397,148 @@ As duas aplicam sozinhas no boot da API (`prisma:deploy` no `startCommand`).
 - [ ] **Enter** cria; **Esc** cancela
 - [ ] O contato novo aparece no CRM (Pessoas), com só o nome preenchido
 - [ ] Se o perfil não puder criar contato, aparece erro amigável — não quebra
+
+---
+
+# Rodada de 2026-07-30 — as cinco tarefas que estavam paradas
+
+> ⚠️ **Antes de tudo:** duas migrations novas. `cd apps/api && pnpm exec prisma migrate deploy`,
+> e rode `pnpm db:seed` (ou crie a categoria à mão) para ter a categoria **Equipamento**.
+> Sem ela, o formulário de novo item não tem o que selecionar.
+
+## 9. Editor de texto rico no TAP
+
+> Os 12 campos narrativos viraram editor rico. Tipo, Prioridade e Orçamento **não** —
+> continuam como estavam.
+
+- [ ] Abrir um TAP → nos campos narrativos há uma **barra** acima da caixa
+      (título, subtítulo, negrito, itálico, listas, checklist)
+- [ ] Aplicar **negrito** e um **título** → a formatação aparece
+- [ ] Criar uma **lista numerada** e apertar **Tab** dentro de um item → ele
+      **indenta** (vira subitem). Shift+Tab desindenta
+- [ ] **⚠️ O teste que mais importa:** digitar num campo rico e **sair dele** →
+      "Salvo às HH:MM". O autosave é o mesmo de antes e não podia quebrar
+- [ ] Digitar e **não** sair do campo → "Alterações não salvas"
+- [ ] Digitar e **tentar fechar a aba sem sair do campo** → o navegador pergunta
+      se quer sair
+- [ ] **F5** → a formatação continua lá (negrito, título, lista aninhada)
+- [ ] Abrir um TAP **escrito antes desta mudança** → o texto puro continua
+      legível e vira parágrafo. Nada se perdeu
+- [ ] **Exportar o TAP em PDF** → títulos e listas saem **formatados**. Se
+      aparecer `<ul>` ou `<strong>` escrito na página, é bug
+- [ ] Colar um texto grande e formatado de fora (Word/Notion) → salva sem erro
+      *(o limite subiu de 4.000 para 20.000 caracteres porque markup ocupa espaço)*
+
+## 10. Estoque (`/estoque`)
+
+- [ ] O menu lateral tem **Estoque** (ícone de caixa)
+- [ ] "Novo item" → cadastrar 2–3 equipamentos reais da Bioinfood
+      (nome, categoria, patrimônio, quantidade, local)
+- [ ] A lista aparece **agrupada por categoria**
+- [ ] Buscar por **nome**, por **patrimônio** e por **local** → filtra nos três
+- [ ] Filtrar por situação (Disponível / Em manutenção / Aposentado)
+- [ ] Editar um item pelo lápis → salva e a lista reflete
+- [ ] Excluir um item **que não está em nenhum projeto** → sai da lista
+
+### 10.1 Categorias (`/estoque/config`, só ADMIN)
+
+- [ ] Botão "Categorias" aparece no cabeçalho **só para ADMIN**
+- [ ] Existe a categoria **Equipamento**, e só ela
+- [ ] Criar "Insumo" e "Vidraria" → aparecem na lista
+- [ ] A categoria nova passa a ser selecionável no formulário de item
+- [ ] **Tentar excluir uma categoria em uso** → bloqueia, com a contagem de itens
+- [ ] Desativar uma categoria → ela some das opções de item novo, mas os itens
+      que já a usam continuam intactos
+- [ ] **Entrar como PADRAO** → vê `/estoque`, mas o botão "Categorias" **não aparece**
+- [ ] **Entrar como CLIENTE** → **não** vê "Estoque" no menu
+
+## 11. Checklist de equipamentos no TAP
+
+- [ ] TAP → seção **"Recursos e Orçamento"** → há "Equipamentos e materiais"
+- [ ] "Adicionar" → abre o cadastro do estoque, com busca
+- [ ] Adicionar 2–3 itens → aparecem **agrupados por categoria**
+- [ ] Marcar o checkbox de um → vira "providenciado" (riscado), e o contador
+      "N de M providenciados" acompanha
+- [ ] **F5** → continuam marcados
+- [ ] Item que está **Em manutenção** mostra o aviso âmbar na linha
+- [ ] Tirar um item da lista pelo X → some
+- [ ] **A bolinha da seção Recursos no menu lateral fica verde** com a checklist
+      montada, mesmo sem preencher orçamento nem equipe
+- [ ] Adicionar o **mesmo item duas vezes** → não duplica
+- [ ] **Exportar o PDF** → a seção Recursos lista os itens com ☑ / ☐
+- [ ] Adicionar equipamento num projeto **que ainda não tem TAP salvo** → funciona
+      (o TAP é criado na hora)
+- [ ] **Tentar excluir, em `/estoque`, um item que está na checklist** → bloqueia,
+      sugerindo marcar como "Aposentado"
+- [ ] **Entrar como CLIENTE** → vê a lista, mas **sem** "Adicionar", sem X e com
+      os checkboxes desabilitados
+
+## 12. Anotações pessoais (`/anotacoes`)
+
+> ⚠️ **Esta é a única tela do ERP que o ADMIN não enxerga por cima.** O teste de
+> privacidade abaixo é o que importa.
+
+- [ ] O menu tem **Anotações**, para **todos** os perfis
+- [ ] "Nova anotação" → cria e já abre para escrever
+- [ ] Escrever título e conteúdo com formatação (título, lista, checklist)
+- [ ] Parar de digitar ~1s → aparece "Salvando…" e depois "Salvo"
+- [ ] **F5** → título e formatação continuam
+- [ ] Fixar uma anotação (alfinete) → sobe para o topo da lista
+- [ ] Buscar por um trecho do texto → filtra
+- [ ] Excluir → pede confirmação com o **nome real** da anotação
+- [ ] Digitar e **fechar a aba na hora** → o navegador avisa
+- [ ] Trocar de anotação **no meio da digitação** → o que foi digitado na
+      primeira **não se perde nem vaza para a segunda**
+
+### 12.1 ⚠️ Privacidade — o teste que importa
+
+- [ ] Criar uma anotação com o usuário **PADRAO** (ex.: `lider@bioinfood.com`)
+- [ ] **Sair e entrar como ADMIN** → em `/anotacoes` o ADMIN vê **só as dele**.
+      A anotação do outro **não aparece em lugar nenhum**
+- [ ] Como ADMIN, tentar abrir a URL direta da anotação alheia
+      (`/anotacoes` não expõe id; se você pegar o id pelo DevTools do outro
+      usuário, `GET /notes/<id>` deve devolver **404**, não 403)
+- [ ] **Entrar como CLIENTE** → tem as próprias anotações, e só as dele
+
+## 13. Atividades — correções e melhoria visual
+
+> A análise de UI/UX foi feita **com o app renderizado**. Ela achou dois defeitos
+> de correção antes de qualquer questão estética. Diagnóstico completo:
+> `docs/analise-uiux-atividades.md`.
+
+### 13.1 ⚠️ Datas (era o pior dos dois)
+
+- [ ] Abrir uma atividade **sem horário marcado** → o detalhe mostra
+      **só a data**, sem "21:00" nenhum
+- [ ] A data mostrada **bate com o prazo real** da tarefa (confira no backlog do
+      projeto). Antes aparecia **um dia antes**
+- [ ] Uma atividade **com hora de verdade** (ex.: reunião às 14h) → continua
+      mostrando a hora, e a hora certa
+- [ ] No calendário, a barra começa e termina **no dia certo**
+
+### 13.2 ⚠️ Visão Semana (estava escondendo trabalho)
+
+- [ ] Trocar para **Semana**, numa semana com tarefas longas em andamento
+- [ ] **O número do "Total" bate com o que a lista mostra.** Antes dizia "6 Total"
+      e listava 1
+- [ ] Cada dia separa **"N vence"** (peso normal) de **"N em andamento"** (recolhido)
+- [ ] Clicar em "N em andamento neste dia" → expande as que só estão correndo
+- [ ] Uma tarefa que **começou semanas atrás e vence nesta semana** aparece —
+      era exatamente o que sumia
+
+### 13.3 Melhoria visual
+
+- [ ] No calendário, atividades **Alta/Crítica/atrasadas** têm **ponto colorido**
+      antes do título e o título em **negrito**; as demais, não
+- [ ] Os chips do resumo (Total, A fazer, Em andamento, Concluída, Atrasadas)
+      têm **quadradinho colorido** — a legenda separada que existia ao lado sumiu
+- [ ] **Clicar num chip filtra** o calendário; clicar de novo desfaz
+- [ ] Chip "Atrasadas" → só as atrasadas
+- [ ] Período sem nada → estado vazio com ícone e explicação
+- [ ] Com filtro que não casa nada → estado vazio **diferente**, com
+      "Limpar filtros"
+
+> **Sabidamente em aberto (A3):** a grade do mês ainda lê como um Gantt — quase
+> toda barra atravessa a semana inteira, e a mesma tarefa se repete em cada linha
+> de semana. Corrigir muda o modelo da tela (marcador de prazo × período
+> contínuo) e é decisão sua. Está registrado no relatório.
