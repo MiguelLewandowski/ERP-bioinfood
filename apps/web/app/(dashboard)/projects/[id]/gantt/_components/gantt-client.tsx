@@ -8,7 +8,7 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Layers } from 'lucide-react';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -80,9 +80,6 @@ export function GanttClient(props: GanttClientProps) {
   const [creating, setCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ZoomLevelId>(DEFAULT_ZOOM_LEVEL);
-  // Desligado por padrão: a leitura útil de um cronograma é a do tempo, e o
-  // agrupamento é um recorte que se pede quando se quer, não o estado inicial.
-  const [grouped, setGrouped] = useState(false);
   // Instância da SVAR erguida do board: o botão "Hoje" vive na barra de cima.
   const apiRef = useRef<any>(null);
 
@@ -133,16 +130,6 @@ export function GanttClient(props: GanttClientProps) {
 
 
 
-  /**
-   * Agrupar por pacote só existe se as tarefas estiverem LIGADAS à EAP.
-   *
-   * O vínculo é `Task.wbsNodeId`, preenchido ao apontar o pacote no formulário da
-   * tarefa. Num projeto onde ninguém fez isso, todas caem em "Sem pacote da EAP"
-   * e o botão não muda nada — que foi exatamente o relato. Melhor não oferecer um
-   * controle inerte do que deixar o usuário achando que está quebrado.
-   */
-  const hasWbsLinkedTasks = props.tasks.some((t) => !!t.wbsNode);
-
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
@@ -156,7 +143,7 @@ export function GanttClient(props: GanttClientProps) {
     <div className="flex flex-col">
       {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
           altura, os controles de visualização ficavam separados das ações e
-          "Agrupar por pacote" passava batido. */}
+          ficavam separados das ações de escrita. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
           {ZOOM_LEVELS.map(({ id, label }) => (
@@ -183,23 +170,6 @@ export function GanttClient(props: GanttClientProps) {
           <CalendarClock size={13} /> Hoje
         </button>
 
-        {/* Só aparece se ALGUMA tarefa estiver ligada a um pacote da EAP: sem
-            vínculo não há o que agrupar, e o botão parecia quebrado. */}
-        {hasWbsLinkedTasks && (
-          <button
-            onClick={() => setGrouped((v) => !v)}
-            aria-pressed={grouped}
-            title="Agrupa as linhas pelo pacote de nível 1 da EAP a que cada tarefa está ligada"
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
-              grouped
-                ? 'border-primary bg-primary text-white'
-                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
-            )}
-          >
-            <Layers size={13} /> Agrupar por pacote
-          </button>
-        )}
 
         {editable && (
           <>
@@ -265,11 +235,10 @@ export function GanttClient(props: GanttClientProps) {
       <GanttBoard
         // Remonta ao trocar zoom/agrupamento/caminho crítico: a store da SVAR lê
         // essas configs na inicialização, não a cada render.
-        key={`${reloadKey}-${zoomLevel}-${grouped}`}
+        key={`${reloadKey}-${zoomLevel}`}
         {...props}
         editable={editable}
         zoomLevel={zoomLevel}
-        grouped={grouped}
         onApi={(a) => { apiRef.current = a; }}
         onSaveError={handleSaveError}
         onEditTask={setEditingTaskId}
@@ -347,7 +316,6 @@ function useGanttHeight() {
 interface GanttBoardProps extends GanttClientProps {
   editable: boolean;
   zoomLevel: ZoomLevelId;
-  grouped: boolean;
   onApi: (api: any) => void;
   onSaveError: () => void;
   onEditTask: (taskId: string) => void;
@@ -355,7 +323,7 @@ interface GanttBoardProps extends GanttClientProps {
 
 function GanttBoard({
   projectId, tasks, milestones, wbsNodes, projectEnd, editable,
-  zoomLevel, grouped, onApi, onSaveError, onEditTask,
+  zoomLevel, onApi, onSaveError, onEditTask,
 }: GanttBoardProps) {
   const { token } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -455,10 +423,15 @@ function GanttBoard({
             // Decisão do dono do produto em 2026-07-29: o Gantt não precisa dele.
             // Ver docs/tasks/feat-gantt-caminho-critico-descartado.md.
             criticalPath={null}
-            // `groupBy` nativo da SVAR: os cabeçalhos de pacote são linhas
-            // gerenciadas pela lib, não sintetizadas aqui. `taskHierarchy`
-            // preserva a hierarquia de subtarefas dentro de cada grupo.
-            groupBy={grouped ? { field: 'group', taskHierarchy: true, ungrouped: 'bottom' } : null}
+            // Agrupamento por pacote da EAP: REMOVIDO, porque não existe neste
+            // build da SVAR. `groupBy` é prop declarada e tipada, mas o módulo que
+            // a implementa (`groupManager`) não é distribuído: no
+            // @svar-ui/gantt-store 2.7.1 a string aparece UMA vez, na linha que o
+            // procura (`this._modules.get("groupManager")`), e ZERO vezes no
+            // @svar-ui/react-gantt. Não há registro em lugar nenhum — é recurso da
+            // versão paga.
+            // Ver docs/tasks/feat-gantt-agrupar-por-pacote-indisponivel.md.
+            groupBy={null}
             baselines
             readonly={!editable}
             zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}
