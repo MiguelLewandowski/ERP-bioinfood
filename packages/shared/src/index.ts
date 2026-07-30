@@ -594,6 +594,87 @@ export interface CharterDto {
   updatedAt: string;
 }
 
+// ── Estoque (cadastro de itens) ───────────────────────────────────────────────
+//
+// Cadastro do que a Bioinfood tem e usa nos projetos. Deliberadamente básico:
+// sem movimentação, saldo, reserva ou agenda de uso.
+
+/** Situações possíveis de um item no cadastro. */
+export const STOCK_ITEM_STATUSES = ['ACTIVE', 'MAINTENANCE', 'RETIRED'] as const;
+export type StockItemStatus = (typeof STOCK_ITEM_STATUSES)[number];
+
+export const STOCK_ITEM_STATUS_LABELS: Record<StockItemStatus, string> = {
+  ACTIVE: 'Disponível',
+  MAINTENANCE: 'Em manutenção',
+  RETIRED: 'Aposentado',
+};
+
+export interface StockCategoryDto {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
+}
+
+export interface StockItemDto {
+  id: string;
+  name: string;
+  /** Patrimônio/etiqueta. Nem todo item tem, mas quando tem é único. */
+  code: string | null;
+  category: { id: string; name: string };
+  categoryId: string;
+  quantity: number;
+  unit: string | null;
+  location: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Checklist de recursos do TAP ──────────────────────────────────────────────
+
+/** Item do cadastro de estoque vinculado a um TAP. `checked` = providenciado. */
+export interface CharterEquipmentDto {
+  id: string;
+  stockItemId: string;
+  quantity: number;
+  checked: boolean;
+  item: {
+    id: string;
+    name: string;
+    code: string | null;
+    unit: string | null;
+    location: string | null;
+    status: string;
+    category: { id: string; name: string };
+  };
+}
+
+// ── Anotações pessoais ────────────────────────────────────────────────────────
+//
+// ⚠️ PRIVADAS: só o dono lê, **nem ADMIN**. Não existe DTO com `ownerId` de
+// propósito — o dono nunca trafega, porque nunca é escolhido pelo cliente. Ver
+// a seção de controle de acesso no CLAUDE.md antes de acrescentar um.
+
+export interface NoteDto {
+  id: string;
+  title: string;
+  contentHtml: string | null;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Item de lista: sem o HTML inteiro, com uma prévia em texto puro. */
+export interface NoteListItemDto {
+  id: string;
+  title: string;
+  preview: string;
+  pinned: boolean;
+  updatedAt: string;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**

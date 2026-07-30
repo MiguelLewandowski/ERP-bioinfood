@@ -196,28 +196,28 @@ enum StockMovementType {
 // ═══════════════════════════ IDENTIDADE / AUTH ═════════════════════════════
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  role         SystemRole @default(PADRAO)
-  isActive     Boolean    @default(true)
-  mustChangePassword Boolean @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
+  id                 String     @id @default(cuid())
+  name               String
+  email              String     @unique
+  passwordHash       String
+  role               SystemRole @default(PADRAO)
+  isActive           Boolean    @default(true)
+  mustChangePassword Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
 
   // Liga a IDENTIDADE (login) à PESSOA DE NEGÓCIO. Nulo p/ contas internas puras.
   contactId String?  @unique
   contact   Contact? @relation(fields: [contactId], references: [id])
 
   // Relações de projetos (existentes)
-  createdProjects   Project[]       @relation("CreatedBy")
-  baselinedProjects Project[]       @relation("BaselineSetBy")
-  receivedAccesses  ProjectAccess[] @relation("ReceivedAccess")
-  grantedAccesses   ProjectAccess[] @relation("GrantedAccess")
-  assignedTasks     Task[]          @relation("TaskAssignee")
-  ownedRisks        Risk[]          @relation("RiskOwner")
+  createdProjects   Project[]        @relation("CreatedBy")
+  baselinedProjects Project[]        @relation("BaselineSetBy")
+  receivedAccesses  ProjectAccess[]  @relation("ReceivedAccess")
+  grantedAccesses   ProjectAccess[]  @relation("GrantedAccess")
+  assignedTasks     Task[]           @relation("TaskAssignee")
+  ownedRisks        Risk[]           @relation("RiskOwner")
   coAssignedTasks   TaskCoAssignee[] @relation("TaskCoAssignee")
   coOwnedRisks      RiskCoOwner[]    @relation("RiskCoOwner")
   refreshTokens     RefreshToken[]
@@ -230,8 +230,9 @@ model User {
   loggedInteractions       Interaction[]
   responsibleActivities    Activity[]
   responsibleOpportunities Opportunity[]
-  authoredPopVersions      PopVersion[] @relation("PopVersionAuthor")
-  addedTaskPops            TaskPop[]    @relation("TaskPopAddedBy")
+  authoredPopVersions      PopVersion[]        @relation("PopVersionAuthor")
+  addedTaskPops            TaskPop[]           @relation("TaskPopAddedBy")
+  notes                    Note[]              @relation("NoteOwner")
 }
 
 model RefreshToken {
@@ -299,12 +300,12 @@ model Organization {
   instagram String?
 
   // Taxonomias configuráveis (rótulo é dado, não texto livre — §2.4)
-  sectorId String?
-  sector   Sector?             @relation(fields: [sectorId], references: [id])
-  sourceId String?
-  source   OrganizationSource? @relation(fields: [sourceId], references: [id])
+  sectorId   String?
+  sector     Sector?             @relation(fields: [sectorId], references: [id])
+  sourceId   String?
+  source     OrganizationSource? @relation(fields: [sourceId], references: [id])
   categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id])
+  category   Category?           @relation(fields: [categoryId], references: [id])
 
   productServices OrganizationProductService[]
 
@@ -402,7 +403,7 @@ model SupplierProfile {
 // ═══════════════════ DADOS MESTRES: CONTATOS (pessoas) ═════════════════════
 
 model Contact {
-  id        String    @id @default(cuid())
+  id        String              @id @default(cuid())
   name      String
   cpf       String? // só dígitos (normalizar na aplicação)
   email     String?
@@ -420,8 +421,8 @@ model Contact {
   notes     String?
   sourceId  String? // origem da pessoa (reaproveita a taxonomia de OrganizationSource)
   source    OrganizationSource? @relation(fields: [sourceId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
   deletedAt DateTime?
 
   user User? // identidade de login opcional (back-relation de User.contactId)
@@ -676,15 +677,15 @@ model Project {
   description String?
   status      ProjectStatus @default(PLANNING)
   // Dia de calendário — início e término planejados do projeto não têm hora.
-  startDate   DateTime? @db.Date
-  endDate     DateTime? @db.Date
+  startDate   DateTime?     @db.Date
+  endDate     DateTime?     @db.Date
   objective   String?
 
   // DÍVIDA CORRIGIDA: clientName (String) -> FK para Organization.
   clientId String?
   client   Organization? @relation(fields: [clientId], references: [id])
 
-  createdById String
+  createdById     String
   // Linha de base do cronograma (PMBOK): quando/por quem foi aprovada.
   baselineSetAt   DateTime?
   baselineSetById String?
@@ -777,8 +778,10 @@ model Charter {
 
   // Section 6 — Recursos (antes: campo único `resources`, texto livre)
   infrastructure String?
-  budget         Decimal? @db.Decimal(14, 2)
+  budget         Decimal?            @db.Decimal(14, 2)
   team           CharterTeamMember[]
+  // Checklist de equipamentos/insumos, puxada do cadastro de estoque.
+  equipment      CharterEquipment[]
 
   // Section 7 — Governança (narrativa)
   governance String?
@@ -843,33 +846,33 @@ model WbsNode {
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  projectId   String
-  wbsNodeId   String?
-  assigneeId  String?
-  title       String
-  description String?
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
-  storyPoints Int?
+  id            String       @id @default(cuid())
+  projectId     String
+  wbsNodeId     String?
+  assigneeId    String?
+  title         String
+  description   String?
+  status        TaskStatus   @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+  storyPoints   Int?
   // Se a tarefa exige POP. Default `true` preserva o denominador da métrica de
   // cobertura no dia do deploy — o número só muda quando alguém classificar uma
   // tarefa como administrativa. Ver docs/planejamento-ui-projetos.md, Onda 5.
-  requiresSOP Boolean      @default(true)
+  requiresSOP   Boolean      @default(true)
   // Subtarefa: tarefa-pai (hierarquia de atividades no Gantt).
-  parentId    String?
-  startDate   DateTime?
-  dueDate     DateTime?
+  parentId      String?
+  startDate     DateTime?
+  dueDate       DateTime?
   // Linha de base (planejado aprovado) — snapshot de startDate/dueDate.
   baselineStart DateTime?
   baselineEnd   DateTime?
   // Datas reais de execução (preenchidas na mudança de status).
-  actualStart DateTime?
-  actualEnd   DateTime?
-  order       Int          @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  actualStart   DateTime?
+  actualEnd     DateTime?
+  order         Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
 
   project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   wbsNode      WbsNode?            @relation(fields: [wbsNodeId], references: [id])
@@ -955,8 +958,8 @@ model Risk {
   updatedAt   DateTime        @updatedAt
   deletedAt   DateTime?
 
-  project  Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  owner    User?          @relation("RiskOwner", fields: [ownerId], references: [id])
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner    User?         @relation("RiskOwner", fields: [ownerId], references: [id])
   coOwners RiskCoOwner[]
 
   @@index([projectId])
@@ -1131,14 +1134,14 @@ model Product {
 }
 
 model PurchaseOrder {
-  id          String   @id @default(cuid())
-  number      String   @unique
+  id          String       @id @default(cuid())
+  number      String       @unique
   supplierId  String // organização fornecedora
   supplier    Organization @relation(fields: [supplierId], references: [id])
-  status      String   @default("OPEN")
-  totalAmount Decimal? @db.Decimal(15, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String       @default("OPEN")
+  totalAmount Decimal?     @db.Decimal(15, 2)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   items PurchaseOrderItem[]
 
@@ -1169,4 +1172,101 @@ model StockMovement {
 
   @@index([productId])
   @@index([createdAt])
+}
+
+// ═════════════════════════ ESTOQUE (cadastro de itens) ═════════════════════
+//
+// Cadastro do que a Bioinfood TEM e usa nos projetos — equipamentos hoje,
+// insumos/vidraria quando alguém cadastrar a categoria. Deliberadamente básico:
+// não há movimentação, saldo, reserva nem agenda de uso. O projeto declara o que
+// precisa (CharterEquipment) e marca o que já está providenciado; alocação com
+// janela de tempo é outro problema, e traria conflito entre projetos junto.
+//
+// NÃO confundir com o stub `Product`/`StockMovement`/`PurchaseOrder` acima:
+// aquilo é compras e movimentação, nunca teve módulo nem tela nem dado, e
+// segue intocado. Reaproveitar `Product` (consumível, com saldo) para
+// equipamento durável distorceria os dois conceitos.
+
+model StockCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items StockItem[]
+}
+
+model StockItem {
+  id         String  @id @default(cuid())
+  name       String
+  // Patrimônio/etiqueta. Opcional: nem todo item tem, mas quando tem é único.
+  code       String? @unique
+  categoryId String
+  quantity   Int     @default(1)
+  unit       String? // un, kg, L, mL...
+  location   String? // "Lab 2 — bancada 3"
+  // ACTIVE | MAINTENANCE | RETIRED — string como já é o padrão do projeto
+  // (WbsNode.status, PurchaseOrder.status), sem enum novo no banco.
+  status     String  @default("ACTIVE")
+  notes      String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  category     StockCategory      @relation(fields: [categoryId], references: [id])
+  charterLinks CharterEquipment[]
+
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+// Checklist de recursos do projeto (Seção 6 do TAP — Recursos e Orçamento).
+// `checked` = "já providenciado"; desmarcado = ainda falta. Sem janela de uso.
+model CharterEquipment {
+  id          String   @id @default(cuid())
+  charterId   String
+  stockItemId String
+  quantity    Int      @default(1)
+  checked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  charter   Charter   @relation(fields: [charterId], references: [id], onDelete: Cascade)
+  stockItem StockItem @relation(fields: [stockItemId], references: [id])
+
+  @@unique([charterId, stockItemId])
+  @@index([charterId])
+  @@index([stockItemId])
+}
+
+// ═══════════════════════ ANOTAÇÕES PESSOAIS (privadas) ═════════════════════
+//
+// ⚠️ ÚNICA exceção de privacidade do ERP: nota pessoal é do dono e de mais
+// ninguém — **nem ADMIN lê**.
+//
+// A trava NÃO está no RolesGuard (que deixa ADMIN passar por design, e mexer
+// nele afetaria todos os outros módulos). Está em não existir caminho: o
+// `ownerId` nunca é parâmetro de entrada, vem sempre do JWT, e todo acesso do
+// repositório filtra por ele. Não há endpoint que aceite ownerId, não há
+// listagem global. ADMIN que chamar GET /notes recebe as notas DELE.
+//
+// Consequência para quem for mexer aqui depois: qualquer endpoint novo que
+// aceite um ownerId de fora quebra a garantia inteira. Ver CLAUDE.md.
+model Note {
+  id          String  @id @default(cuid())
+  ownerId     String
+  title       String  @default("Sem título")
+  contentHtml String? // texto rico — sanitizado na escrita
+  pinned      Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  owner User @relation("NoteOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, updatedAt])
+  @@index([deletedAt])
 }
