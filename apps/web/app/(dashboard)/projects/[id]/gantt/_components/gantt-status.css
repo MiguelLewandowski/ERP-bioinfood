@@ -27,12 +27,21 @@
   background-color: #7fc36b !important;
   border-color: #46ad48 !important;
 }
+/* Marco em ROXO, e não no âmbar da marca.
+   O âmbar `#dd8005` era quase o mesmo tom de `gt-doing` (`#f0b265`): marco e
+   tarefa em andamento ficavam indistinguíveis, e na prática ninguém achava os
+   marcos no cronograma. Roxo não existe na paleta Bioinfood de propósito — é
+   justamente por isso que funciona aqui: nenhum status de tarefa compete com
+   ele, então o losango salta. Fica restrito a este arquivo; não virou token,
+   porque não é cor de marca e não deve ser reutilizada em outro lugar. */
 .gt-milestone .wx-bar,
 .gt-milestone.wx-bar,
 .gt-milestone {
-  background-color: #dd8005 !important;
-  border-color: #c16c06 !important;
+  background-color: #7c4dbe !important;
+  border-color: #5b3690 !important;
 }
+/* Amostra da legenda (girada 45° no componente, para virar losango). */
+.gt-swatch-milestone { background-color: #7c4dbe; }
 
 /* Amostras da legenda. Reusam as MESMAS cores das barras, deste arquivo — repetir
    os hex no className do componente duplicaria a fonte da verdade (e o ESLint

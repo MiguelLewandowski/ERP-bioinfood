@@ -70,7 +70,9 @@ boot da API, mas leia a "Ordem de promoção" em
 - [ ] Buscar por título de tarefa → filtra
 - [ ] Buscar pelo **nome de uma pessoa** → devolve o balde dela inteiro
 - [ ] Busca sem resultado → mensagem, não lista vazia
-- [ ] Barra de progresso das POPs: larga e **com o número %** ao lado
+- [ ] A lista "POPs utilizadas" mostra só o nome, a versão e "N tarefas" —
+      **sem barra de progresso** (removida a seu pedido: a tela responde "quais
+      procedimentos este projeto segue", não "quanto está pronto")
 
 ## 3. Dashboard do projeto — Onda 4
 
@@ -102,6 +104,26 @@ boot da API, mas leia a "Ordem de promoção" em
 
 ## 5. Gantt — Onda 6
 
+> **Refeito em 2026-07-29 depois do seu retorno.** O que mudou:
+> - **Uma barra só**, no lugar de duas linhas + legenda. "Agrupar por pacote" e
+>   "Caminho crítico" estavam na barra de cima e passavam batido; agora estão na
+>   mesma linha, com **fundo colorido quando ligados**.
+> - **Altura explícita** na caixa do Gantt. A tentativa anterior (`h-full`)
+>   dependia da cadeia de ancestrais e podia virar `auto` — aí o widget crescia
+>   com o conteúdo, a rolagem vertical desaparecia e a horizontal fugia para o
+>   fim da página. Agora a SVAR recebe uma caixa fechada e mostra **as duas
+>   barras de rolagem, sempre**.
+> - **Marco virou roxo** (`#7c4dbe`). Ele era âmbar `#dd8005`, quase o mesmo tom
+>   de "em andamento" (`#f0b265`) — daí não se achar marco nenhum no cronograma.
+> - **Ctrl+Z removido**, junto com o botão "Desfazer".
+>
+> **O que é "cabeçalho de pacote":** com "Agrupar por pacote" ligado, as linhas
+> deixam de ser uma lista corrida e passam a ficar sob uma linha-título por
+> pacote de **nível 1 da EAP** — "1. Gestão do Projeto", "2. Matéria-Prima" etc.
+> É o que responde "onde termina um entregável e começa o outro". Se o projeto
+> não tem EAP montada, todas as tarefas caem em "Sem pacote da EAP" e o
+> agrupamento não muda nada visível — pode ser o que você viu.
+
 - [ ] Abre já **mostrando hoje** (não em 2025 no começo do projeto)
 - [ ] Controle **Dia / Semana / Mês / Trimestre**; começa em **Mês**
 - [ ] Botão **"Hoje"** rola de volta para a data atual
@@ -112,7 +134,6 @@ boot da API, mas leia a "Ordem de promoção" em
 - [ ] Coluna **"Duração"** com o cabeçalho inteiro (antes saía "Dura…")
 - [ ] Coluna **"%"** nova
 - [ ] Rolar a grade para o lado → **nome da tarefa fica fixo** na primeira coluna
-- [ ] Legenda de cores abaixo da barra de ferramentas
 - [ ] **Entrar como CLIENTE** → controles de visualização aparecem, mas os de
       edição (Nova Tarefa, linha de base) não
 
@@ -129,6 +150,25 @@ Com o **agrupamento ligado**:
 - [ ] Arrastar um marco → só a data muda
 - [ ] Renomear uma **tarefa** → as datas **não andam** (era o defeito encontrado
       ao fechar a tarefa dos marcos)
+
+### 5.2 Reteste do Gantt (2026-07-29, depois do feedback)
+
+- [ ] **Barra única** no topo: Dia/Semana/Mês/Trimestre · Hoje · Agrupar por
+      pacote · Caminho crítico · Nova Tarefa · Linha de base · legenda
+- [ ] "Agrupar por pacote" começa **ligado**, com fundo verde
+- [ ] Clicar desliga (fundo volta a branco) e as linhas viram lista corrida
+- [ ] "Caminho crítico" ligado → fundo vermelho + barras críticas destacadas
+- [ ] **Rolagem vertical funciona** dentro da grade do Gantt
+- [ ] **Rolagem horizontal fica visível** sem rolar a página
+- [ ] A página em si **não** rola — quem rola é a grade
+- [ ] Em tela baixa (janela ~600px de altura) a grade não colapsa
+- [ ] **Marco aparece em roxo** e se distingue de "em andamento" (âmbar)
+- [ ] A legenda tem o losango roxo "Marco"
+- [ ] **Ctrl+Z não faz nada** no Gantt (removido) e não há botão "Desfazer"
+
+> ⚠️ Se "Agrupar por pacote" continuar sem efeito visível, confira se o projeto
+> **tem EAP montada** (aba EAP). Sem pacotes de nível 1, tudo cai em "Sem pacote
+> da EAP" e não há o que agrupar.
 
 ## 6. Transversal — Onda 7
 

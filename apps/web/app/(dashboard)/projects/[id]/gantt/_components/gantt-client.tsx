@@ -8,7 +8,7 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers, Undo2 } from 'lucide-react';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock, Route, Layers } from 'lucide-react';
 import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
@@ -98,36 +98,16 @@ export function GanttClient(props: GanttClientProps) {
     return () => clearTimeout(id);
   }, [saveError]);
 
-  // Ctrl+Z / Ctrl+Shift+Z (e ⌘ no Mac). Ignora quando o foco está num campo de
-  // texto: ali o desfazer que o usuário espera é o do próprio input.
-  useEffect(() => {
-    if (!editable) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
-      const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
-      e.preventDefault();
-      apiRef.current?.exec(e.shiftKey ? 'redo' : 'undo', {});
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editable]);
-
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
 
   return (
-    // `h-full` + `overflow-hidden` prendem o Gantt à altura da viewport. Antes o
-    // board tinha altura fixa em `calc(100vh - 180px)` e o conjunto
-    // (barras + legenda + board) passava da tela: a barra de rolagem horizontal
-    // ia parar no fim do CONTEÚDO, e era preciso rolar a página para baixo só
-    // para alcançá-la. Com a altura amarrada, ela fica sempre na base da tela.
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Controles de VISUALIZAÇÃO — valem para todo perfil, inclusive CLIENTE:
-          não escrevem nada, só mudam o que se enxerga. As ações de escrita ficam
-          na barra de baixo, atrás do `editable`. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
+    <div className="flex flex-col">
+      {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
+          altura, os controles de visualização ficavam separados das ações e
+          "Agrupar por pacote" / "Caminho crítico" passavam batido. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-200 bg-white px-4 py-2.5">
         <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
           {ZOOM_LEVELS.map(({ id, label }) => (
             <button
@@ -146,58 +126,45 @@ export function GanttClient(props: GanttClientProps) {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => apiRef.current?.exec('scroll-chart', { date: new Date() })}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
-          >
-            <CalendarClock size={13} /> Hoje
-          </button>
-          <button
-            onClick={() => setGrouped((v) => !v)}
-            aria-pressed={grouped}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
-              grouped
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
-            )}
-          >
-            <Layers size={13} /> Agrupar por pacote
-          </button>
-          {editable && (
-            <button
-              onClick={() => apiRef.current?.exec('undo', {})}
-              title="Desfazer (Ctrl+Z)"
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
-            >
-              <Undo2 size={13} /> Desfazer
-            </button>
-          )}
-          <button
-            onClick={() => setShowCriticalPath((v) => !v)}
-            aria-pressed={showCriticalPath}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
-              showCriticalPath
-                ? 'border-destructive bg-destructive/10 text-destructive'
-                : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
-            )}
-          >
-            <Route size={13} /> Caminho crítico
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => apiRef.current?.exec('scroll-chart', { date: new Date() })}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
+        >
+          <CalendarClock size={13} /> Hoje
+        </button>
 
-      {editable && (
-        <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
-          {canBaseline ? (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
-              {baselineLabel}
-            </span>
-          ) : <span />}
-          <div className="flex items-center gap-2">
+        {/* Ativos ganham fundo colorido para o estado ser óbvio sem clicar. */}
+        <button
+          onClick={() => setGrouped((v) => !v)}
+          aria-pressed={grouped}
+          title="Agrupa as linhas por pacote de nível 1 da EAP, com um cabeçalho por pacote"
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
+            grouped
+              ? 'border-primary bg-primary text-white'
+              : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
+          )}
+        >
+          <Layers size={13} /> Agrupar por pacote
+        </button>
+
+        <button
+          onClick={() => setShowCriticalPath((v) => !v)}
+          aria-pressed={showCriticalPath}
+          title="Destaca a sequência de atividades que define a data de término do projeto"
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors',
+            showCriticalPath
+              ? 'border-destructive bg-destructive text-white'
+              : 'border-gray-200 text-muted-foreground hover:bg-gray-50',
+          )}
+        >
+          <Route size={13} /> Caminho crítico
+        </button>
+
+        {editable && (
+          <>
+            <span className="mx-1 hidden h-5 w-px bg-gray-200 sm:block" />
             <button
               onClick={() => setCreating(true)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90"
@@ -209,13 +176,30 @@ export function GanttClient(props: GanttClientProps) {
               <button
                 onClick={handleSetBaseline}
                 disabled={baselineBusy}
+                title={baselineLabel}
                 className="flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
               >
                 {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
                 {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
               </button>
             )}
-          </div>
+          </>
+        )}
+
+        {/* Legenda no fim da mesma linha, empurrada para a direita. */}
+        <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5"><i className="gt-swatch-todo h-2 w-4 rounded-sm" /> A fazer</span>
+          <span className="flex items-center gap-1.5"><i className="gt-swatch-doing h-2 w-4 rounded-sm" /> Em andamento</span>
+          <span className="flex items-center gap-1.5"><i className="gt-swatch-done h-2 w-4 rounded-sm" /> Concluída</span>
+          <span className="flex items-center gap-1.5"><i className="gt-swatch-milestone h-3 w-3 rotate-45 rounded-sm" /> Marco</span>
+          <span className="flex items-center gap-1.5"><i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base</span>
+        </div>
+      </div>
+
+      {canBaseline && editable && (
+        <div className="flex items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-1.5 text-xs text-muted-foreground">
+          <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
+          {baselineLabel}
         </div>
       )}
       {!editable && (
@@ -237,20 +221,6 @@ export function GanttClient(props: GanttClientProps) {
           </button>
         </div>
       )}
-      {/* Legenda: sem ela a barra-fantasma da linha de base parece defeito de
-          renderização, e a cor por status não se explica sozinha. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 bg-gray-50 px-4 py-1.5 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1.5"><i className="gt-swatch-todo h-2 w-4 rounded-sm" /> A fazer</span>
-        <span className="flex items-center gap-1.5"><i className="gt-swatch-doing h-2 w-4 rounded-sm" /> Em andamento</span>
-        <span className="flex items-center gap-1.5"><i className="gt-swatch-done h-2 w-4 rounded-sm" /> Concluída</span>
-        <span className="flex items-center gap-1.5"><i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base</span>
-        {showCriticalPath && (
-          <span className="flex items-center gap-1.5 font-medium text-destructive">
-            <i className="h-2 w-4 rounded-sm bg-destructive" /> Caminho crítico
-          </span>
-        )}
-      </div>
-
       <GanttBoard
         // Remonta ao trocar zoom/agrupamento/caminho crítico: a store da SVAR lê
         // essas configs na inicialização, não a cada render.
@@ -353,9 +323,9 @@ function GanttBoard({
   }
 
   if (!mounted) {
-    // Reserva de espaço até o widget montar (ele é client-only). Mesma regra de
-    // flex do board, para não haver salto entre um e outro.
-    return <div className="min-h-0 flex-1" />;
+    // Reserva de espaço até o widget montar (ele é client-only). Mesma altura do
+    // board, para não haver salto entre um e outro.
+    return <div className="h-[calc(100vh-13rem)] min-h-[24rem]" />;
   }
 
   const CtxMenu = ContextMenu as any;
@@ -369,9 +339,13 @@ function GanttBoard({
             caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
             O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
-          // `min-h-0` é o que faz o flex encolher em vez de estourar o pai —
-          // sem ele o filho usa a altura do conteúdo e a rolagem volta a fugir.
-          className="min-h-0 flex-1"
+          // Altura EXPLÍCITA, não `flex-1`: a SVAR só mostra as próprias barras
+          // de rolagem (vertical E horizontal) quando recebe uma caixa de altura
+          // conhecida. Com `h-full`/`flex-1` a altura podia resolver para `auto`
+          // dependendo da cadeia de ancestrais — aí o widget crescia com o
+          // conteúdo, a rolagem vertical desaparecia e a horizontal ia para o fim
+          // da página. `min-h` garante que nunca colapse em tela baixa.
+          className="h-[calc(100vh-13rem)] min-h-[24rem]"
           onContextMenu={(e) => {
             if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
           }}
@@ -390,11 +364,6 @@ function GanttBoard({
             // gerenciadas pela lib, não sintetizadas aqui. `taskHierarchy`
             // preserva a hierarquia de subtarefas dentro de cada grupo.
             groupBy={grouped ? { field: 'group', taskHierarchy: true, ungrouped: 'bottom' } : null}
-            // Desfazer NATIVO da SVAR. A store aplica a mutação inversa, que
-            // reemite `update-task`/`move-task` — os mesmos eventos que
-            // `use-gantt-persistence` escuta. Ou seja: o desfazer atravessa até
-            // a API pelo caminho já existente, sem histórico paralelo nosso.
-            undo={editable}
             baselines
             readonly={!editable}
             zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}

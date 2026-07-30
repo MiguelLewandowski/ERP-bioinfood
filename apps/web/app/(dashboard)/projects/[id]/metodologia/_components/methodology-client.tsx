@@ -13,7 +13,6 @@ import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/ui/stat-card';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { ProjectMethodology, PopUsage } from '@/lib/project-pops';
 import { popsWithVersionDrift } from '@/lib/project-pops';
@@ -304,8 +303,6 @@ function Header() {
 }
 
 function PopRow({ pop, isOpen, onToggle }: { pop: PopUsage; isOpen: boolean; onToggle: () => void }) {
-  const progress = pop.tasks.length === 0 ? 0 : Math.round((pop.doneCount / pop.tasks.length) * 100);
-
   return (
     <div className="border-b border-gray-50 last:border-b-0">
       <button
@@ -319,21 +316,12 @@ function PopRow({ pop, isOpen, onToggle }: { pop: PopUsage; isOpen: boolean; onT
 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-foreground">{pop.title}</span>
+          {/* Só quantas tarefas usam a POP. Progresso saiu daqui de propósito:
+              esta seção responde "quais procedimentos este projeto segue", não
+              "quanto do trabalho está pronto" — para isso existe o Dashboard.
+              A barra competia com o título e não era a pergunta da tela. */}
           <span className="text-xs text-muted-foreground">
-            {pop.tasks.length} {pop.tasks.length === 1 ? 'tarefa' : 'tarefas'} · {pop.doneCount} concluída{pop.doneCount === 1 ? '' : 's'}
-          </span>
-        </span>
-
-        {/* Antes `w-28` sem número: a barra era curta demais para diferenciar 40% de
-            60%, e não havia valor escrito para desempatar. */}
-        <span className="hidden w-48 shrink-0 items-center gap-2 sm:flex">
-          <ProgressBar
-            value={progress}
-            label={`Tarefas concluídas que usam ${pop.title}`}
-            className="h-2.5 flex-1"
-          />
-          <span className="w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
-            {progress}%
+            {pop.tasks.length} {pop.tasks.length === 1 ? 'tarefa' : 'tarefas'}
           </span>
         </span>
 

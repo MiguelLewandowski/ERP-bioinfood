@@ -141,15 +141,6 @@ describe('MethodologyClient — tarefas sem POP', () => {
   });
 });
 
-describe('MethodologyClient — progresso das POPs', () => {
-  // A barra era `w-28` e sem número: não dava para diferenciar 40% de 60%.
-  it('should print the percentage next to the bar', () => {
-    renderWithProviders(<MethodologyClient projectId="proj-1" methodology={methodology(TASKS)} />);
-
-    expect(screen.getByText('75%')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: /Extração de xilose/ })).toHaveAttribute('aria-valuenow', '75');
-  });
-});
 
 /**
  * A classificação acontece AQUI, onde a métrica dói. Escondida no formulário da
