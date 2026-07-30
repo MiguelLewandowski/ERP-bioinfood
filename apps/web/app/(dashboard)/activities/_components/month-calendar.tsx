@@ -125,21 +125,35 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
                 const status = STATUS_META[bar.activity.status];
                 const priority = PRIORITY_META[bar.activity.priority];
                 const overdue = isOverdue(bar.activity);
+                // Prioridade era só uma borda esquerda de 2px — invisível nesta
+                // densidade. Agora Alta/Crítica e atraso ganham um ponto sólido
+                // antes do título, que é o que se varre com o olho.
+                const urgent = overdue || bar.activity.priority === 'HIGH' || bar.activity.priority === 'CRITICAL';
+                const accentColor = overdue ? OVERDUE_COLOR : priority.color;
                 return (
                   <button
                     key={bar.activity.id + bar.colStart}
                     onClick={() => onSelectActivity(bar.activity)}
-                    title={`${bar.activity.title} · ${bar.activity.project.name}`}
-                    className="pointer-events-auto flex items-center truncate rounded border-l-2 px-1.5 text-left text-[11px] font-medium leading-tight hover:opacity-80"
+                    title={`${bar.activity.title} · ${bar.activity.project.name} · Prioridade: ${priority.label}${overdue ? ' · Atrasada' : ''}`}
+                    className="pointer-events-auto flex items-center gap-1 truncate rounded border-l-2 px-1.5 text-left text-[11px] leading-tight hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     style={{
                       gridColumn: `${bar.colStart + 1} / span ${bar.span}`,
                       gridRow: bar.lane + 1,
                       backgroundColor: status.bg,
                       color: status.color,
-                      borderColor: overdue ? OVERDUE_COLOR : priority.color,
+                      borderColor: accentColor,
                     }}
                   >
-                    <span className="truncate">{bar.activity.title}</span>
+                    {urgent && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: accentColor }}
+                        aria-hidden
+                      />
+                    )}
+                    <span className={`truncate ${urgent ? 'font-bold' : 'font-medium'}`}>
+                      {bar.activity.title}
+                    </span>
                   </button>
                 );
               })}

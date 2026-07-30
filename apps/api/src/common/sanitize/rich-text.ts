@@ -34,8 +34,17 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesAppliedToAttributes: ['href'],
   // Link de usuário é conteúdo de terceiro: abre fora e sem window.opener.
+  //
+  // Escrito à mão em vez de `sanitizeHtml.simpleTransform`: o pacote é CJS e,
+  // sob a interop do `esModuleInterop`, o import default resolve só a função —
+  // os auxiliares nomeados vêm `undefined`. O typecheck passa (os tipos os
+  // declaram) e a API **quebra no boot**. Custou uma subida do `pnpm dev` para
+  // aparecer; não trocar por `simpleTransform` de novo.
   transformTags: {
-    a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noopener noreferrer' }),
+    a: (tagName, attribs) => ({
+      tagName,
+      attribs: { ...attribs, target: '_blank', rel: 'noopener noreferrer' },
+    }),
   },
   // Sem isto, `<script>alert(1)</script>` perde a tag mas mantém o texto
   // "alert(1)" no corpo — ruído inútil no campo do usuário.

@@ -24,14 +24,16 @@ export function ActivityCard({ activity, showProject = true, onClick }: Activity
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
       onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!(activity); } } : undefined}
-      className={`flex items-start gap-3 rounded-lg border bg-white px-4 py-3 transition-colors ${
-        overdue ? 'border-destructive/30' : 'border-gray-200'
-      } ${clickable ? 'cursor-pointer hover:border-ring focus:border-ring focus:outline-none' : 'hover:border-gray-300'}`}
+      className={`flex items-start gap-3 rounded-lg border bg-card px-4 py-3 transition-colors ${
+        overdue ? 'border-destructive/30' : 'border-border'
+      } ${clickable ? 'cursor-pointer hover:border-ring focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : 'hover:border-input'}`}
     >
       <span
         className="mt-1 h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: priority.color }}
         title={`Prioridade: ${priority.label}`}
+        aria-label={`Prioridade: ${priority.label}`}
+        role="img"
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
