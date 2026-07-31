@@ -82,7 +82,8 @@ A garantia é por **ausência de caminho**, não por bloqueio:
   cairia em `AuditLog`, que o ADMIN lê. Era a porta dos fundos da garantia.
 
 > **Qualquer endpoint novo que aceite um `ownerId` vindo de fora quebra tudo isso.**
-> Detalhes e testes: `docs/tasks/feat-modulo-anotacoes-pessoais.md`.
+> Detalhes e testes: `apps/api/src/modules/notes/` e
+> `apps/api/src/modules/notes/application/manage-notes.use-case.spec.ts`.
 
 ## Schema Prisma
 Para qualquer dúvida de banco de dados, leia o arquivo fonte oficial em apps/api/prisma
