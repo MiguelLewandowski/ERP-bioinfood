@@ -6,6 +6,7 @@ export interface InteractionDto {
   orgId: string;
   contactId: string | null;
   userId: string | null;
+  opportunityId: string | null;
   type: InteractionType;
   direction: InteractionDirection;
   subject: string | null;

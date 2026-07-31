@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
+import { taskEntry, type TimelineEntry } from '../../../_components/opportunity-timeline-dialog';
 
 const inputCls =
   'w-full text-sm px-3 py-2.5 border border-border rounded-lg focus:border-ring focus:outline-none';
@@ -60,6 +61,21 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
   });
   const createFollowUp = watch('createFollowUp');
 
+  // Tarefas do CRM sempre compõem a timeline, junto das interações.
+  const [taskEntries, setTaskEntries] = useState<TimelineEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    crmActivitiesApi.list(token, { orgId: organizationId })
+      .then((items) => { if (!cancelled) setTaskEntries(items.map(taskEntry)); })
+      .catch(() => { /* timeline segue só com interações se isso falhar */ });
+    return () => { cancelled = true; };
+  }, [organizationId, token, initialInteractions]);
+
+  const entries = [
+    ...initialInteractions.map((i) => ({ date: i.interactionAt, node: <TimelineItem key={i.id} interaction={i} /> })),
+    ...taskEntries,
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   async function onSubmit(v: NewInteractionForm) {
     setSaving(true);
     try {
@@ -97,7 +113,7 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
 
   return (
     <div className="space-y-4">
-      {initialInteractions.length > 0 && (
+      {entries.length > 0 && (
         <div className="flex items-center justify-end">
           {canEdit && !showForm && (
             <Button onClick={() => setShowForm(true)}>
@@ -148,10 +164,10 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
         </form>
       )}
 
-      {initialInteractions.length === 0 && !showForm && (
+      {entries.length === 0 && !showForm && (
         <EmptyState
           icon={MessageCircle}
-          title="Nenhuma interação registrada ainda"
+          title="Nenhuma interação ou tarefa registrada ainda"
           description="Registre e-mails, ligações, reuniões e visitas para montar o histórico deste cliente."
           action={canEdit && (
             <Button onClick={() => setShowForm(true)}>
@@ -162,7 +178,7 @@ export function TimelineTab({ organizationId, initialInteractions, contacts, can
       )}
 
       <ol className="space-y-2">
-        {initialInteractions.map((i) => <TimelineItem key={i.id} interaction={i} />)}
+        {entries.map((e) => e.node)}
       </ol>
     </div>
   );

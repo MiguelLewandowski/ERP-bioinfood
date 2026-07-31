@@ -11,6 +11,10 @@ export class CreateInteractionDto {
   @IsString()
   contactId?: string;
 
+  @IsOptional()
+  @IsString()
+  opportunityId?: string;
+
   @IsEnum(InteractionType)
   type: InteractionType;
 

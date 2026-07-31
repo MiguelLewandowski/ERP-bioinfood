@@ -13,6 +13,7 @@ const SELECT = {
   orgId: true,
   contactId: true,
   userId: true,
+  opportunityId: true,
   type: true,
   direction: true,
   subject: true,
@@ -48,6 +49,7 @@ export class InteractionsPrismaRepository implements IInteractionRepository {
         orgId,
         deletedAt: null,
         contactId: filter.contactId,
+        opportunityId: filter.opportunityId,
         type: filter.type,
         interactionAt: {
           gte: filter.from,

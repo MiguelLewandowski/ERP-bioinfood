@@ -469,6 +469,10 @@ model Interaction {
   contact       Contact?             @relation(fields: [contactId], references: [id])
   userId        String?
   user          User?                @relation(fields: [userId], references: [id])
+  // Vínculo opcional: interação de uma oportunidade específica compõe a
+  // timeline dela, além da timeline geral da empresa.
+  opportunityId String?
+  opportunity   Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   type          InteractionType
   direction     InteractionDirection @default(OUTBOUND)
   subject       String?
@@ -483,6 +487,7 @@ model Interaction {
 
   @@index([orgId, interactionAt])
   @@index([contactId])
+  @@index([opportunityId])
 }
 
 model Activity {

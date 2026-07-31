@@ -144,7 +144,14 @@ export function FichaClient(props: FichaClientProps) {
           canEdit={props.canEdit}
         />
       )}
-      {tab === 'oportunidades' && <OportunidadesTab opportunities={props.opportunities} />}
+      {tab === 'oportunidades' && (
+        <OportunidadesTab
+          opportunities={props.opportunities}
+          orgId={props.organizationId}
+          users={props.users}
+          canEdit={props.canEdit}
+        />
+      )}
     </div>
   );
 }

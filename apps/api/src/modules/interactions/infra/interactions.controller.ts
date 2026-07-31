@@ -31,6 +31,7 @@ export class InteractionsController {
   async list(
     @Query('orgId') orgId?: string,
     @Query('contactId') contactId?: string,
+    @Query('opportunityId') opportunityId?: string,
     @Query('type') type?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
@@ -40,6 +41,7 @@ export class InteractionsController {
     if (!orgId) throw new BadRequestException('orgId é obrigatório');
     const items = await this.listInteractions.execute(orgId, {
       contactId,
+      opportunityId,
       type: type as never,
       from: from ? new Date(from) : undefined,
       to: to ? new Date(to) : undefined,

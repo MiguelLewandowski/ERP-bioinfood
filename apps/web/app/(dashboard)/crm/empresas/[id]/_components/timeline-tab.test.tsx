@@ -16,7 +16,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/api-hooks', () => ({
   interactionsApi: { create: (...args: unknown[]) => createInteractionMock(...args) },
-  crmActivitiesApi: { create: (...args: unknown[]) => createActivityMock(...args) },
+  crmActivitiesApi: {
+    create: (...args: unknown[]) => createActivityMock(...args),
+    list: () => Promise.resolve([]),
+  },
 }));
 
 vi.mock('sonner', () => ({
