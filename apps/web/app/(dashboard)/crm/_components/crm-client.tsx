@@ -361,31 +361,48 @@ export function CrmClient(props: CrmClientProps) {
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-foreground">
             <Snowflake size={15} className="text-blue-500" /> Congelados ({frozenOpps.length})
           </h3>
-          <ul className="space-y-2">
-            {frozenOpps.map((o) => (
-              <li
-                key={o.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => props.canEdit && setEditing(o)}
-                  className="min-w-0 flex-1 truncate text-left text-sm text-foreground hover:text-primary"
-                >
-                  {o.title} <span className="text-xs text-muted-foreground">· {o.organization.tradeName ?? o.organization.legalName}</span>
-                </button>
-                {props.canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => reactivate(o.id)}
-                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    <Sun size={13} /> Reativar
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                <th className="pb-2 font-medium">Oportunidade</th>
+                <th className="pb-2 font-medium">Motivo</th>
+                <th className="pb-2 font-medium">Congelado em</th>
+                {props.canEdit && <th className="pb-2 font-medium" />}
+              </tr>
+            </thead>
+            <tbody>
+              {frozenOpps.map((o) => (
+                <tr key={o.id} className="border-b border-border/40 last:border-0">
+                  <td className="max-w-0 py-2 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => props.canEdit && setEditing(o)}
+                      className="block truncate text-left text-foreground hover:text-primary"
+                    >
+                      {o.title} <span className="text-xs text-muted-foreground">· {o.organization.tradeName ?? o.organization.legalName}</span>
+                    </button>
+                  </td>
+                  <td className="max-w-0 truncate py-2 pr-2 text-xs text-muted-foreground">
+                    {o.frozenReason ?? '—'}
+                  </td>
+                  <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted-foreground">
+                    {o.frozenAt ? new Date(o.frozenAt).toLocaleDateString('pt-BR') : '—'}
+                  </td>
+                  {props.canEdit && (
+                    <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => reactivate(o.id)}
+                        className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline"
+                      >
+                        <Sun size={13} /> Reativar
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       )}
 

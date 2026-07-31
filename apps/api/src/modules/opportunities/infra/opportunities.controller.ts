@@ -13,7 +13,9 @@ import { DeleteOpportunityUseCase } from '../application/delete-opportunity.use-
 import { MoveOpportunityUseCase } from '../application/move-opportunity.use-case';
 import { ReorderOpportunitiesUseCase } from '../application/reorder-opportunities.use-case';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
-import { UpdateOpportunityDto, MoveOpportunityDto, ReorderOpportunitiesDto } from './dto/update-opportunity.dto';
+import {
+  UpdateOpportunityDto, MoveOpportunityDto, ReorderOpportunitiesDto, FreezeOpportunityDto,
+} from './dto/update-opportunity.dto';
 import { toOpportunityDto } from './opportunity.mapper';
 
 // Ler = todos os papéis internos; escrever/mover = só ADMIN (decisão do owner).
@@ -81,14 +83,16 @@ export class OpportunitiesController {
   // crm-redesign-2026-07): não mexe em stage/probability/closedAt.
   @Patch(':id/freeze')
   @Roles(SystemRole.ADMIN)
-  async freeze(@Param('id') id: string) {
-    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: new Date() }));
+  async freeze(@Param('id') id: string, @Body() dto: FreezeOpportunityDto) {
+    return toOpportunityDto(
+      await this.updateOpportunity.execute(id, { frozenAt: new Date(), frozenReason: dto.reason ?? null }),
+    );
   }
 
   @Patch(':id/unfreeze')
   @Roles(SystemRole.ADMIN)
   async unfreeze(@Param('id') id: string) {
-    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: null }));
+    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: null, frozenReason: null }));
   }
 
   @Delete(':id')

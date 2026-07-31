@@ -412,8 +412,8 @@ export const opportunitiesApi = {
   move: (id: string, stageId: string, token: string, lostReason?: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/move`, { stageId, lostReason }, token),
 
-  freeze: (id: string, token: string) =>
-    api.patch<OpportunityDto>(`/opportunities/${id}/freeze`, {}, token),
+  freeze: (id: string, reason: string | undefined, token: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}/freeze`, { reason }, token),
 
   unfreeze: (id: string, token: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/unfreeze`, {}, token),

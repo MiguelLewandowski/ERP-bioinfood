@@ -22,6 +22,7 @@ const SELECT = {
   expectedCloseDate: true,
   closedAt: true,
   frozenAt: true,
+  frozenReason: true,
   order: true,
   engagementStageId: true,
   organization: { select: { id: true, legalName: true, tradeName: true } },
