@@ -1,4 +1,17 @@
-import sanitizeHtml from 'sanitize-html';
+// ⚠️ `import * as`, e não `import sanitizeHtml from` — igual a `bcrypt` e `joi`
+// no resto da API.
+//
+// O tsconfig da API tem `allowSyntheticDefaultImports: true` mas **não** tem
+// `esModuleInterop`. Essa dupla é uma armadilha: a primeira opção só cala o
+// *type checker*, sem mudar o código gerado. O import default compilava para
+// `sanitize_html_1.default`, e `sanitize-html` é CJS que exporta a função
+// direto — `.default` é `undefined`.
+//
+// Resultado: `tsc --noEmit` passava, os testes passavam (o esbuild do Vitest
+// cria o `.default` sintético que o `tsc` não cria) e a API **quebrava em
+// produção** — primeiro no boot, depois, quando "consertei" errado, só no
+// primeiro salvamento de nota ou de TAP.
+import * as sanitizeHtml from 'sanitize-html';
 
 /**
  * Allowlist do texto rico do ERP — ponto ÚNICO por onde passa todo HTML
@@ -34,12 +47,8 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesAppliedToAttributes: ['href'],
   // Link de usuário é conteúdo de terceiro: abre fora e sem window.opener.
-  //
-  // Escrito à mão em vez de `sanitizeHtml.simpleTransform`: o pacote é CJS e,
-  // sob a interop do `esModuleInterop`, o import default resolve só a função —
-  // os auxiliares nomeados vêm `undefined`. O typecheck passa (os tipos os
-  // declaram) e a API **quebra no boot**. Custou uma subida do `pnpm dev` para
-  // aparecer; não trocar por `simpleTransform` de novo.
+  // Escrito à mão em vez de `sanitizeHtml.simpleTransform` — sem ganho em
+  // depender do auxiliar, e assim o que a regra faz está à vista.
   transformTags: {
     a: (tagName, attribs) => ({
       tagName,
