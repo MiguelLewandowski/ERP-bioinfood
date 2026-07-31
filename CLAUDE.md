@@ -37,8 +37,9 @@ bioinfood-erp/
 ```
 
 Módulos da API: `activities`, `auth`, `charter`, `contacts`, `crm-activities`,
-`interactions`, `milestones`, `opportunities`, `organizations`, `pipelines`, `pops`,
-`projects`, `risks`, `search`, `stakeholders`, `tasks`, `taxonomies`, `users`, `wbs`.
+`interactions`, `milestones`, `notes`, `opportunities`, `organizations`, `pipelines`,
+`pops`, `projects`, `risks`, `search`, `stakeholders`, `stock`, `tasks`, `taxonomies`,
+`users`, `wbs`.
 
 ## Arquitetura — Clean Architecture (3 camadas)
 src/modules/<nome>/
@@ -59,6 +60,29 @@ Role global no User, sem role por projeto.
 
 JwtAuthGuard global → RolesGuard por endpoint via @Roles() decorator.
 ADMIN sempre passa no RolesGuard independente do decorator.
+
+### ⚠️ Exceção única: anotações pessoais (`/notes`)
+
+**Anotação pessoal é privada do dono — nem ADMIN lê.** É o único dado do ERP assim, e é
+intencional: decisão do Miguel em 2026-07-30. **Não "corrigir".**
+
+Isso *não* contraria a regra acima. O `RolesGuard` continua deixando ADMIN passar — mexer
+nele para abrir exceção afetaria todos os outros módulos. A privacidade vem de outra
+camada: o guard governa **papel**, e aqui a trava é de **posse**, que é filtro de dado.
+
+A garantia é por **ausência de caminho**, não por bloqueio:
+
+- `ownerId` nunca é parâmetro de entrada — vem sempre do JWT (`@CurrentUser()`);
+- `INotesRepository` obriga `ownerId` como primeiro argumento em **todo** método. Não
+  existe `findById(id)` sem dono, então esquecer de filtrar não compila;
+- não há listagem global, DTO com `ownerId`, nem export do repositório;
+- escrita usa `updateMany` com o `ownerId` dentro do próprio UPDATE;
+- nota alheia devolve **404, nunca 403** (403 confirmaria que ela existe);
+- `notes` está em `CONTENT_REDACTED_ENTITIES` do `AuditInterceptor` — senão o conteúdo
+  cairia em `AuditLog`, que o ADMIN lê. Era a porta dos fundos da garantia.
+
+> **Qualquer endpoint novo que aceite um `ownerId` vindo de fora quebra tudo isso.**
+> Detalhes e testes: `docs/tasks/feat-modulo-anotacoes-pessoais.md`.
 
 ## Schema Prisma
 Para qualquer dúvida de banco de dados, leia o arquivo fonte oficial em apps/api/prisma

@@ -3,23 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
-import {
-  LayoutDashboard, FolderKanban, CalendarDays, Building2, Target, Users, Settings,
-  Search, Briefcase, UserRound,
-} from 'lucide-react';
+import { FolderKanban, Building2, Search, Briefcase, UserRound } from 'lucide-react';
 import type { SearchResultDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { searchApi } from '@/lib/api-hooks';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { navItemsForRole } from './nav-items';
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/projects', label: 'Projetos', icon: FolderKanban },
-  { href: '/activities', label: 'Atividades', icon: CalendarDays },
-  { href: '/crm', label: 'CRM', icon: Target, roles: ['ADMIN'] },
-  { href: '/users', label: 'Usuários', icon: Users, roles: ['ADMIN'] },
-  { href: '/settings', label: 'Configurações', icon: Settings },
-];
+// A lista de navegação vem de `nav-items.ts`, fonte única compartilhada com a
+// sidebar e o drawer mobile. Havia uma cópia local aqui, e ela já tinha
+// divergido: POPs existia na sidebar e não no ⌘K. Módulo novo agora aparece nos
+// três lugares de uma vez.
 
 const TYPE_CONFIG = {
   project: { group: 'Projetos', icon: FolderKanban },
@@ -94,7 +88,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     router.push(href);
   }
 
-  const navItems = NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(session.role));
+  const navItems = navItemsForRole(session.role);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

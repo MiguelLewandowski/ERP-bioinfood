@@ -14,6 +14,8 @@ import { RisksModule } from './modules/risks/risks.module';
 import { StakeholdersModule } from './modules/stakeholders/stakeholders.module';
 import { MilestonesModule } from './modules/milestones/milestones.module';
 import { PopsModule } from './modules/pops/pops.module';
+import { StockModule } from './modules/stock/stock.module';
+import { NotesModule } from './modules/notes/notes.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TaxonomiesModule } from './modules/taxonomies/infra/taxonomies.module';
@@ -68,6 +70,8 @@ import { HealthController } from './health.controller';
     StakeholdersModule,
     MilestonesModule,
     PopsModule,
+    StockModule,
+    NotesModule,
     ActivitiesModule,
     OrganizationsModule,
     TaxonomiesModule,

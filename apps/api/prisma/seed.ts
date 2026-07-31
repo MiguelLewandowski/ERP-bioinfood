@@ -35,6 +35,22 @@ const DEFAULT_PIPELINE_STAGES: Array<{
   { name: 'Perdido',      type: StageType.LOST, probability: 0,   color: '#C0392B' },
 ];
 
+/**
+ * Cadastro de estoque nasce com UMA categoria só — "Equipamento", que é o que
+ * a reunião de 28/07/2026 pediu. Insumo, vidraria e o que mais vier são
+ * cadastrados pela tela (`/estoque/config`), sem migration e sem seed.
+ *
+ * `upsert` por nome: rodar o seed de novo não duplica nem sobrescreve a
+ * categoria caso alguém a tenha renomeado.
+ */
+async function seedStockDefaults() {
+  await prisma.stockCategory.upsert({
+    where: { name: 'Equipamento' },
+    update: {},
+    create: { name: 'Equipamento', order: 0 },
+  });
+}
+
 async function seedCrmDefaults() {
   for (const [order, name] of SECTORS.entries()) {
     await prisma.sector.upsert({ where: { name }, update: {}, create: { name, order } });
@@ -102,6 +118,7 @@ async function main() {
   };
 
   await seedCrmDefaults();
+  await seedStockDefaults();
 
   const adminHash = await bcrypt.hash(passwords.admin, 10);
   const liderHash = await bcrypt.hash(passwords.lider, 10);

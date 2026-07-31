@@ -52,3 +52,79 @@
 .gantt-wrapper * {
   box-sizing: content-box;
 }
+
+/* ── Texto rico (Tiptap) ────────────────────────────────────────────────────
+   O preflight do Tailwind zera margem, tamanho e marcador de h2/ul/ol, então o
+   conteúdo do editor sairia todo achatado. Estas regras devolvem a hierarquia —
+   e valem tanto para a edição (.rich-text .ProseMirror) quanto para a leitura
+   (.rich-text), que é o que mantém escrita e impressão idênticas.
+
+   Só tokens semânticos aqui: nenhum hex cru (docs/design/design-tokens.md). */
+.rich-text {
+  @apply text-sm text-foreground;
+}
+.rich-text h2 {
+  @apply mb-1.5 mt-4 text-base font-bold text-foreground first:mt-0;
+}
+.rich-text h3 {
+  @apply mb-1 mt-3 text-sm font-semibold text-foreground first:mt-0;
+}
+.rich-text p {
+  @apply my-1.5 leading-relaxed;
+}
+.rich-text ul,
+.rich-text ol {
+  @apply my-1.5 pl-5;
+}
+.rich-text ul {
+  @apply list-disc;
+}
+.rich-text ol {
+  @apply list-decimal;
+}
+.rich-text li {
+  @apply my-0.5;
+}
+/* Parágrafo dentro de item de lista: o Tiptap sempre embrulha em <p>, e sem
+   isto cada item ganharia a margem de parágrafo e a lista ficaria espaçada. */
+.rich-text li > p {
+  @apply my-0;
+}
+.rich-text blockquote {
+  @apply my-2 border-l-2 border-border pl-3 italic text-muted-foreground;
+}
+.rich-text a {
+  @apply text-primary underline underline-offset-2;
+}
+.rich-text code {
+  @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+}
+.rich-text s {
+  @apply line-through;
+}
+
+/* Checklist: o marcador é o próprio checkbox, então a lista perde o bullet. */
+.rich-text ul[data-type='taskList'] {
+  @apply list-none pl-0;
+}
+.rich-text ul[data-type='taskList'] li {
+  @apply flex items-start gap-2;
+}
+.rich-text ul[data-type='taskList'] li > label {
+  @apply mt-0.5 shrink-0;
+}
+.rich-text ul[data-type='taskList'] input[type='checkbox'] {
+  @apply h-3.5 w-3.5 rounded border-border accent-primary;
+}
+.rich-text ul[data-type='taskList'] li[data-checked='true'] > div {
+  @apply text-muted-foreground line-through;
+}
+
+.rich-text .ProseMirror {
+  @apply outline-none;
+}
+/* Placeholder: o Tiptap marca o primeiro nó vazio com data-placeholder. */
+.rich-text .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply pointer-events-none float-left h-0 text-muted-foreground;
+}

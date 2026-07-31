@@ -1,11 +1,12 @@
 'use client'; // dialog de detalhe + navegação para o projeto
 
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { User2, Folder, CalendarRange, ArrowUpRight, Lock, AlertTriangle, Link2 } from 'lucide-react';
 import type { ActivityDto } from '@bioinfood/shared';
 import { STATUS_META, PRIORITY_META, isOverdue } from '@/lib/activities';
+import { hasTimeComponent, parseCalendarDate } from '@/lib/dates';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -14,9 +15,28 @@ interface ActivityDetailProps {
   onClose: () => void;
 }
 
+/**
+ * Formata início/prazo da atividade.
+ *
+ * Era `format(new Date(date), "… HH:mm").replace(', 00:00', '')` — e errava duas
+ * vezes no mesmo campo. `Task.startDate`/`dueDate` são **dia de calendário**,
+ * gravados como meia-noite UTC; `new Date()` os lê em hora local e, em
+ * `America/Sao_Paulo`, viram 21:00 do dia **anterior**. O `replace(', 00:00')`
+ * nunca disparava, porque nunca era `00:00`.
+ *
+ * Efeito na tela: uma atividade de 02/08 a 21/08 aparecia como
+ * "01 de ago 2026, 21:00 — 20 de ago 2026, 21:00". Ver o achado A2 de
+ * docs/analise-uiux-atividades.md.
+ *
+ * Atividade com hora de verdade (uma reunião às 14h) continua exibindo a hora —
+ * é o que `hasTimeComponent` separa.
+ */
 function fmt(date: string | null): string {
   if (!date) return '—';
-  return format(new Date(date), "dd 'de' MMM yyyy, HH:mm", { locale: ptBR }).replace(', 00:00', '');
+  if (hasTimeComponent(date)) {
+    return format(parseISO(date), "dd 'de' MMM yyyy, HH:mm", { locale: ptBR });
+  }
+  return format(parseCalendarDate(date), "dd 'de' MMM yyyy", { locale: ptBR });
 }
 
 export function ActivityDetail({ activity, onClose }: ActivityDetailProps) {

@@ -6,8 +6,11 @@ import {
   addWeeks, addMonths, format, isSameDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Filter } from 'lucide-react';
 import type { ActivityDto } from '@bioinfood/shared';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/auth-provider';
 import { activitiesApi } from '@/lib/api-hooks';
 import {
@@ -85,6 +88,18 @@ export function ActivitiesClient() {
     setFilters((f) => ({ ...f, ...patch }));
   }
 
+  function resetFilters() {
+    setFilters({ ...EMPTY_FILTERS, currentUserId: session.sub });
+  }
+
+  // Há filtro ativo? Decide se o estado vazio oferece "limpar filtros" ou
+  // apenas informa que o período está livre — são causas diferentes.
+  const isFiltering = useMemo(
+    () => (Object.keys(EMPTY_FILTERS) as Array<keyof typeof EMPTY_FILTERS>)
+      .some((k) => filters[k] !== EMPTY_FILTERS[k]),
+    [filters],
+  );
+
   const periodLabel = viewMode === 'month'
     ? format(cursor, "MMMM 'de' yyyy", { locale: ptBR })
     : `${format(start, 'dd MMM', { locale: ptBR })} – ${format(end, 'dd MMM', { locale: ptBR })}`;
@@ -144,27 +159,35 @@ export function ActivitiesClient() {
         </div>
       </div>
 
-      {/* Resumo + legenda */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <SummaryChip label="Total" value={summary.total} color="hsl(var(--foreground))" />
-          <SummaryChip label="A fazer" value={summary.todo} color="hsl(var(--muted-foreground))" />
-          <SummaryChip label="Em andamento" value={summary.inProgress} color="hsl(var(--accent))" />
-          <SummaryChip label="Concluídas" value={summary.done} color="hsl(var(--primary-dark))" />
-          <SummaryChip label="Atrasadas" value={summary.overdue} color={OVERDUE_COLOR} />
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-          {(Object.keys(STATUS_META) as Array<keyof typeof STATUS_META>).map((s) => (
-            <span key={s} className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_META[s].bg, border: `1px solid ${STATUS_META[s].color}` }} />
-              {STATUS_META[s].label}
-            </span>
-          ))}
-          <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border-l-2" style={{ borderLeftColor: OVERDUE_COLOR, backgroundColor: 'hsl(var(--destructive) / 0.1)' }} />
-            Atrasada
-          </span>
-        </div>
+      {/* Resumo — os chips SÃO a legenda.
+          Antes havia cinco chips numéricos e, ao lado, uma legenda de quatro
+          quadradinhos coloridos com os mesmos rótulos: duas gramáticas visuais
+          para o mesmo conceito, ocupando uma faixa inteira acima do calendário.
+          Agora o chip carrega a cor, e clicar nele filtra — vira legenda e
+          controle ao mesmo tempo. */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <SummaryChip
+          label="Total" value={summary.total} color="hsl(var(--foreground))"
+          active={filters.status === '' && !filters.onlyOverdue}
+          onClick={() => patchFilters({ status: '', onlyOverdue: false })}
+        />
+        {(['TODO', 'IN_PROGRESS', 'DONE'] as const).map((s) => (
+          <SummaryChip
+            key={s}
+            label={STATUS_META[s].label}
+            value={s === 'TODO' ? summary.todo : s === 'IN_PROGRESS' ? summary.inProgress : summary.done}
+            color={STATUS_META[s].color}
+            swatch={STATUS_META[s].bg}
+            active={filters.status === s}
+            onClick={() => patchFilters({ status: filters.status === s ? '' : s, onlyOverdue: false })}
+          />
+        ))}
+        <SummaryChip
+          label="Atrasadas" value={summary.overdue}
+          color={OVERDUE_COLOR} swatch="hsl(var(--destructive) / 0.12)"
+          active={filters.onlyOverdue}
+          onClick={() => patchFilters({ onlyOverdue: !filters.onlyOverdue, status: '' })}
+        />
       </div>
 
       {/* Conteúdo */}
@@ -178,8 +201,21 @@ export function ActivitiesClient() {
           onSelectDay={(date, acts) => setSelectedDay({ date, activities: acts })}
         />
       ) : blocks.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-300 py-20 text-center text-sm text-muted-foreground">
-          Nenhuma atividade no período selecionado.
+        <div className="rounded-xl border border-border bg-card py-6">
+          <EmptyState
+            icon={isFiltering ? Filter : CalendarDays}
+            title={isFiltering ? 'Nada bate com os filtros' : 'Nenhuma atividade no período'}
+            description={
+              isFiltering
+                ? 'Há atividades neste período, mas nenhuma passa pelos filtros atuais.'
+                : 'Nenhuma atividade começa, corre ou vence entre estas datas.'
+            }
+            action={
+              isFiltering
+                ? <Button variant="outline" onClick={resetFilters}>Limpar filtros</Button>
+                : undefined
+            }
+          />
         </div>
       ) : (
         <div className="space-y-6">
@@ -194,15 +230,45 @@ export function ActivitiesClient() {
                     Hoje
                   </span>
                 )}
-                <span className="text-xs text-muted-foreground">
-                  {block.activities.length} {block.activities.length === 1 ? 'atividade' : 'atividades'}
-                </span>
+                {block.due.length > 0 && (
+                  <span className="text-xs font-medium text-foreground">
+                    {block.due.length} {block.due.length === 1 ? 'vence' : 'vencem'}
+                  </span>
+                )}
+                {block.ongoing.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {block.ongoing.length} em andamento
+                  </span>
+                )}
               </div>
+
+              {/* O que VENCE no dia vem primeiro e em peso normal — é o que
+                  exige ação. O que só está correndo vira contexto recolhido:
+                  listar os dois com o mesmo peso faria uma tarefa de cinco
+                  semanas aparecer 35 vezes competindo com o prazo de hoje. */}
               <div className="space-y-2">
-                {block.activities.map((activity) => (
+                {block.due.map((activity) => (
                   <ActivityCard key={activity.id} activity={activity} onClick={setSelectedActivity} />
                 ))}
               </div>
+
+              {block.ongoing.length > 0 && (
+                <details className="mt-2 group">
+                  <summary className="cursor-pointer list-none rounded-lg px-1 py-1 text-xs text-muted-foreground hover:text-foreground">
+                    <ChevronRight size={12} className="mr-1 inline transition-transform group-open:rotate-90" />
+                    {block.ongoing.length} em andamento neste dia
+                  </summary>
+                  <div className="mt-2 space-y-2 opacity-75">
+                    {block.ongoing.map((activity) => (
+                      <ActivityCard
+                        key={activity.id}
+                        activity={activity}
+                        onClick={setSelectedActivity}
+                      />
+                    ))}
+                  </div>
+                </details>
+              )}
             </section>
           ))}
         </div>
@@ -224,12 +290,43 @@ export function ActivitiesClient() {
   );
 }
 
-function SummaryChip({ label, value, color }: { label: string; value: number; color: string }) {
+/**
+ * Chip do resumo — número, rótulo e a cor do próprio status. Clicável: é o
+ * filtro rápido e a legenda ao mesmo tempo, o que dispensou a faixa de
+ * quadradinhos que existia ao lado dizendo a mesma coisa.
+ */
+function SummaryChip({
+  label, value, color, swatch, active, onClick,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  swatch?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={active ? `Mostrando só: ${label}. Clique para remover o filtro.` : `Filtrar por ${label}`}
+      className={cn(
+        'flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active ? 'border-foreground/25 bg-muted' : 'border-border bg-card hover:bg-muted/50',
+      )}
+    >
+      {swatch && (
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-sm"
+          style={{ backgroundColor: swatch, border: `1px solid ${color}` }}
+          aria-hidden
+        />
+      )}
       <span className="text-lg font-bold leading-none" style={{ color }}>{value}</span>
       <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
+    </button>
   );
 }
 

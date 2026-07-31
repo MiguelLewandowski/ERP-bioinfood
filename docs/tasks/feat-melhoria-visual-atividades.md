@@ -2,7 +2,7 @@
 tipo: feature
 escopo: web   # palpite
 complexidade: média   # palpite
-status: triagem
+status: feito
 criada: 2026-07-28
 tema: atividades
 origem: reunião de teste Bruna e Luana — 28/07/2026
@@ -24,4 +24,42 @@ origem: reunião de teste Bruna e Luana — 28/07/2026
 - Ver também `docs/analise-uiux.md`, que pode já ter apontado parte disso.
 - **Candidata a `/planejar` ou `/analisar-uiux`, não a implementação direta.**
 
-> ⚠️ Documento em triagem — **não implementar**. Rode `/nova-tarefa aprofundar docs/tasks/feat-melhoria-visual-atividades.md`.
+---
+
+## ✅ Resolvido em 2026-07-30
+
+`/analisar-uiux` rodou **com renderização real** (app no ar, inspeção de tela, dados
+conferidos contra a API). Diagnóstico completo:
+[`docs/analise-uiux-atividades.md`](../analise-uiux-atividades.md).
+
+**A análise achou dois defeitos de correção antes de qualquer questão estética** — e
+nenhum trabalho visual os compensaria:
+
+1. 🔴 **A visão Semana escondia o trabalho da semana.** O cabeçalho dizia "6 Total" e a
+   lista mostrava **uma**. Quatro prazos que venciam naquela semana estavam invisíveis.
+2. 🔴 **Todas as datas apareciam um dia antes, com hora inventada** ("01 de ago, 21:00"
+   para uma atividade de 02/08). O incidente de `timezone-cronograma.md`, vivo na tela.
+
+Os dois foram corrigidos e **verificados na tela renderizada**.
+
+Melhoria visual entregue (a parte que a anotação pedia):
+
+- **Prioridade virou visível** — era uma borda esquerda de 2px, indistinguível na
+  densidade real. Alta, Crítica e atrasada ganham ponto sólido e título em negrito.
+- **Os chips do resumo absorveram a legenda** que dizia a mesma coisa ao lado, e ficaram
+  clicáveis: legenda e filtro no mesmo elemento.
+- **Estado vazio** usa `EmptyState`, distinguindo "período livre" de "filtro escondeu
+  tudo".
+- **11 hex crus saíram** de `lib/activities.ts`. Não era higiene: `CRITICAL` era
+  `#D64550`, que não é o token `destructive` — a mesma tarefa tinha um vermelho aqui e
+  outro no Kanban.
+
+### ⏸️ Em aberto — decisão de produto, não de execução
+
+**A grade mensal lê como Gantt, não como calendário.** Quase toda barra atravessa a
+semana inteira e a mesma tarefa se repete em cada linha de semana, então a pergunta que
+um calendário existe para responder — "o que acontece na terça?" — não tem resposta.
+
+Corrigir isso muda o *modelo mental* da tela: distinguir **marcador de prazo** (a data
+acionável) de **período contínuo**. É achado A3 do relatório, e ficou de fora do Top 3
+de propósito — vale conversar antes de mexer.
