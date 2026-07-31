@@ -105,9 +105,17 @@ function PipelineCard({
   const { token } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [stageName, setStageName] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(pipeline.name);
   const [editingAbbr, setEditingAbbr] = useState(false);
   const [abbrDraft, setAbbrDraft] = useState(pipeline.abbreviation);
   const stages = [...pipeline.stages].sort((a, b) => a.order - b.order);
+
+  async function saveName() {
+    if (!nameDraft.trim()) return;
+    await run(() => pipelinesApi.update(pipeline.id, { name: nameDraft.trim() }, token));
+    setEditingName(false);
+  }
 
   function move(i: number, dir: -1 | 1) {
     const target = i + dir;
@@ -143,7 +151,27 @@ function PipelineCard({
             {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
 
-          <h2 className="text-sm font-bold text-foreground">{pipeline.name}</h2>
+          {editingName ? (
+            <div className="flex items-center gap-1">
+              <input
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                autoFocus
+                className="rounded border border-input px-1.5 py-0.5 text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <button onClick={saveName} className="text-primary" aria-label="Salvar nome"><Check size={14} /></button>
+              <button onClick={() => { setEditingName(false); setNameDraft(pipeline.name); }} className="text-muted-foreground" aria-label="Cancelar"><X size={14} /></button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingName(true)}
+              className="inline-flex items-center gap-1 text-sm font-bold text-foreground hover:text-primary"
+              aria-label="Editar nome do funil"
+            >
+              {pipeline.name} <Pencil size={11} />
+            </button>
+          )}
 
           {editingAbbr ? (
             <div className="flex items-center gap-1">
@@ -233,6 +261,14 @@ function StageRow({
   run: (fn: () => Promise<unknown>) => Promise<void>; onMove: (i: number, dir: -1 | 1) => void;
 }) {
   const { token } = useAuth();
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(stage.name);
+
+  async function saveName() {
+    if (!nameDraft.trim() || nameDraft === stage.name) { setEditingName(false); return; }
+    await run(() => pipelinesApi.updateStage(pipelineId, stage.id, { name: nameDraft.trim() }, token));
+    setEditingName(false);
+  }
 
   return (
     <li className="flex items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5">
@@ -259,9 +295,27 @@ function StageRow({
         className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground"
         style={stage.color ? { backgroundColor: stage.color } : undefined}
       />
-      <span className={`flex-1 text-sm ${stage.isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
-        {stage.name}
-      </span>
+      {editingName ? (
+        <div className="flex flex-1 items-center gap-1">
+          <input
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && saveName()}
+            autoFocus
+            className="w-full rounded border border-input px-1.5 py-0.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <button onClick={saveName} className="text-primary" aria-label="Salvar nome da etapa"><Check size={14} /></button>
+          <button onClick={() => { setEditingName(false); setNameDraft(stage.name); }} className="text-muted-foreground" aria-label="Cancelar"><X size={14} /></button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditingName(true)}
+          className={`flex flex-1 items-center gap-1 text-left text-sm hover:text-primary ${stage.isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}
+          aria-label="Editar nome da etapa"
+        >
+          {stage.name} <Pencil size={10} className="shrink-0 opacity-60" />
+        </button>
+      )}
 
       <select
         value={stage.type}
