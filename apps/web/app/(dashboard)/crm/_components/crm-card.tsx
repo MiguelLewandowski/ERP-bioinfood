@@ -9,7 +9,7 @@ import {
 import type { CrmActivityDto, OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import {
-  isOverdue, type OpportunityTaskState, type OpportunityTaskSummary,
+  ACTIVITY_TYPE_LABELS, isOverdue, type OpportunityTaskState, type OpportunityTaskSummary,
 } from '@/lib/crm-tasks';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
@@ -151,7 +151,9 @@ export function CrmCard({
             )}
           >
             {overdue ? <AlertTriangle size={11} className="shrink-0" /> : <Clock size={11} className="shrink-0" />}
-            <span className="min-w-0 flex-1 truncate">{urgentTask.title}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {urgentTask.description ?? ACTIVITY_TYPE_LABELS[urgentTask.type]}
+            </span>
             {onCompleteTask && (
               <button
                 type="button"

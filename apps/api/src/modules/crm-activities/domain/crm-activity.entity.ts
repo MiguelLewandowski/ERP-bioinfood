@@ -7,7 +7,7 @@ export interface CrmActivityListItem {
   interactionId: string | null;
   opportunityId: string | null;
   responsibleId: string | null;
-  title: string;
+  title: string | null;
   description: string | null;
   type: ActivityType;
   priority: TaskPriority;
@@ -27,7 +27,7 @@ export interface CreateCrmActivityData {
   interactionId?: string;
   opportunityId?: string;
   responsibleId?: string;
-  title: string;
+  title?: string;
   description?: string;
   type?: ActivityType;
   priority?: TaskPriority;

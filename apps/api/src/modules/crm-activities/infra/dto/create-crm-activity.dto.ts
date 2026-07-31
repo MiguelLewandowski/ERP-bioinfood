@@ -24,9 +24,10 @@ export class CreateCrmActivityDto {
   @IsString()
   responsibleId?: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(200)
-  title: string;
+  title?: string;
 
   @IsOptional()
   @IsString()

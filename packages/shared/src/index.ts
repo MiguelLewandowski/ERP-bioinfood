@@ -326,7 +326,7 @@ export interface InteractionDto {
 
 export type ActivityStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 export type DueFilter = 'today' | 'overdue' | 'week';
-export type CrmActivityType = 'NOTE' | 'EMAIL' | 'CALL' | 'WHATSAPP' | 'PROPOSAL' | 'MEETING' | 'VISIT';
+export type CrmActivityType = 'NOTE' | 'EMAIL' | 'CALL' | 'WHATSAPP' | 'PROPOSAL' | 'MEETING' | 'VISIT' | 'OTHER';
 
 export interface CrmActivityDto {
   id: string;
@@ -335,7 +335,7 @@ export interface CrmActivityDto {
   interactionId: string | null;
   opportunityId: string | null;
   responsibleId: string | null;
-  title: string;
+  title: string | null;
   description: string | null;
   type: CrmActivityType;
   priority: TaskPriority;

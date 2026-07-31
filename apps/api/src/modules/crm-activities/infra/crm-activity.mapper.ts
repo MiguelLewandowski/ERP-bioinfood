@@ -8,7 +8,7 @@ export interface CrmActivityDto {
   interactionId: string | null;
   opportunityId: string | null;
   responsibleId: string | null;
-  title: string;
+  title: string | null;
   description: string | null;
   type: ActivityType;
   priority: TaskPriority;

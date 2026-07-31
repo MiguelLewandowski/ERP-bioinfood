@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { CrmActivityDto, UserDto } from '@bioinfood/shared';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, fireEvent, TEST_TOKEN, TEST_SESSION } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, TEST_TOKEN, TEST_SESSION } from '@/lib/test-utils';
 import { TaskDialog } from './task-dialog';
 
 const createMock = vi.fn();
@@ -73,27 +73,13 @@ describe('TaskDialog — create mode', () => {
     expect(screen.getByRole('button', { name: 'Criar tarefa' })).toBeInTheDocument();
   });
 
-  it('should require a title before calling the API', async () => {
+  it('should create a task with no fields filled in beyond the defaults', async () => {
     const user = userEvent.setup();
     setup();
 
     await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
 
-    expect(await screen.findByText('Título é obrigatório')).toBeInTheDocument();
-    expect(createMock).not.toHaveBeenCalled();
-  });
-
-  it('should reject a title longer than 200 characters', async () => {
-    const user = userEvent.setup();
-    setup();
-
-    // Ver docs/tasks/test-suite-web-instavel-sob-carga.md: 201 caracteres tecla a
-    // tecla estouravam o timeout sob carga. O zod valida no submit, não por tecla.
-    fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'x'.repeat(201) } });
-    await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
-
-    expect(await screen.findByText('Máximo de 200 caracteres')).toBeInTheDocument();
-    expect(createMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(createMock).toHaveBeenCalled());
   });
 
   it('should default the responsible to the logged-in user', () => {
@@ -113,13 +99,11 @@ describe('TaskDialog — create mode', () => {
     const user = userEvent.setup();
     const { onSaved } = setup({ defaults: { opportunityId: 'opp-9', orgId: 'org-9' } });
 
-    await user.type(screen.getByLabelText('Título *'), 'Enviar proposta');
     await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
 
     await waitFor(() => expect(createMock).toHaveBeenCalled());
     const [payload, token] = createMock.mock.calls[0];
     expect(payload).toMatchObject({
-      title: 'Enviar proposta',
       opportunityId: 'opp-9',
       orgId: 'org-9',
     });
@@ -131,7 +115,6 @@ describe('TaskDialog — create mode', () => {
     const user = userEvent.setup();
     setup();
 
-    await user.type(screen.getByLabelText('Título *'), 'Enviar proposta');
     await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
 
     await waitFor(() => expect(createMock).toHaveBeenCalled());
@@ -149,7 +132,6 @@ describe('TaskDialog — create mode', () => {
     createMock.mockRejectedValue(new ApiError(['Forbidden resource'], 403));
     const { onSaved, onOpenChange } = setup();
 
-    await user.type(screen.getByLabelText('Título *'), 'Enviar proposta');
     await user.click(screen.getByRole('button', { name: 'Criar tarefa' }));
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Forbidden resource'));
@@ -168,7 +150,6 @@ describe('TaskDialog — edit mode', () => {
     setup({ task: EXISTING_TASK });
 
     expect(screen.getByText('Editar tarefa')).toBeInTheDocument();
-    expect(screen.getByLabelText('Título *')).toHaveValue('Retornar ligação');
     expect(screen.getByLabelText('Tipo')).toHaveValue('CALL');
     expect(screen.getByLabelText('Prioridade')).toHaveValue('HIGH');
     expect(screen.getByLabelText('Prazo')).toHaveValue('2026-08-15');
@@ -180,14 +161,11 @@ describe('TaskDialog — edit mode', () => {
     const user = userEvent.setup();
     const { onSaved } = setup({ task: EXISTING_TASK });
 
-    await user.clear(screen.getByLabelText('Título *'));
-    await user.type(screen.getByLabelText('Título *'), 'Retornar ligação hoje');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => expect(updateMock).toHaveBeenCalled());
-    const [id, payload, token] = updateMock.mock.calls[0];
+    const [id, , token] = updateMock.mock.calls[0];
     expect(id).toBe('task-1');
-    expect(payload).toMatchObject({ title: 'Retornar ligação hoje' });
     expect(token).toBe(TEST_TOKEN);
     expect(createMock).not.toHaveBeenCalled();
     expect(onSaved).toHaveBeenCalled();

@@ -184,6 +184,7 @@ enum ActivityType {
   PROPOSAL
   MEETING
   VISIT
+  OTHER
 }
 
 // -- Estoque / Compras (stub) --
@@ -496,7 +497,9 @@ model Activity {
   opportunity   Opportunity?   @relation(fields: [opportunityId], references: [id])
   responsibleId String?
   responsible   User?          @relation(fields: [responsibleId], references: [id])
-  title         String
+  // Opcional: a tarefa do CRM se identifica pelo `type` (badge WhatsApp/Reunião/
+  // E-mail...), não por um título livre.
+  title         String?
   description   String?
   type          ActivityType   @default(NOTE)
   priority      TaskPriority   @default(MEDIUM)
