@@ -128,13 +128,10 @@ export function CrmCard({
           </Link>
         )}
       </div>
-      <div className="mt-1.5 flex items-center justify-between">
+      <div className="mt-1.5">
         <span className="text-sm font-semibold text-primary">
           {formatBRL(opportunity.amount, opportunity.currency)}
         </span>
-        {opportunity.probability !== null && (
-          <span className="text-[11px] text-muted-foreground">{opportunity.probability}%</span>
-        )}
       </div>
       {opportunity.responsible && (
         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">

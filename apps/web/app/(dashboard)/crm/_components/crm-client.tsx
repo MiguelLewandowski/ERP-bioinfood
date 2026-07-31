@@ -308,9 +308,8 @@ export function CrmClient(props: CrmClientProps) {
       </div>
 
       {summary && (
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3">
           <Metric label="Em aberto" value={formatBRL(summary.openTotal)} />
-          <Metric label="Ponderado" value={formatBRL(summary.weightedTotal)} />
           <Metric
             label="Conversão"
             value={`${Math.round(summary.conversionRate * 100)}%`}
