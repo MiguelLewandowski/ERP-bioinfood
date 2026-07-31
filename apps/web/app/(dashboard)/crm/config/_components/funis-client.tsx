@@ -64,7 +64,7 @@ export function FunisClient({ pipelines }: { pipelines: PipelineDto[] }) {
   return (
     <div className="space-y-6">
       <Link
-        href="/crm?tab=negocios"
+        href="/crm?tab=oportunidades"
         className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft size={14} /> Voltar para o CRM

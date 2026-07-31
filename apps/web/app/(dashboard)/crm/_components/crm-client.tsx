@@ -273,7 +273,7 @@ export function CrmClient(props: CrmClientProps) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar negócio ou empresa…"
+            placeholder="Buscar oportunidade ou empresa…"
             className="h-8 pl-8 pr-7 text-xs"
           />
           {search && (
