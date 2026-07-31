@@ -5,6 +5,9 @@ import { afterEach, vi } from 'vitest';
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  // Rascunho de formulário (use-form-draft) usa sessionStorage — sem limpar,
+  // um teste que digita e não salva vaza texto para o próximo teste do arquivo.
+  if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
 });
 
 // Este setup é global, mas nem todo teste roda em jsdom: rotas do App Router
