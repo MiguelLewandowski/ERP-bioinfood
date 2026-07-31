@@ -32,18 +32,18 @@ const TASK_STATE_META: Record<
   },
   today: {
     icon: Clock,
-    className: 'text-accent',
-    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — há uma para hoje`,
+    className: 'text-success',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — em dia, há uma para hoje`,
   },
   upcoming: {
     icon: ListChecks,
-    className: 'text-muted-foreground',
-    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''}`,
+    className: 'text-success',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — em dia`,
   },
   none: {
     icon: CircleDashed,
-    className: 'text-muted-foreground/50',
-    label: () => 'Sem tarefa — negócio sem próximo passo',
+    className: 'text-warning',
+    label: () => 'Sem tarefa — oportunidade sem próximo passo',
   },
 };
 
