@@ -294,7 +294,7 @@ export function CrmClient(props: CrmClientProps) {
               : 'border-input text-muted-foreground hover:bg-muted/60',
           )}
         >
-          <User size={13} /> Meus negócios
+          <User size={13} /> Minhas oportunidades
         </button>
         {filterActive && (
           <button
@@ -322,13 +322,22 @@ export function CrmClient(props: CrmClientProps) {
       <div className="overflow-x-auto pb-2">
         <DndContext id="crm-kanban-dnd" sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
-            {stages.map((stage) => {
-              // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
-              const colOpps = opps
-                .filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o))
-                .sort((a, b) => a.order - b.order);
-              return (
-                <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
+            {(() => {
+              // Base da porcentagem por etapa: mesma população que aparece nas colunas.
+              const totalActive = opps.filter((o) => !o.frozenAt && matchesFilter(o)).length;
+              return stages.map((stage) => {
+                // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
+                const colOpps = opps
+                  .filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o))
+                  .sort((a, b) => a.order - b.order);
+                return (
+                  <CrmColumn
+                    key={stage.id}
+                    stage={stage}
+                    count={colOpps.length}
+                    percent={totalActive > 0 ? Math.round((colOpps.length / totalActive) * 100) : null}
+                    amount={stageAmount(stage.id)}
+                  >
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>
                     {colOpps.map((o) => (
                       <CrmCard
@@ -348,8 +357,9 @@ export function CrmClient(props: CrmClientProps) {
                     </p>
                   )}
                 </CrmColumn>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
           <DragOverlay>{active && <CrmCard opportunity={active} isOverlay draggable={false} />}</DragOverlay>
         </DndContext>
