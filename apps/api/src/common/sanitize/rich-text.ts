@@ -1,17 +1,32 @@
-// ⚠️ `import * as`, e não `import sanitizeHtml from` — igual a `bcrypt` e `joi`
-// no resto da API.
-//
-// O tsconfig da API tem `allowSyntheticDefaultImports: true` mas **não** tem
-// `esModuleInterop`. Essa dupla é uma armadilha: a primeira opção só cala o
-// *type checker*, sem mudar o código gerado. O import default compilava para
-// `sanitize_html_1.default`, e `sanitize-html` é CJS que exporta a função
-// direto — `.default` é `undefined`.
-//
-// Resultado: `tsc --noEmit` passava, os testes passavam (o esbuild do Vitest
-// cria o `.default` sintético que o `tsc` não cria) e a API **quebrava em
-// produção** — primeiro no boot, depois, quando "consertei" errado, só no
-// primeiro salvamento de nota ou de TAP.
-import * as sanitizeHtml from 'sanitize-html';
+import * as sanitizeHtmlModule from 'sanitize-html';
+
+/**
+ * ⚠️ `sanitize-html` é CJS, e este arquivo roda sob **dois carregadores
+ * diferentes** — que entregam o módulo de formas incompatíveis:
+ *
+ * | Carregador | O que o binding é |
+ * |---|---|
+ * | `tsc` → CJS (a API em `dev` e em produção) | a **função** |
+ * | esbuild → ESM (o Vitest) | um **namespace**, com a função em `.default` |
+ *
+ * O tsconfig da API tem `allowSyntheticDefaultImports: true` **sem**
+ * `esModuleInterop`. Essa dupla é uma armadilha: a primeira opção só cala o
+ * *type checker*, não muda o código gerado. Por isso:
+ *
+ * - `import sanitizeHtml from …` → vira `sanitize_html_1.default`, que é
+ *   `undefined` no runtime da API. Passa no `tsc`, passa nos testes, **quebra
+ *   ao salvar** nota ou TAP;
+ * - `import * as sanitizeHtml from …` → funciona na API e **quebra os testes**,
+ *   onde o namespace não é chamável.
+ *
+ * Normalizar aqui é o que faz o mesmo arquivo servir aos dois. Foi exatamente
+ * essa divergência que deixou 13 testes verdes com a API quebrada em produção —
+ * o teste unitário não roda contra o módulo que a API carrega.
+ */
+const sanitizeHtml: typeof sanitizeHtmlModule =
+  typeof sanitizeHtmlModule === 'function'
+    ? sanitizeHtmlModule
+    : (sanitizeHtmlModule as unknown as { default: typeof sanitizeHtmlModule }).default;
 
 /**
  * Allowlist do texto rico do ERP — ponto ÚNICO por onde passa todo HTML
@@ -35,7 +50,8 @@ const ALLOWED_TAGS = [
   'a',
 ];
 
-const OPTIONS: sanitizeHtml.IOptions = {
+// O namespace de tipos vem do import, não da const normalizada acima.
+const OPTIONS: sanitizeHtmlModule.IOptions = {
   allowedTags: ALLOWED_TAGS,
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
