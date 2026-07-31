@@ -18,7 +18,7 @@ import { navItemsForRole } from './nav-items';
 const TYPE_CONFIG = {
   project: { group: 'Projetos', icon: FolderKanban },
   organization: { group: 'Empresas', icon: Building2 },
-  opportunity: { group: 'Negócios', icon: Briefcase },
+  opportunity: { group: 'Oportunidades', icon: Briefcase },
   contact: { group: 'Pessoas', icon: UserRound },
 } as const;
 
@@ -29,7 +29,7 @@ function resultHref(r: SearchResultDto): string {
     case 'organization':
       return `/crm/empresas/${r.id}`;
     case 'opportunity':
-      return '/crm?tab=negocios';
+      return '/crm?tab=oportunidades';
     case 'contact':
       return r.refId ? `/crm/empresas/${r.refId}` : '/crm?tab=pessoas';
   }

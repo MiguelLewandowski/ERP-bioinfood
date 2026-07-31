@@ -25,7 +25,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   roadmap: 'Roadmap',
   stakeholders: 'Stakeholders',
   contatos: 'Contatos',
-  negocios: 'Negócios',
+  oportunidades: 'Oportunidades',
   produtos: 'Produtos',
 };
 

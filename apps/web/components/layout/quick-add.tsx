@@ -61,8 +61,8 @@ export function QuickAdd() {
             </DropdownMenuItem>
           )}
           {canCrm && (
-            <DropdownMenuItem onSelect={() => router.push('/crm?tab=negocios')}>
-              <Target size={15} className="text-muted-foreground" /> Negócio
+            <DropdownMenuItem onSelect={() => router.push('/crm?tab=oportunidades')}>
+              <Target size={15} className="text-muted-foreground" /> Oportunidade
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

@@ -79,7 +79,7 @@ describe('QuickAdd menu — RBAC', () => {
     expect(await screen.findByRole('menuitem', { name: /Tarefa/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Projeto/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Empresa/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Negócio/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Oportunidade/ })).not.toBeInTheDocument();
   });
 
   it('should offer every entry to an admin', async () => {
@@ -91,7 +91,7 @@ describe('QuickAdd menu — RBAC', () => {
     expect(await screen.findByRole('menuitem', { name: /Tarefa/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Projeto/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Empresa/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Negócio/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Oportunidade/ })).toBeInTheDocument();
   });
 });
 
