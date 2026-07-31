@@ -195,6 +195,8 @@ export function CrmClient(props: CrmClientProps) {
 
   function onSaved(saved: OpportunityDto) {
     setOpps((prev) => {
+      // Movida para outro funil: some da visão atual, que é por pipeline.
+      if (pipeline && saved.pipelineId !== pipeline.id) return prev.filter((o) => o.id !== saved.id);
       const exists = prev.some((o) => o.id === saved.id);
       return exists ? prev.map((o) => (o.id === saved.id ? saved : o)) : [saved, ...prev];
     });
@@ -420,6 +422,7 @@ export function CrmClient(props: CrmClientProps) {
           mode="create"
           pipelineId={pipeline.id}
           defaultStageId={firstOpen.id}
+          pipelines={props.pipelines}
           users={props.users}
           canEdit={props.canEdit}
           onSaved={onSaved}
@@ -434,6 +437,7 @@ export function CrmClient(props: CrmClientProps) {
           pipelineId={pipeline.id}
           defaultStageId={editing.stageId}
           opportunity={editing}
+          pipelines={props.pipelines}
           users={props.users}
           canEdit={props.canEdit}
           onSaved={onSaved}

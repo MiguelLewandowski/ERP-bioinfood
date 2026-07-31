@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IOpportunityRepository, OPPORTUNITY_REPOSITORY } from '../domain/opportunity.repository';
 import { resolveMove } from '../domain/opportunity.rules';
 
@@ -12,12 +12,10 @@ export class MoveOpportunityUseCase {
 
     const target = await this.repo.findStageRef(stageId);
     if (!target) throw new NotFoundException('Etapa não encontrada');
-    // The destination stage must belong to the opportunity's own pipeline.
-    if (target.pipelineId !== opp.pipelineId) {
-      throw new BadRequestException('Etapa não pertence ao funil da oportunidade');
-    }
+    // A etapa de destino define o funil: mover para uma etapa de outro pipeline
+    // move a oportunidade de funil também (decisão: permitir troca de funil).
 
     const result = resolveMove(target, lostReason, new Date());
-    return this.repo.move(id, { stageId, ...result });
+    return this.repo.move(id, { stageId, pipelineId: target.pipelineId, ...result });
   }
 }

@@ -104,6 +104,7 @@ export class OpportunitiesPrismaRepository implements IOpportunityRepository {
       where: { id },
       data: {
         stageId: data.stageId,
+        pipelineId: data.pipelineId,
         probability: data.probability,
         closedAt: data.closedAt,
         lostReason: data.lostReason,
