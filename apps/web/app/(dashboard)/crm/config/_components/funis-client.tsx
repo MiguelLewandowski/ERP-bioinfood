@@ -325,15 +325,6 @@ function StageRow({
         {(Object.keys(TYPE_LABELS) as StageType[]).map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
       </select>
 
-      <div className="flex items-center gap-1">
-        <input
-          type="number" min={0} max={100} defaultValue={stage.probability}
-          onBlur={(e) => { const v = Number(e.target.value); if (v !== stage.probability) run(() => pipelinesApi.updateStage(pipelineId, stage.id, { probability: v }, token)); }}
-          className="w-12 rounded border border-input px-1 py-0.5 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <span className="text-[10px] text-muted-foreground">%</span>
-      </div>
-
       <button
         onClick={() => run(() => pipelinesApi.updateStage(pipelineId, stage.id, { isActive: !stage.isActive }, token))}
         disabled={busy}
