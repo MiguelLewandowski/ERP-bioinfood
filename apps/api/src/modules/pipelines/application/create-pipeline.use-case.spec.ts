@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BadRequestException } from '@nestjs/common';
 import { StageType } from '@prisma/client';
 import { CreatePipelineUseCase } from './create-pipeline.use-case';
 import { IPipelineRepository } from '../domain/pipeline.repository';
@@ -22,10 +21,20 @@ describe('CreatePipelineUseCase', () => {
     useCase = new CreatePipelineUseCase(repo);
   });
 
-  it('should reject a pipeline whose provided stages have no OPEN stage', async () => {
+  it('should allow a pipeline to be created with only WON/LOST stages, no OPEN', async () => {
     await expect(
-      useCase.execute({ name: 'X', abbreviation: 'XXX', stages: [{ name: 'Ganho', type: StageType.WON }] }),
-    ).rejects.toThrow(BadRequestException);
+      useCase.execute({
+        name: 'X',
+        abbreviation: 'XXX',
+        stages: [{ name: 'Ganho', type: StageType.WON }, { name: 'Perdido', type: StageType.LOST }],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('should allow a pipeline to be created with no stages at all', async () => {
+    await expect(
+      useCase.execute({ name: 'X', abbreviation: 'XXX' }),
+    ).resolves.toBeDefined();
   });
 
   it('should force the first pipeline to be the default', async () => {

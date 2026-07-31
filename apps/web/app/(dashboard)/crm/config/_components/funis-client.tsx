@@ -23,11 +23,10 @@ function suggestAbbreviation(name: string): string {
 
 const TYPE_LABELS: Record<StageType, string> = { OPEN: 'Aberta', WON: 'Ganho', LOST: 'Perdido' };
 
-// New pipelines start with a usable OPEN → WON → LOST skeleton.
+// Funil novo nasce sem etapa aberta — só Ganho/Perdido fixos. O usuário
+// adiciona as etapas abertas que fizerem sentido para o processo dele.
 // Cores de etapa são dados persistidos (config do usuário), não tokens do tema.
 const DEFAULT_STAGES = [
-  { name: 'Novo', type: 'OPEN', probability: 10, color: '#706F6F' },
-  { name: 'Em andamento', type: 'OPEN', probability: 50, color: '#DD8005' },
   { name: 'Ganho', type: 'WON', probability: 100, color: '#156D1D' },
   { name: 'Perdido', type: 'LOST', probability: 0, color: '#C0392B' },
 ];
