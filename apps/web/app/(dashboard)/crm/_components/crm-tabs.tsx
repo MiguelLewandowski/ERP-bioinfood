@@ -30,10 +30,10 @@ interface CrmTabsProps {
 }
 
 const TABS = [
+  { id: 'tarefas', label: 'Tarefas', icon: ListChecks },
   { id: 'empresas', label: 'Empresas', icon: Building2 },
   { id: 'pessoas', label: 'Pessoas', icon: UsersIcon },
-  { id: 'negocios', label: 'Negócios', icon: Kanban },
-  { id: 'tarefas', label: 'Tarefas', icon: ListChecks },
+  { id: 'oportunidades', label: 'Oportunidades', icon: Kanban },
 ] as const;
 
 export type TabId = (typeof TABS)[number]['id'];
@@ -107,7 +107,7 @@ export function CrmTabs(props: CrmTabsProps) {
         {tab === 'pessoas' && (
           <PessoasTab initialContacts={props.contacts} sources={props.sources} canEdit={props.canEdit} />
         )}
-        {tab === 'negocios' && (
+        {tab === 'oportunidades' && (
           <CrmClient
             pipelines={props.pipelines}
             currentPipeline={props.currentPipeline}
