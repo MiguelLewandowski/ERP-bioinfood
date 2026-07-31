@@ -17,6 +17,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskDocument } from '@/lib/masks';
+import { useFormDraft, clearFormDraft } from '@/lib/use-form-draft';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -46,12 +47,17 @@ export default function ClienteDialog({
   const [enrichNote, setEnrichNote] = useState('');
   const [selectedProductServices, setSelectedProductServices] = useState<string[]>([]);
 
+  const defaultValues: FormData = { documentType: 'CNPJ' } as FormData;
   const {
     register, handleSubmit, reset, setError, setValue, watch, formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(organizationSchema),
-    defaultValues: { documentType: 'CNPJ' },
+    defaultValues,
   });
+
+  // Fechar o modal (clique fora, Esc) não pode apagar o que já foi digitado —
+  // o rascunho só some quando a empresa é criada com sucesso.
+  useFormDraft('draft:cliente', watch, reset, defaultValues);
 
   const documentType = watch('documentType');
 
@@ -105,6 +111,7 @@ export default function ClienteDialog({
       }
 
       reset();
+      clearFormDraft('draft:cliente');
       setSelectedProductServices([]);
       setEnrichNote('');
       onCreated(organization);
@@ -114,11 +121,6 @@ export default function ClienteDialog({
   }
 
   function handleOpenChange(v: boolean) {
-    if (!v) {
-      reset();
-      setSelectedProductServices([]);
-      setEnrichNote('');
-    }
     onOpenChange(v);
   }
 
