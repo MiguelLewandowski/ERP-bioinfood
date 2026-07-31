@@ -35,10 +35,15 @@ export function Breadcrumbs() {
 
   const segments = pathname.split('/').filter(Boolean);
   const crumbs = segments
-    .map((seg, i) => ({
-      label: SEGMENT_LABELS[seg] ?? entityLabels[seg] ?? null,
-      href: '/' + segments.slice(0, i + 1).join('/'),
-    }))
+    .map((seg, i) => {
+      const path = '/' + segments.slice(0, i + 1).join('/');
+      return {
+        label: SEGMENT_LABELS[seg] ?? entityLabels[seg] ?? null,
+        // "Empresas" não é uma rota própria — é a aba `empresas` de /crm.
+        // /crm/empresas (sem [id]) 404: a lista mora em /crm?tab=empresas.
+        href: path === '/crm/empresas' ? '/crm?tab=empresas' : path,
+      };
+    })
     .filter((c): c is { label: string; href: string } => c.label !== null);
 
   if (crumbs.length === 0) return null;
