@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
-import type { OpportunityDto, UserDto } from '@bioinfood/shared';
+import type { ContactListItemDto, OpportunityDto, UserDto } from '@bioinfood/shared';
 import { OpportunityTimelineDialog } from '../../../_components/opportunity-timeline-dialog';
 
 function formatBRL(amount: string | null, currency = 'BRL'): string {
@@ -23,10 +23,11 @@ interface OportunidadesTabProps {
   opportunities: OpportunityDto[];
   orgId: string;
   users: UserDto[];
+  contacts: ContactListItemDto[];
   canEdit: boolean;
 }
 
-export function OportunidadesTab({ opportunities, orgId, users, canEdit }: OportunidadesTabProps) {
+export function OportunidadesTab({ opportunities, orgId, users, contacts, canEdit }: OportunidadesTabProps) {
   const [selected, setSelected] = useState<OpportunityDto | null>(null);
 
   if (opportunities.length === 0) {
@@ -82,6 +83,7 @@ export function OportunidadesTab({ opportunities, orgId, users, canEdit }: Oport
           opportunity={selected}
           orgId={orgId}
           users={users}
+          contacts={contacts}
           canEdit={canEdit}
           onClose={() => setSelected(null)}
         />

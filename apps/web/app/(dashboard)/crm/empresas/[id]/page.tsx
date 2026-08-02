@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import {
-  contactsApi, interactionsApi, opportunitiesApi, organizationsApi, taxonomiesApi, usersApi,
+  contactsApi, opportunitiesApi, organizationsApi, taxonomiesApi, usersApi,
 } from '@/lib/api-hooks';
 import { ApiError } from '@/lib/errors';
 import { RegisterBreadcrumbLabel } from '@/components/layout/breadcrumb-context';
@@ -25,14 +25,13 @@ export default async function ClientePage({ params }: Props) {
     throw err; // outros erros borbulham para o error boundary
   });
 
-  const [sectors, sources, categories, productServices, users, contacts, interactions, opportunities] = await Promise.all([
+  const [sectors, sources, categories, productServices, users, contacts, opportunities] = await Promise.all([
     taxonomiesApi.list('sectors', token),
     taxonomiesApi.list('sources', token),
     taxonomiesApi.list('categories', token),
     taxonomiesApi.list('product-services', token),
     usersApi.list(token),
     contactsApi.list(token, { orgId: id }),
-    interactionsApi.list(id, token),
     opportunitiesApi.listByOrg(id, token),
   ]);
 
@@ -52,7 +51,6 @@ export default async function ClientePage({ params }: Props) {
       productServices={productServices}
       users={users}
       contacts={contacts}
-      interactions={interactions}
       opportunities={opportunities}
       canEdit={canEdit}
       canManageRoles={canManageRoles}

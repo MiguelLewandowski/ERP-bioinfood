@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Building2, Users, MessageSquare, Target, Archive, ArchiveRestore,
+  ArrowLeft, Building2, Users, Target, Archive, ArchiveRestore,
 } from 'lucide-react';
 import type {
-  OrganizationDetailDto, TaxonomyDto, ContactListItemDto, InteractionDto, OpportunityDto, UserDto,
+  OrganizationDetailDto, TaxonomyDto, ContactListItemDto, OpportunityDto, UserDto,
 } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -17,7 +17,6 @@ import { organizationsApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { DadosTab } from './dados-tab';
 import { ContatosTab } from './contatos-tab';
-import { TimelineTab } from './timeline-tab';
 import { OportunidadesTab } from './oportunidades-tab';
 
 interface FichaClientProps {
@@ -29,7 +28,6 @@ interface FichaClientProps {
   productServices: TaxonomyDto[];
   users: UserDto[];
   contacts: ContactListItemDto[];
-  interactions: InteractionDto[];
   opportunities: OpportunityDto[];
   canEdit: boolean;
   canManageRoles: boolean;
@@ -38,7 +36,6 @@ interface FichaClientProps {
 const TABS = [
   { id: 'dados', label: 'Dados', icon: Building2 },
   { id: 'contatos', label: 'Contatos', icon: Users },
-  { id: 'timeline', label: 'Timeline', icon: MessageSquare },
   { id: 'oportunidades', label: 'Oportunidades', icon: Target },
 ] as const;
 
@@ -136,19 +133,12 @@ export function FichaClient(props: FichaClientProps) {
 
       {tab === 'dados' && <DadosTab {...props} />}
       {tab === 'contatos' && <ContatosTab contacts={contacts} />}
-      {tab === 'timeline' && (
-        <TimelineTab
-          organizationId={props.organizationId}
-          initialInteractions={props.interactions}
-          contacts={contacts}
-          canEdit={props.canEdit}
-        />
-      )}
       {tab === 'oportunidades' && (
         <OportunidadesTab
           opportunities={props.opportunities}
           orgId={props.organizationId}
           users={props.users}
+          contacts={contacts}
           canEdit={props.canEdit}
         />
       )}
