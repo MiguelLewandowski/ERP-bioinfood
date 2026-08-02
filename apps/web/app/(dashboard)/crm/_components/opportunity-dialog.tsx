@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   opportunitySchema, type OpportunityDto, type OpportunityFormData, type PipelineDto, type UserDto,
+  type ContactListItemDto,
 } from '@bioinfood/shared';
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -28,6 +29,7 @@ import { MaskedInput } from '@/components/ui/masked-input';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
 import { useFormDraft, clearFormDraft } from '@/lib/use-form-draft';
 import { OpportunityTasksSection } from './opportunity-tasks-section';
+import { OpportunityTimeline } from './opportunity-timeline';
 
 interface OpportunityDialogProps {
   mode: 'create' | 'edit';
@@ -36,6 +38,7 @@ interface OpportunityDialogProps {
   opportunity?: OpportunityDto;
   pipelines: PipelineDto[];
   users: UserDto[];
+  contacts: ContactListItemDto[];
   canEdit: boolean;
   onSaved: (o: OpportunityDto) => void;
   onDeleted?: (id: string) => void;
@@ -44,7 +47,7 @@ interface OpportunityDialogProps {
 }
 
 export function OpportunityDialog({
-  mode, pipelineId, defaultStageId, opportunity, pipelines, users, canEdit,
+  mode, pipelineId, defaultStageId, opportunity, pipelines, users, contacts, canEdit,
   onSaved, onDeleted, onTasksChanged, onClose,
 }: OpportunityDialogProps) {
   const { token } = useAuth();
@@ -192,7 +195,7 @@ export function OpportunityDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      <DialogContent className={mode === 'edit' ? 'sm:max-w-4xl' : undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {mode === 'create' ? 'Nova Oportunidade' : 'Editar Oportunidade'}
@@ -213,167 +216,182 @@ export function OpportunityDialog({
           </Link>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div>
-            <Label htmlFor="opp-title">Título *</Label>
-            <Input
-              id="opp-title"
-              {...register('title')}
-              placeholder="Ex: Projeto Levedura"
+        <div className={mode === 'edit' && current ? 'grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start' : undefined}>
+          {mode === 'edit' && current && (
+            <OpportunityTimeline
+              opportunityId={current.id}
+              contacts={contacts}
+              canEdit={canEdit}
             />
-            {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>}
-          </div>
+          )}
 
-          {mode === 'create' && (
-            <div>
-              <Label>Cliente *</Label>
-              <Controller
-                name="clientId"
-                control={control}
-                render={({ field }) => (
-                  <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
-                )}
+          <div className="flex min-w-0 flex-col gap-4">
+            {mode === 'edit' && current && (
+              <OpportunityTasksSection
+                opportunityId={current.id}
+                orgId={current.organization.id}
+                users={users}
+                canEdit={canEdit}
+                onTasksChanged={onTasksChanged}
               />
-            </div>
-          )}
+            )}
 
-          {mode === 'create' && pipelines.length > 1 && (
-            <div className="grid grid-cols-2 gap-3">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className={mode === 'edit' && current ? 'flex flex-col gap-4 border-t border-border pt-4' : 'flex flex-col gap-4'}
+            >
               <div>
-                <Label htmlFor="opp-pipeline">Funil</Label>
-                <Select id="opp-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
-                  {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                <Label htmlFor="opp-title">Título *</Label>
+                <Input
+                  id="opp-title"
+                  {...register('title')}
+                  placeholder="Ex: Projeto Levedura"
+                />
+                {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>}
+              </div>
+    
+              {mode === 'create' && (
+                <div>
+                  <Label>Cliente *</Label>
+                  <Controller
+                    name="clientId"
+                    control={control}
+                    render={({ field }) => (
+                      <OrganizationSelect token={token} value={field.value} onChange={field.onChange} />
+                    )}
+                  />
+                </div>
+              )}
+    
+              {mode === 'create' && pipelines.length > 1 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="opp-pipeline">Funil</Label>
+                    <Select id="opp-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
+                      {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="opp-stage">Etapa</Label>
+                    <Select id="opp-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
+                      {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </Select>
+                  </div>
+                </div>
+              )}
+    
+              <div>
+                <Label htmlFor="opp-responsible">Responsável</Label>
+                <Select id="opp-responsible" {...register('responsibleId')}>
+                  <option value="">—</option>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="opp-stage">Etapa</Label>
-                <Select id="opp-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
-                  {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </Select>
-              </div>
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="opp-responsible">Responsável</Label>
-            <Select id="opp-responsible" {...register('responsibleId')}>
-              <option value="">—</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="opp-amount">Valor (R$)</Label>
-              <MaskedInput id="opp-amount" format={maskCurrencyBRL} {...register('amount')} placeholder="0,00" />
-            </div>
-            <div>
-              <Label htmlFor="opp-start-date">Data de início</Label>
-              <Input id="opp-start-date" {...register('startDate')} type="date" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="opp-date">Previsão de fechamento</Label>
-            <Input id="opp-date" {...register('expectedCloseDate')} type="date" />
-          </div>
-          <div>
-            <Label htmlFor="opp-description">Descrição</Label>
-            <Textarea id="opp-description" {...register('description')} rows={3} placeholder="Sobre a oportunidade…" />
-          </div>
-
-          {mode === 'edit' && current && pipelines.length > 1 && (
-            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-md border border-border/60 p-3">
-              <div>
-                <Label htmlFor="opp-move-pipeline">Funil</Label>
-                <Select id="opp-move-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
-                  {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
+    
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="opp-amount">Valor (R$)</Label>
+                  <MaskedInput id="opp-amount" format={maskCurrencyBRL} {...register('amount')} placeholder="0,00" />
+                </div>
+                <div>
+                  <Label htmlFor="opp-start-date">Data de início</Label>
+                  <Input id="opp-start-date" {...register('startDate')} type="date" />
+                </div>
               </div>
               <div>
-                <Label htmlFor="opp-move-stage">Etapa</Label>
-                <Select id="opp-move-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
-                  {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </Select>
+                <Label htmlFor="opp-date">Previsão de fechamento</Label>
+                <Input id="opp-date" {...register('expectedCloseDate')} type="date" />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={moving || (movePipelineId === current.pipeline.id && moveStageId === current.stageId)}
-                onClick={handleMove}
-              >
-                {moving ? 'Movendo…' : 'Mover'}
-              </Button>
-            </div>
-          )}
-
-          {current?.frozenAt && !freezePrompt && (
-            <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              Congelado em {new Date(current.frozenAt).toLocaleDateString('pt-BR')}
-              {current.frozenReason ? ` — ${current.frozenReason}` : ' — sem motivo informado'}
-            </p>
-          )}
-
-          {freezePrompt && (
-            <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
-              <Label htmlFor="freeze-reason">Motivo do congelamento</Label>
-              <Textarea
-                id="freeze-reason"
-                rows={2}
-                value={freezeReason}
-                onChange={(e) => setFreezeReason(e.target.value)}
-                placeholder="Ex: aguardando orçamento do cliente"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => { setFreezePrompt(false); setFreezeReason(''); }}>
-                  Cancelar
-                </Button>
-                <Button type="button" size="sm" onClick={confirmFreeze} disabled={saving}>
-                  <Snowflake size={14} /> Congelar
-                </Button>
+              <div>
+                <Label htmlFor="opp-description">Descrição</Label>
+                <Textarea id="opp-description" {...register('description')} rows={3} placeholder="Sobre a oportunidade…" />
               </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-2 pt-2">
-            {mode === 'edit' ? (
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleDelete}
-                  disabled={saving}
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 size={15} /> Excluir
-                </Button>
-                {!freezePrompt && (
-                  <Button type="button" variant="outline" onClick={toggleFreeze} disabled={saving}>
-                    {current?.frozenAt ? <Sun size={15} /> : <Snowflake size={15} />}
-                    {current?.frozenAt ? 'Reativar' : 'Congelar'}
+    
+              {mode === 'edit' && current && pipelines.length > 1 && (
+                <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-md border border-border/60 p-3">
+                  <div>
+                    <Label htmlFor="opp-move-pipeline">Funil</Label>
+                    <Select id="opp-move-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
+                      {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="opp-move-stage">Etapa</Label>
+                    <Select id="opp-move-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
+                      {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={moving || (movePipelineId === current.pipeline.id && moveStageId === current.stageId)}
+                    onClick={handleMove}
+                  >
+                    {moving ? 'Movendo…' : 'Mover'}
                   </Button>
-                )}
+                </div>
+              )}
+    
+              {current?.frozenAt && !freezePrompt && (
+                <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  Congelado em {new Date(current.frozenAt).toLocaleDateString('pt-BR')}
+                  {current.frozenReason ? ` — ${current.frozenReason}` : ' — sem motivo informado'}
+                </p>
+              )}
+    
+              {freezePrompt && (
+                <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                  <Label htmlFor="freeze-reason">Motivo do congelamento</Label>
+                  <Textarea
+                    id="freeze-reason"
+                    rows={2}
+                    value={freezeReason}
+                    onChange={(e) => setFreezeReason(e.target.value)}
+                    placeholder="Ex: aguardando orçamento do cliente"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setFreezePrompt(false); setFreezeReason(''); }}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" size="sm" onClick={confirmFreeze} disabled={saving}>
+                      <Snowflake size={14} /> Congelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+    
+              <div className="flex items-center justify-between gap-2 pt-2">
+                {mode === 'edit' ? (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleDelete}
+                      disabled={saving}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 size={15} /> Excluir
+                    </Button>
+                    {!freezePrompt && (
+                      <Button type="button" variant="outline" onClick={toggleFreeze} disabled={saving}>
+                        {current?.frozenAt ? <Sun size={15} /> : <Snowflake size={15} />}
+                        {current?.frozenAt ? 'Reativar' : 'Congelar'}
+                      </Button>
+                    )}
+                  </div>
+                ) : <span />}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                  <Button type="submit" disabled={saving}>
+                    {saving ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                </div>
               </div>
-            ) : <span />}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Salvando…' : 'Salvar'}
-              </Button>
-            </div>
+            </form>
           </div>
-        </form>
-
-        {mode === 'edit' && current && (
-          <OpportunityTasksSection
-            opportunityId={current.id}
-            orgId={current.organization.id}
-            users={users}
-            canEdit={canEdit}
-            onTasksChanged={onTasksChanged}
-          />
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
