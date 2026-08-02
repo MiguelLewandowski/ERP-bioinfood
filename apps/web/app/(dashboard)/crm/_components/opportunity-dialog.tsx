@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 import {
   Trash2, ExternalLink, Snowflake, Sun,
 } from 'lucide-react';
-import { opportunitySchema, type OpportunityDto, type OpportunityFormData, type UserDto } from '@bioinfood/shared';
+import {
+  opportunitySchema, type OpportunityDto, type OpportunityFormData, type PipelineDto, type UserDto,
+} from '@bioinfood/shared';
 import { opportunitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -24,6 +26,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
+import { useFormDraft, clearFormDraft } from '@/lib/use-form-draft';
 import { OpportunityTasksSection } from './opportunity-tasks-section';
 
 interface OpportunityDialogProps {
@@ -31,6 +34,7 @@ interface OpportunityDialogProps {
   pipelineId: string;
   defaultStageId: string;
   opportunity?: OpportunityDto;
+  pipelines: PipelineDto[];
   users: UserDto[];
   canEdit: boolean;
   onSaved: (o: OpportunityDto) => void;
@@ -40,25 +44,40 @@ interface OpportunityDialogProps {
 }
 
 export function OpportunityDialog({
-  mode, pipelineId, defaultStageId, opportunity, users, canEdit,
+  mode, pipelineId, defaultStageId, opportunity, pipelines, users, canEdit,
   onSaved, onDeleted, onTasksChanged, onClose,
 }: OpportunityDialogProps) {
   const { token } = useAuth();
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState(opportunity);
-  const { register, handleSubmit, control, formState: { errors } } = useForm<OpportunityFormData>({
+  const [freezePrompt, setFreezePrompt] = useState(false);
+  const [freezeReason, setFreezeReason] = useState('');
+  const [movePipelineId, setMovePipelineId] = useState(opportunity?.pipeline.id ?? pipelineId);
+  const [moveStageId, setMoveStageId] = useState(opportunity?.stageId ?? defaultStageId);
+  const [moving, setMoving] = useState(false);
+  const moveStages = (pipelines.find((p) => p.id === movePipelineId)?.stages ?? [])
+    .filter((s) => s.isActive)
+    .sort((a, b) => a.order - b.order);
+  const defaultValues: OpportunityFormData = {
+    title: opportunity?.title ?? '',
+    clientId: opportunity?.organization.id ?? '',
+    responsibleId: opportunity?.responsible?.id ?? '',
+    amount: formatCurrencyForInput(opportunity?.amount),
+    startDate: opportunity?.startDate?.slice(0, 10) ?? '',
+    expectedCloseDate: opportunity?.expectedCloseDate?.slice(0, 10) ?? '',
+    description: opportunity?.description ?? '',
+  };
+  const {
+    register, handleSubmit, control, watch, reset, formState: { errors },
+  } = useForm<OpportunityFormData>({
     resolver: zodResolver(opportunitySchema),
-    defaultValues: {
-      title: opportunity?.title ?? '',
-      clientId: opportunity?.organization.id ?? '',
-      responsibleId: opportunity?.responsible?.id ?? '',
-      amount: formatCurrencyForInput(opportunity?.amount),
-      startDate: opportunity?.startDate?.slice(0, 10) ?? '',
-      expectedCloseDate: opportunity?.expectedCloseDate?.slice(0, 10) ?? '',
-      description: opportunity?.description ?? '',
-    },
+    defaultValues,
   });
+
+  // Só rascunho de criação — editar já parte de dado real do servidor.
+  const draftKey = mode === 'create' ? `draft:opportunity:${pipelineId}` : null;
+  useFormDraft(draftKey, watch, reset, defaultValues);
 
   async function onSubmit(v: OpportunityFormData) {
     if (mode === 'create' && !v.clientId) {
@@ -77,10 +96,11 @@ export function OpportunityDialog({
       };
       const saved = mode === 'create'
         ? await opportunitiesApi.create(
-            { ...payload, orgId: v.clientId, pipelineId, stageId: defaultStageId }, token,
+            { ...payload, orgId: v.clientId, pipelineId: movePipelineId, stageId: moveStageId }, token,
           )
         : await opportunitiesApi.update(opportunity!.id, payload, token);
       onSaved(saved);
+      if (draftKey) clearFormDraft(draftKey);
       onClose();
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -92,7 +112,7 @@ export function OpportunityDialog({
   async function handleDelete() {
     if (!opportunity) return;
     const ok = await confirm({
-      title: 'Excluir negócio',
+      title: 'Excluir oportunidade',
       description: `"${opportunity.title}" e as tarefas vinculadas serão removidos. Esta ação não pode ser desfeita.`,
       confirmLabel: 'Excluir',
       variant: 'destructive',
@@ -112,14 +132,57 @@ export function OpportunityDialog({
 
   async function toggleFreeze() {
     if (!current) return;
+    // Descongelar não precisa de motivo — só congelar pede o porquê.
+    if (!current.frozenAt) {
+      setFreezePrompt(true);
+      return;
+    }
     setSaving(true);
     try {
-      const saved = current.frozenAt
-        ? await opportunitiesApi.unfreeze(current.id, token)
-        : await opportunitiesApi.freeze(current.id, token);
+      const saved = await opportunitiesApi.unfreeze(current.id, token);
       setCurrent(saved);
       onSaved(saved);
-      toast.success(saved.frozenAt ? 'Negócio congelado' : 'Negócio reativado');
+      toast.success('Oportunidade reativada');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function onMovePipelineChange(id: string) {
+    setMovePipelineId(id);
+    const firstStage = (pipelines.find((p) => p.id === id)?.stages ?? [])
+      .filter((s) => s.isActive)
+      .sort((a, b) => a.order - b.order)[0];
+    setMoveStageId(firstStage?.id ?? '');
+  }
+
+  async function handleMove() {
+    if (!current || !moveStageId) return;
+    setMoving(true);
+    try {
+      const saved = await opportunitiesApi.move(current.id, moveStageId, token);
+      setCurrent(saved);
+      onSaved(saved);
+      toast.success('Oportunidade movida');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  async function confirmFreeze() {
+    if (!current) return;
+    setSaving(true);
+    try {
+      const saved = await opportunitiesApi.freeze(current.id, freezeReason.trim() || undefined, token);
+      setCurrent(saved);
+      onSaved(saved);
+      setFreezePrompt(false);
+      setFreezeReason('');
+      toast.success('Oportunidade congelada');
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -174,6 +237,23 @@ export function OpportunityDialog({
             </div>
           )}
 
+          {mode === 'create' && pipelines.length > 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="opp-pipeline">Funil</Label>
+                <Select id="opp-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
+                  {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="opp-stage">Etapa</Label>
+                <Select id="opp-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
+                  {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </Select>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="opp-responsible">Responsável</Label>
             <Select id="opp-responsible" {...register('responsibleId')}>
@@ -198,8 +278,63 @@ export function OpportunityDialog({
           </div>
           <div>
             <Label htmlFor="opp-description">Descrição</Label>
-            <Textarea id="opp-description" {...register('description')} rows={3} placeholder="Sobre o negócio…" />
+            <Textarea id="opp-description" {...register('description')} rows={3} placeholder="Sobre a oportunidade…" />
           </div>
+
+          {mode === 'edit' && current && pipelines.length > 1 && (
+            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-md border border-border/60 p-3">
+              <div>
+                <Label htmlFor="opp-move-pipeline">Funil</Label>
+                <Select id="opp-move-pipeline" value={movePipelineId} onChange={(e) => onMovePipelineChange(e.target.value)}>
+                  {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="opp-move-stage">Etapa</Label>
+                <Select id="opp-move-stage" value={moveStageId} onChange={(e) => setMoveStageId(e.target.value)}>
+                  {moveStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={moving || (movePipelineId === current.pipeline.id && moveStageId === current.stageId)}
+                onClick={handleMove}
+              >
+                {moving ? 'Movendo…' : 'Mover'}
+              </Button>
+            </div>
+          )}
+
+          {current?.frozenAt && !freezePrompt && (
+            <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              Congelado em {new Date(current.frozenAt).toLocaleDateString('pt-BR')}
+              {current.frozenReason ? ` — ${current.frozenReason}` : ' — sem motivo informado'}
+            </p>
+          )}
+
+          {freezePrompt && (
+            <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+              <Label htmlFor="freeze-reason">Motivo do congelamento</Label>
+              <Textarea
+                id="freeze-reason"
+                rows={2}
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value)}
+                placeholder="Ex: aguardando orçamento do cliente"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => { setFreezePrompt(false); setFreezeReason(''); }}>
+                  Cancelar
+                </Button>
+                <Button type="button" size="sm" onClick={confirmFreeze} disabled={saving}>
+                  <Snowflake size={14} /> Congelar
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-2 pt-2">
             {mode === 'edit' ? (
@@ -213,10 +348,12 @@ export function OpportunityDialog({
                 >
                   <Trash2 size={15} /> Excluir
                 </Button>
-                <Button type="button" variant="outline" onClick={toggleFreeze} disabled={saving}>
-                  {current?.frozenAt ? <Sun size={15} /> : <Snowflake size={15} />}
-                  {current?.frozenAt ? 'Reativar' : 'Congelar'}
-                </Button>
+                {!freezePrompt && (
+                  <Button type="button" variant="outline" onClick={toggleFreeze} disabled={saving}>
+                    {current?.frozenAt ? <Sun size={15} /> : <Snowflake size={15} />}
+                    {current?.frozenAt ? 'Reativar' : 'Congelar'}
+                  </Button>
+                )}
               </div>
             ) : <span />}
             <div className="flex gap-2">

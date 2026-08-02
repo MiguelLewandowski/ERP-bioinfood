@@ -1,3 +1,68 @@
+/* Tema do Gantt.
+   ─────────────────────────────────────────────────────────────────────────────
+   COMO ESTILIZAR ESTE WIDGET, aprendido em 2026-07-29 depois de várias tentativas
+   erradas: a SVAR tematiza por VARIÁVEIS `--wx-gantt-*`. É o caminho suportado, e
+   ele funciona. Sobrescrever `background-color` com `!important` em classe nossa
+   não funciona, e por um motivo simples:
+
+   O `css` que passamos em cada tarefa NÃO chega ao elemento da barra. O bundle da
+   lib monta a classe dela como
+
+     `wx-bar wx-${tipo}` + wx-touch? + wx-selected? + wx-critical? + …
+
+   e nada mais (index.es.js:2129). Por isso o antigo bloco `.gt-todo`/`.gt-doing`/
+   `.gt-done` nunca pintou nada e todas as barras saíam azuis — a cor padrão.
+
+   CONSEQUÊNCIA: não existe cor POR TAREFA aqui, só cor por TIPO (tarefa, resumo,
+   marco). O status de cada tarefa é mostrado numa coluna da grade, em
+   `gantt-mapping.ts` — território nosso, onde `template` é função que escrevemos.
+
+   O que a barra comunica no lugar disso é PROGRESSO: `--wx-gantt-task-color` é o
+   trilho e `--wx-gantt-task-fill-color` é a fração concluída. Informação melhor
+   que categoria, porque distingue 30% de 90%.
+
+   Classes confirmadas no DOM: `.wx-bar`, `.wx-task`, `.wx-summary`,
+   `.wx-milestone`, `.wx-critical`, `.wx-content` (o rótulo).
+   `.wx-GKbcLEGA` é hash de escopo da lib — NÃO usar, muda a cada build.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.wx-gantt {
+  /* Tarefa: verde da marca no trilho, verde escuro na parte concluída. Texto
+     branco passa em contraste nos dois (5.4:1 e 8.1:1). */
+  --wx-gantt-task-color: #147f23;
+  --wx-gantt-task-fill-color: #0d4f16;
+  --wx-gantt-task-border: none;
+  --wx-gantt-task-border-color: #0d4f16;
+  --wx-gantt-task-font-color: #ffffff;
+
+  /* Resumo (tarefa-pai e cabeçalho de grupo): cinza escuro da marca. Precisa ser
+     neutro para não competir com o trabalho de verdade abaixo dele. */
+  --wx-gantt-summary-color: #3c3c3b;
+  --wx-gantt-summary-fill-color: #1d1d1b;
+  --wx-gantt-summary-border-color: #1d1d1b;
+  --wx-gantt-summary-font-color: #ffffff;
+
+  /* Marco: roxo. Não existe na paleta Bioinfood de propósito — é por isso que
+     funciona, nenhum outro elemento do gráfico compete com ele. Antes era âmbar,
+     quase igual ao "em andamento", e ninguém achava os marcos. */
+  --wx-gantt-milestone-color: #7c4dbe;
+
+  /* Marcadores verticais ("Hoje", "Término planejado"): âmbar de atenção. */
+  --wx-gantt-marker-color: #dd8005;
+  --wx-gantt-marker-font-color: #ffffff;
+
+  /* Setas de dependência: cinza médio, visível sem roubar a cena. */
+  --wx-gantt-link-color: #878787;
+  --wx-gantt-link-color-hovered: #575756;
+
+  /* Fim de semana / feriado: fundo levemente cinza, para as barras que atravessam
+     o sábado ficarem óbvias. */
+  --wx-gantt-holiday-background: #f5f5f5;
+
+  --wx-gantt-bar-border-radius: 4px;
+  --wx-gantt-border-color: #e5e7eb;
+}
+
 /* Largura mínima da barra — tarefa de duração zero (dueDate == startDate) tem
    largura 0 e desapareceria da tela. Antes isso era resolvido em
    `buildGanttTasks`, empurrando o término em um dia; o valor normalizado ia
@@ -6,30 +71,4 @@
    renderização compensa. Ver docs/incidentes/timezone-cronograma.md §2.4(a). */
 .wx-gantt .wx-bar {
   min-width: 3px;
-}
-
-/* Cores das barras do Gantt por status (classe aplicada via task.css da SVAR). */
-.gt-todo .wx-bar,
-.gt-todo.wx-bar,
-.gt-todo {
-  background-color: #b7b7b7 !important;
-  border-color: #878787 !important;
-}
-.gt-doing .wx-bar,
-.gt-doing.wx-bar,
-.gt-doing {
-  background-color: #f0b265 !important;
-  border-color: #dd8005 !important;
-}
-.gt-done .wx-bar,
-.gt-done.wx-bar,
-.gt-done {
-  background-color: #7fc36b !important;
-  border-color: #46ad48 !important;
-}
-.gt-milestone .wx-bar,
-.gt-milestone.wx-bar,
-.gt-milestone {
-  background-color: #dd8005 !important;
-  border-color: #c16c06 !important;
 }

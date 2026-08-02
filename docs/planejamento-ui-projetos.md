@@ -12,20 +12,24 @@ Ordenadas por **impacto ÷ esforço**, não por tela.
 
 ```
 /implementar-plano docs/tasks/bug-gantt-marco-grava-sem-comparar.md
-/planejar Onda 2 — TAP (ver seção "Onda 2" deste documento)
 ```
 
-Estado em 2026-07-28:
+Estado em 2026-07-29: **as sete ondas estão implementadas** e integradas em
+`develop`, aguardando promoção para `main`.
 
 | Onda | Estado |
 |---|---|
-| 1 — EAP/WBS | ✅ **entregue e em produção** |
-| 2 — TAP | ⬜ próxima recomendada |
-| 3 — Metodologia | ⬜ |
-| 4 — Dashboard | ⬜ |
-| 5 — `requiresSOP` | ⬜ único item com banco |
-| 6 — Gantt | ⬜ **destravada** — era bloqueada pelo incidente de fuso, que fechou |
-| 7 — Transversal | ⬜ por último, por desenho |
+| 1 — EAP/WBS | ✅ entregue e em produção |
+| 2 — TAP | ✅ implementada |
+| 3 — Metodologia | ✅ implementada |
+| 4 — Dashboard | ✅ implementada |
+| 5 — `requiresSOP` | ✅ implementada — **tem migration** |
+| 6 — Gantt | ✅ implementada |
+| 7 — Transversal | ✅ implementada |
+
+> **A promoção não é um lote.** A Onda 5 leva migration aditiva que
+> `prisma:deploy` aplica sozinha no boot da API. Ver "Ordem de promoção" no fim
+> deste documento.
 
 ---
 
@@ -51,28 +55,38 @@ o agrupamento por pacote no Gantt reaproveitar a navegação da árvore.
 
 ---
 
-## Onda 2 — TAP ⬜ PRÓXIMA
+## Onda 2 — TAP ✅ IMPLEMENTADA
 
 **Um arquivo só:** `apps/web/app/(dashboard)/projects/[id]/charter/_components/charter-client.tsx`
 
-| Item | Detalhe |
+| Item | O que foi feito |
 |---|---|
-| Botão "Salvar" desabilitado parece bug | **Remover o botão.** Há autosave na linha ~318; o botão é redundante e o `disabled` (linha ~436) parece defeito com razão. Trocar por indicador de estado: "Salvo às 14:32" / "Salvando…" |
-| Três elementos competindo no header | O status "Aprovado" **não é botão** — virar `<span>`/badge |
-| Bolinhas de status sem semântica | Todas verdes hoje; dar cor por estado |
-| Tipo/Prioridade soltos ocupando a largura inteira | Grid de 2 colunas |
-| Falta limite de leitura | `max-w-3xl` nos blocos de texto |
+| Botão "Salvar" desabilitado parece bug | Botão removido. No lugar, indicador `aria-live` com três estados: "Alterações não salvas" → "Salvando…" → "Salvo às 14:32" |
+| Três elementos competindo no header | Pill de aprovado virou `<Badge variant="success">`; com o Salvar fora, sobraram dois elementos e uma hierarquia |
+| Bolinhas de status sem semântica | Dois estados: `bg-success` (preenchida) e `bg-border` (vazia), com `aria-label` correspondente |
+| Tipo/Prioridade soltos ocupando a largura inteira | `half?: boolean` no `FieldDef` + grid de 2 colunas; campo sem o flag atravessa as duas |
+| ~~Falta limite de leitura~~ | ⚠️ **não existia.** O `max-w-3xl` já estava no container do formulário |
 
-**Complexidade: baixa.** Cabe numa tarde e some com a sensação de bug — daí ser a
-melhor razão impacto/esforço agora que a Onda 1 saiu.
+**Duas coisas que a revisão diagnosticou errado**, para quem for auditar depois:
+
+- O status "Aprovado" **já era um `<span>`**, nunca foi botão. O que competia era o
+  peso visual — pill do mesmo tamanho dos botões vizinhos, com `style` inline em vez
+  do primitivo `Badge`.
+- O `max-w-3xl` já existia. Nada foi mudado por esse item.
+
+**Decisão que ficou no código:** remover o botão Salvar abre um caminho de perda de
+texto — o autosave depende do `blur`, e fechar a aba com o cursor dentro do campo
+nunca dispara blur. O `beforeunload` guardado por `isDirty` é a **contrapartida da
+remoção**, não um extra. Não remover um sem o outro.
 
 > Cuidado ao mexer nas datas deste arquivo: ele tem `fmtDay` e `fmtInstant`
 > **separados de propósito** (incidente de fuso, §3). `approvedAt` é instante;
-> `project.startDate`/`endDate` são dia de calendário. Não reunifique.
+> `project.startDate`/`endDate` são dia de calendário. Não reunifique. O `fmtClock`
+> do indicador de autosave é instante também.
 
 ---
 
-## Onda 3 — Metodologia (só UI) ⬜
+## Onda 3 — Metodologia ✅ IMPLEMENTADA
 
 **Um arquivo:** `apps/web/app/(dashboard)/projects/[id]/metodologia/_components/methodology-client.tsx`
 (~203 linhas). **Não tocar** em `lib/project-pops.ts`.
@@ -90,7 +104,7 @@ precisa de campo no banco. Separar UI de schema mantém cada uma deployável.
 
 ---
 
-## Onda 4 — Dashboard do projeto ⬜
+## Onda 4 — Dashboard do projeto ✅ IMPLEMENTADA
 
 | Item | Arquivo |
 |---|---|
@@ -115,7 +129,7 @@ O item "dar peso visual ao desvio de cronograma" foi movido para a Onda 7.
 
 ---
 
-## Onda 5 — `requiresSOP` ⬜ ÚNICA COM BANCO
+## Onda 5 — `requiresSOP` ✅ IMPLEMENTADA — ÚNICA COM BANCO
 
 Corrige o denominador da métrica de cobertura de POPs, que hoje conta tarefas
 administrativas que nunca vão precisar de procedimento.
@@ -144,7 +158,7 @@ marca:
 
 ---
 
-## Onda 6 — Gantt ⬜ DESTRAVADA
+## Onda 6 — Gantt ✅ IMPLEMENTADA
 
 Era bloqueada pelo incidente de fuso
 ([`docs/incidentes/timezone-cronograma.md`](./incidentes/timezone-cronograma.md)),
@@ -178,7 +192,7 @@ controlado, não questão estética.
 
 ---
 
-## Onda 7 — Transversal ⬜ POR ÚLTIMO
+## Onda 7 — Transversal ✅ IMPLEMENTADA
 
 - Skeletons de loading nos `loading.tsx`
 - Tooltip no breadcrumb truncado
@@ -212,3 +226,58 @@ Itens que apareceram na revisão mas viraram tarefa própria em
 - `bug-gantt-marco-grava-sem-comparar.md`
 - `perf-gantt-reordenar-reescreve-projeto-inteiro.md`
 - `test-suite-web-instavel-sob-carga.md`
+
+---
+
+## Ordem de promoção para `main`
+
+`develop` acumula as ondas 2 a 7. A promoção segue o runbook de
+[`deploy.md`](./deploy.md), com um cuidado que não existia nas ondas anteriores:
+
+1. **A Onda 5 tem migration.** `20260728180000_add_requires_sop` é **aditiva com
+   default** (`Task.requiresSOP BOOLEAN NOT NULL DEFAULT true`), então não exige
+   as duas publicações do procedimento destrutivo. Ela aplica sozinha no
+   `startCommand` da API.
+2. **A métrica não se mexe no dia do deploy.** Com o default `true`, toda tarefa
+   existente continua no denominador. A cobertura de POPs só muda quando alguém
+   usar a ação em massa da tela de Metodologia. Se o time não for classificar,
+   a Onda 5 não entrega valor — combine antes.
+3. **Smoke de 5 minutos, por onda**, não um só no fim.
+
+## O que a implementação corrigiu no próprio plano
+
+Quatro itens desta rodada não eram o que a revisão de 2026-07-27 descreveu.
+Registrado para quem for auditar:
+
+- **Onda 2** — o `max-w-3xl` já existia e o status "Aprovado" já era `<span>`.
+  O problema real era peso visual, não semântica de elemento.
+- **Onda 3** — o card de divergência de versão **já era vermelho**
+  (`tone="destructive"`) e já tinha um banner de alerta abaixo. Item cortado.
+- **Onda 4** — "tarefa sem responsável clicável" não morava em `tasks-card.tsx`:
+  o backlog **não tinha filtro por responsável**. Foi preciso criar
+  `?assignee=none` antes de existir para onde linkar.
+- **Onda 7** — os skeletons **já existiam nas 11 abas**. O trabalho foi dar forma
+  a 8 que eram um bloco `h-96` cru, agora centralizados em
+  `_components/page-skeletons.tsx` (que é também o que mantém a densidade
+  consistente entre as telas).
+
+## Decisões travadas no código
+
+- **Onda 2 — `beforeunload` é contrapartida da remoção do botão Salvar**, não um
+  extra. O autosave depende do `blur`; fechar a aba com o cursor no campo nunca
+  dispara blur. Não remover um sem o outro.
+- **Onda 5 — o "default inteligente por pacote da EAP" foi cortado.** A regra
+  dependia de comparar o **nome** do pacote raiz contra uma lista, e nome de
+  pacote é texto livre editável: renomear "Gestão do Projeto" quebraria a
+  heurística em silêncio. A classificação acontece na ação em massa, onde a
+  métrica dói.
+- **Onda 6 — a guarda de escrita do Gantt não é por prefixo de id.** Era
+  `isMilestoneId` (`ms-`); virou `isRealTask`, que pergunta se a linha
+  corresponde a uma tarefa existente. Motivo: com o `groupBy` nativo da SVAR, o
+  cabeçalho de pacote é uma linha com id **gerado pela lib**, que não segue
+  convenção nossa — e sem guarda o `persistOrder` mandava esse id para
+  `/tasks/reorder` e o `currentParentId` o gravava como `parentId`. Mesma classe
+  do `<Toolbar>` removido no incidente de fuso: caminho de escrita não
+  controlado. Coberto por `use-gantt-persistence.test.tsx`.
+- **Onda 6 — o zoom usa API pública.** `IZoomConfig` é tipo exportado da
+  `@svar-ui/gantt-store` 2.7.1, então a versão continua fixada sem virar dívida.

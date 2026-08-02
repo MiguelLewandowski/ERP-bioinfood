@@ -201,12 +201,21 @@ completo (abrir → salvar → conferir que a data não mexeu).
 > Este defeito **não aparecia nas queries**: ele exigia alguém abrir e salvar uma
 > tarefa pelo formulário, o que quase não acontecia. Estava armado, não disparado.
 
-### 🔴 `updatedAt` NÃO é critério de origem neste projeto
+### 🟡 `updatedAt` NÃO era critério de origem neste projeto — corrigido em 2026-07-29
 
-**Leia isto antes de escrever qualquer query de diagnóstico sobre `Task`.**
+> **Resolvido.** `persistOrder` (Gantt) e `onDragEnd` (Backlog) passaram a enviar
+> **só o delta** de `order`, via `lib/task-order.ts`. Um arrastar de uma posição
+> agora escreve ~2 linhas, não o projeto inteiro, e `updatedAt` voltou a
+> distinguir "editado por gente" de "tocado pelo sistema".
+>
+> **O aviso abaixo continua valendo para dados anteriores a 2026-07-29.** Os
+> carimbos em massa já gravados não foram reescritos — uma query de diagnóstico
+> sobre registros antigos ainda encontra os 46 `updatedAt` idênticos.
 
-`persistOrder` carimba `updatedAt` em **todas** as tarefas do projeto a cada
-arrastar no Gantt. Logo:
+**Contexto histórico — leia antes de interpretar `updatedAt` antigo de `Task`.**
+
+`persistOrder` carimbava `updatedAt` em **todas** as tarefas do projeto a cada
+arrastar no Gantt. Logo, para dados daquele período:
 
 - `updatedAt > createdAt` **não** significa "alguém editou esta tarefa";
 - `updatedAt` idêntico em N linhas **não** significa corrupção em massa — pode ser
@@ -219,9 +228,9 @@ classificava origem por `updatedAt > createdAt + 1min` e teria rotulado 46 linha
 do seed como "editadas depois". A classificação por **hora gravada** (§9) é a que
 se sustenta.
 
-Enquanto `persistOrder` resequenciar o projeto inteiro (item 2 da seção 10), o
-único critério confiável de origem é o conteúdo do dado, não seu carimbo de
-tempo.
+Para registros anteriores a 2026-07-29, o único critério confiável de origem
+continua sendo o conteúdo do dado, não seu carimbo de tempo. Depois dessa data,
+`updatedAt` voltou a ser confiável.
 
 ---
 
@@ -652,18 +661,24 @@ continua lá.
    para impedir. Corrigir fora deste incidente (timeout maior nesses testes, ou
    preencher campo longo via `fireEvent.change` em vez de tecla a tecla).
 
-2. **Marcos (`Milestone`) seguem sem PATCH condicional.** O guard do commit
-   `4a319df` cobre só tarefas — o hook recebe os `TaskDto` para comparar, mas não
-   os DTOs de marco. O handler de marco continua gravando `date` a qualquer
-   `update-task`. Risco menor (marco não tem normalização de duração, então não
-   há `+1 dia` a propagar), mas é o mesmo padrão de escrita cega. Fechar passando
-   `milestones` para o hook.
+2. ✅ **Marcos (`Milestone`) seguem sem PATCH condicional.** — **fechado em
+   2026-07-29.** O hook passou a receber `milestones`, e o ramo de marco compara
+   contra um snapshot antes de enviar, igual ao de tarefa.
 
-3. **`persistOrder` ligado a `move-task` e `indent-task`** resequencia todas as
-   tarefas do projeto a cada arrastar. É por desenho (o comentário do arquivo
-   explica: `order` é global por projeto), mas 46 escritas para uma ação de
-   usuário é desproporcional e vai piorar conforme os projetos crescerem.
-   Otimização fora do escopo deste incidente — registrar como dívida.
+   **Achado ao fechar:** o ramo de TAREFA, dado como correto, tinha o mesmo
+   defeito na semeadura. `snapshotOf` usava `dayKey(dto.startDate)`, que faz
+   `new Date(string)` — o ISO de meia-noite UTC vira 21h do dia anterior em
+   Brasília, enquanto a store, montada por `toGanttDate`, calculava o dia certo.
+   Os dois nunca batiam, então o PATCH condicional **se anulava para datas**:
+   renomear uma tarefa reenviava `startDate` e `dueDate` junto. Corrigido com
+   `dtoDayKey`, que amarra a semeadura à mesma conversão da store.
+
+3. ✅ **`persistOrder` resequencia todas as tarefas do projeto** — **fechado em
+   2026-07-29.** A lista desejada continua completa (é o que mantém Gantt e
+   Backlog consistentes), mas só o **delta** vai para a API, via
+   `lib/task-order.ts`. O Backlog tinha o mesmo padrão e foi corrigido junto,
+   pelo mesmo helper — os dois gravam no mesmo campo global e divergir ali é
+   como eles brigariam.
 
 4. **`lib/crm-tasks.ts` duplica `parseCalendarDate`** nas linhas 73, 89 e 152 —
    cada uma reimplementa `new Date(\`${x.slice(0,10)}T00:00:00\`)` à mão. Está

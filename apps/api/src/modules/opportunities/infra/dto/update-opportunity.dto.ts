@@ -62,6 +62,13 @@ export class MoveOpportunityDto {
   lostReason?: string;
 }
 
+export class FreezeOpportunityDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 class ReorderOpportunityItemDto {
   @IsString()
   id: string;

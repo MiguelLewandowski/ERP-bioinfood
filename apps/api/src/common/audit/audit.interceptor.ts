@@ -33,6 +33,20 @@ const ENTITY_MODEL: Record<string, string> = {
   users: 'user',
 };
 
+/**
+ * Rotas cujo CONTEÚDO nunca entra na trilha — só o metadado (quem, quando, o
+ * quê) é registrado, com `before`/`after` nulos.
+ *
+ * `notes` está aqui porque anotação pessoal é privada do dono, **inclusive do
+ * ADMIN** (ver CLAUDE.md). Sem esta exclusão a garantia teria uma porta dos
+ * fundos: o `after` do interceptor é o corpo da resposta, então cada PATCH
+ * arquivaria o texto da nota em `AuditLog` — tabela que o ADMIN lê.
+ *
+ * A trilha continua existindo: dá para saber que a pessoa criou ou apagou uma
+ * anotação, só não o que estava escrito nela.
+ */
+const CONTENT_REDACTED_ENTITIES = new Set(['notes']);
+
 function resolveEntity(path: string): { entity: string; entityId: string } {
   const segments = path.replace(/^\//, '').split('/');
   // /projects/abc/tasks/def → entity=tasks, entityId=def
@@ -82,9 +96,11 @@ export class AuditInterceptor implements NestInterceptor {
     this.logger.log(`→ ${method} ${req.path}`);
 
     const { entity, entityId } = resolveEntity(req.path);
+    const redactContent = CONTENT_REDACTED_ENTITIES.has(entity);
     // Para POST o id só existe depois do handler (vem do corpo da resposta);
     // para PATCH/PUT/DELETE o id já está na URL, então dá pra buscar o "antes".
-    const canCaptureBefore = MUTATION_METHODS.has(method) && method !== 'POST' && entityId !== 'new';
+    const canCaptureBefore =
+      MUTATION_METHODS.has(method) && method !== 'POST' && entityId !== 'new' && !redactContent;
 
     return from(canCaptureBefore ? this.captureBefore(entity, entityId) : Promise.resolve(null)).pipe(
       switchMap((before) =>
@@ -106,8 +122,8 @@ export class AuditInterceptor implements NestInterceptor {
               action,
               entity,
               entityId: resolvedId,
-              before,
-              after: method !== 'DELETE' ? (body as object) : null,
+              before: redactContent ? null : before,
+              after: redactContent || method === 'DELETE' ? null : (body as object),
             });
           }),
         ),

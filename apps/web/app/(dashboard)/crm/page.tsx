@@ -12,14 +12,14 @@ interface Props {
   searchParams: Promise<{ tab?: string }>;
 }
 
-const VALID_TABS: TabId[] = ['empresas', 'pessoas', 'negocios', 'tarefas'];
+const VALID_TABS: TabId[] = ['empresas', 'pessoas', 'oportunidades', 'tarefas'];
 
 export default async function CrmPage({ searchParams }: Props) {
   const session = await getSession();
   if (!session || session.role === 'CLIENTE') redirect('/projects');
 
   const { tab } = await searchParams;
-  const initialTab: TabId = VALID_TABS.includes(tab as TabId) ? (tab as TabId) : 'negocios';
+  const initialTab: TabId = VALID_TABS.includes(tab as TabId) ? (tab as TabId) : 'tarefas';
 
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
@@ -58,7 +58,7 @@ export default async function CrmPage({ searchParams }: Props) {
     <div className="p-6">
       <PageHeader
         title="CRM"
-        description="Empresas, pessoas, negócios e tarefas num só lugar"
+        description="Empresas, pessoas, oportunidades e tarefas num só lugar"
       />
       <CrmTabs
         initialTab={initialTab}

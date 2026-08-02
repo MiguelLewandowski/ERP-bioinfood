@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
-import { milestonesApi, projectsApi, tasksApi } from '@/lib/api-hooks';
+import { milestonesApi, projectsApi, tasksApi, wbsApi } from '@/lib/api-hooks';
 import { GanttClient } from './_components/gantt-client';
-import { extractMembers } from '@/lib/project-members';
+import { resolveProjectPeople } from '@/lib/project-people';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,10 +12,12 @@ export default async function GanttPage({ params }: Props) {
   const cookieStore = await cookies();
   const token = cookieStore.get('access_token')?.value ?? '';
 
-  const [project, tasks, milestones] = await Promise.all([
+  // A EAP entra só para rotular os grupos por pacote — o Gantt não a edita.
+  const [project, tasks, milestones, wbsNodes] = await Promise.all([
     projectsApi.get(id, token),
     tasksApi.list(id, token),
     milestonesApi.list(id, token),
+    wbsApi.list(id, token),
   ]);
 
   return (
@@ -23,7 +25,8 @@ export default async function GanttPage({ params }: Props) {
       projectId={id}
       tasks={tasks}
       milestones={milestones}
-      members={extractMembers(project)}
+      wbsNodes={wbsNodes}
+      members={await resolveProjectPeople(project, token)}
       projectStart={project.startDate ?? null}
       projectEnd={project.endDate ?? null}
       baselineSetAt={project.baselineSetAt ?? null}

@@ -1,7 +1,7 @@
 'use client'; // DnD reorder + status filters
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   DndContext,
   DragEndEvent,
@@ -11,9 +11,10 @@ import {
   closestCenter,
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
+import { Plus, UserX, X } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { api } from '@/lib/api';
+import { taskOrderDelta } from '@/lib/task-order';
 import { BacklogRow } from './backlog-row';
 import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
 import type { ProjectMember } from '@/lib/project-members';
@@ -45,6 +46,8 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
 
   // Abre o dialog de edição quando chega do calendário via ?task=<id>.
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
     const taskId = searchParams.get('task');
     if (!taskId) return;
@@ -54,6 +57,21 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // `?assignee=none` — o dashboard aponta para cá ao clicar em "N tarefas sem
+  // responsável". O chip abaixo torna o recorte visível: lista curta sem
+  // explicação lê como dado faltando.
+  //
+  // Derivado da URL, sem estado espelho: dispensar o chip reescreve a query, e
+  // não um booleano paralelo que sairia de sincronia com o botão "voltar".
+  const unassignedOnly = searchParams.get('assignee') === 'none';
+
+  function clearAssigneeFilter() {
+    const next = new URLSearchParams(searchParams);
+    next.delete('assignee');
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   async function onDragEnd({ active, over }: DragEndEvent) {
@@ -61,9 +79,20 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
     const oldIdx = tasks.findIndex((t) => t.id === active.id);
     const newIdx = tasks.findIndex((t) => t.id === over.id);
     const reordered = arrayMove(tasks, oldIdx, newIdx);
-    setTasks(reordered);
 
-    await api.patch(`/projects/${projectId}/tasks/reorder`, { items: reordered.map((t, i) => ({ id: t.id, order: i })) }, token);
+    // Só as linhas cujo `order` mudou de verdade. O mesmo helper do Gantt: os
+    // dois gravam no mesmo campo global e divergir aqui é como eles brigariam.
+    const items = taskOrderDelta(
+      reordered.map((t) => t.id),
+      (id) => tasks.find((t) => t.id === id)?.order,
+    );
+
+    // O estado local carrega o `order` novo: sem isso o próximo arrastar
+    // compararia contra valores velhos e poderia pular uma linha.
+    setTasks(reordered.map((t, i) => (t.order === i ? t : { ...t, order: i })));
+
+    if (items.length === 0) return;
+    await api.patch(`/projects/${projectId}/tasks/reorder`, { items }, token);
   }
 
   function onTaskCreated(task: Task) {
@@ -78,7 +107,9 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
 
-  const visible = statusFilter === 'ALL' ? tasks : tasks.filter((t) => t.status === statusFilter);
+  const visible = tasks
+    .filter((t) => statusFilter === 'ALL' || t.status === statusFilter)
+    .filter((t) => !unassignedOnly || !t.assignee);
 
   const stats = {
     todo: tasks.filter((t) => t.status === 'TODO').length,
@@ -103,7 +134,9 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* `grid-cols-4` fixo espremia os quatro números em telas estreitas — as
+          demais abas já usavam esta escada. */}
+      <div className="grid gap-3 mb-6 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'A fazer',      value: stats.todo,       color: 'hsl(var(--muted-foreground))' },
           { label: 'Em andamento', value: stats.inProgress, color: 'hsl(var(--primary))' },
@@ -117,7 +150,7 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
         ))}
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         {STATUS_FILTER_OPTIONS.map(({ value, label }) => (
           <button
             key={value}
@@ -130,6 +163,16 @@ export function BacklogClient({ projectId, initialTasks, members }: BacklogClien
             {label}
           </button>
         ))}
+
+        {unassignedOnly && (
+          <button
+            onClick={clearAssigneeFilter}
+            className="ml-1 flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/20"
+          >
+            <UserX size={12} /> Sem responsável
+            <X size={12} aria-label="Remover filtro de responsável" />
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

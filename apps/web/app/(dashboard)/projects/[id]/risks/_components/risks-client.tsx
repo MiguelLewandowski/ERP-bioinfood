@@ -25,6 +25,7 @@ const schema = z.object({
   probability: z.enum(PROB_LEVELS),
   impact:      z.enum(PROB_LEVELS),
   ownerId:     z.string().optional(),
+  coOwnerIds:  z.array(z.string()).optional(),
   response:    z.string().max(2000, 'Resposta deve ter no máximo 2000 caracteres').optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -50,10 +51,23 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { probability: 'MEDIUM', impact: 'MEDIUM' },
+    defaultValues: { probability: 'MEDIUM', impact: 'MEDIUM', coOwnerIds: [] },
   });
+
+  // Corresponsáveis: quem divide o risco com o responsável principal. Checkbox
+  // em vez de `<select multiple>` — o multiple exige Ctrl+clique e, na prática,
+  // marcar o segundo nome desmarcava o primeiro.
+  const coOwnerIds = watch('coOwnerIds') ?? [];
+  const ownerId = watch('ownerId');
+
+  function toggleCoOwner(userId: string) {
+    const next = coOwnerIds.includes(userId)
+      ? coOwnerIds.filter((id) => id !== userId)
+      : [...coOwnerIds, userId];
+    setValue('coOwnerIds', next, { shouldDirty: true });
+  }
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -61,6 +75,8 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
       const risk = await api.post<RiskDto>(`/projects/${projectId}/risks`, {
         ...values,
         ownerId: values.ownerId || undefined,
+        // O principal não se repete na lista de quem divide.
+        coOwnerIds: (values.coOwnerIds ?? []).filter((id) => id !== values.ownerId),
       }, token);
       setRisks((prev) => [risk, ...prev]);
       reset();
@@ -129,7 +145,17 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{risk.title}</p>
-                    <p className="text-xs text-muted-foreground">{LEVEL_LABELS[risk.probability]} × {LEVEL_LABELS[risk.impact]}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {LEVEL_LABELS[risk.probability]} × {LEVEL_LABELS[risk.impact]}
+                      {/* Quem responde pelo risco não aparecia em lugar nenhum
+                          da lista — só dentro do formulário de criação. */}
+                      {risk.owner && <> · {risk.owner.name}</>}
+                      {(risk.coOwners?.length ?? 0) > 0 && (
+                        <span title={risk.coOwners.map((c) => c.name).join(', ')}>
+                          {' '}+{risk.coOwners.length}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   {confirmingDelete === risk.id ? (
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -187,6 +213,36 @@ export function RisksClient({ projectId, initialRisks, members }: RisksClientPro
                   ))}
                 </select>
               </div>
+
+              {members.length > 0 && (
+                <div>
+                  <div className="mb-1 flex items-baseline justify-between">
+                    <label className="block text-xs font-semibold text-muted-foreground">
+                      Corresponsáveis
+                    </label>
+                    <span className="text-[11px] text-muted-foreground">
+                      {coOwnerIds.filter((id) => id !== ownerId).length} selecionado(s)
+                    </span>
+                  </div>
+                  <div className="max-h-32 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                    {members.filter((m) => m.id !== ownerId).map((m) => (
+                      <label key={m.id} className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={coOwnerIds.includes(m.id)}
+                          onChange={() => toggleCoOwner(m.id)}
+                          className="h-4 w-4 rounded border-gray-300 accent-[hsl(var(--primary))]"
+                        />
+                        <span className="text-sm text-foreground">{m.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Quem divide o risco com o responsável principal.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="risk-probability" className="block text-xs font-semibold text-muted-foreground mb-1">Probabilidade</label>

@@ -36,6 +36,11 @@ import type {
   PopDetailDto,
   PopCategoryDto,
   PaginatedResult,
+  StockItemDto,
+  StockCategoryDto,
+  CharterEquipmentDto,
+  NoteDto,
+  NoteListItemDto,
 } from '@bioinfood/shared';
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -398,6 +403,9 @@ export const opportunitiesApi = {
   listByOrg: (orgId: string, token: string) =>
     api.get<OpportunityDto[]>(`/opportunities?orgId=${orgId}`, token),
 
+  get: (id: string, token: string) =>
+    api.get<OpportunityDto>(`/opportunities/${id}`, token),
+
   create: (data: Record<string, unknown>, token: string) =>
     api.post<OpportunityDto>('/opportunities', data, token),
 
@@ -407,8 +415,8 @@ export const opportunitiesApi = {
   move: (id: string, stageId: string, token: string, lostReason?: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/move`, { stageId, lostReason }, token),
 
-  freeze: (id: string, token: string) =>
-    api.patch<OpportunityDto>(`/opportunities/${id}/freeze`, {}, token),
+  freeze: (id: string, reason: string | undefined, token: string) =>
+    api.patch<OpportunityDto>(`/opportunities/${id}/freeze`, { reason }, token),
 
   unfreeze: (id: string, token: string) =>
     api.patch<OpportunityDto>(`/opportunities/${id}/unfreeze`, {}, token),
@@ -423,8 +431,8 @@ export const opportunitiesApi = {
 // ── Interações (timeline do CRM — escrita só ADMIN) ────────────────────────────
 
 export const interactionsApi = {
-  list: (orgId: string, token: string) =>
-    api.get<InteractionDto[]>(`/interactions?orgId=${orgId}`, token),
+  list: (opportunityId: string, token: string) =>
+    api.get<InteractionDto[]>(`/interactions?opportunityId=${opportunityId}`, token),
 
   create: (data: Record<string, unknown>, token: string) =>
     api.post<InteractionDto>('/interactions', data, token),
@@ -503,4 +511,86 @@ export const usersApi = {
 export const searchApi = {
   global: (q: string, token: string) =>
     api.get<SearchResultDto[]>(`/search?q=${encodeURIComponent(q)}`, token),
+};
+
+// ── Estoque (cadastro de itens) ───────────────────────────────────────────────
+
+export const stockApi = {
+  listItems: (
+    token: string,
+    filter: { search?: string; categoryId?: string; status?: string } = {},
+  ) => {
+    const qs = new URLSearchParams();
+    if (filter.search) qs.set('search', filter.search);
+    if (filter.categoryId) qs.set('categoryId', filter.categoryId);
+    if (filter.status) qs.set('status', filter.status);
+    const suffix = qs.toString();
+    return api.get<StockItemDto[]>(`/stock${suffix ? `?${suffix}` : ''}`, token);
+  },
+
+  createItem: (data: Record<string, unknown>, token: string) =>
+    api.post<StockItemDto>('/stock', data, token),
+
+  updateItem: (id: string, data: Record<string, unknown>, token: string) =>
+    api.patch<StockItemDto>(`/stock/${id}`, data, token),
+
+  removeItem: (id: string, token: string) => api.delete<void>(`/stock/${id}`, token),
+
+  listCategories: (token: string) => api.get<StockCategoryDto[]>('/stock/categories', token),
+
+  createCategory: (name: string, token: string) =>
+    api.post<StockCategoryDto>('/stock/categories', { name }, token),
+
+  updateCategory: (id: string, data: { name?: string; isActive?: boolean }, token: string) =>
+    api.patch<StockCategoryDto>(`/stock/categories/${id}`, data, token),
+
+  removeCategory: (id: string, token: string) =>
+    api.delete<void>(`/stock/categories/${id}`, token),
+};
+
+// ── Checklist de recursos do TAP ──────────────────────────────────────────────
+
+export const charterEquipmentApi = {
+  list: (projectId: string, token: string) =>
+    api.get<CharterEquipmentDto[]>(`/projects/${projectId}/charter/equipment`, token),
+
+  add: (projectId: string, stockItemId: string, token: string) =>
+    api.post<CharterEquipmentDto>(
+      `/projects/${projectId}/charter/equipment`,
+      { stockItemId },
+      token,
+    ),
+
+  update: (
+    projectId: string,
+    id: string,
+    data: { checked?: boolean; quantity?: number },
+    token: string,
+  ) => api.patch<CharterEquipmentDto>(`/projects/${projectId}/charter/equipment/${id}`, data, token),
+
+  remove: (projectId: string, id: string, token: string) =>
+    api.delete<void>(`/projects/${projectId}/charter/equipment/${id}`, token),
+};
+
+// ── Anotações pessoais ────────────────────────────────────────────────────────
+//
+// ⚠️ Não existe (e não deve passar a existir) parâmetro de usuário aqui. A API
+// resolve o dono pelo token — é o que torna a anotação privada, inclusive do
+// ADMIN. Ver a seção de controle de acesso no CLAUDE.md.
+
+export const notesApi = {
+  list: (token: string) => api.get<NoteListItemDto[]>('/notes', token),
+
+  get: (id: string, token: string) => api.get<NoteDto>(`/notes/${id}`, token),
+
+  create: (data: { title?: string; contentHtml?: string }, token: string) =>
+    api.post<NoteDto>('/notes', data, token),
+
+  update: (
+    id: string,
+    data: { title?: string; contentHtml?: string; pinned?: boolean },
+    token: string,
+  ) => api.patch<NoteDto>(`/notes/${id}`, data, token),
+
+  remove: (id: string, token: string) => api.delete<void>(`/notes/${id}`, token),
 };

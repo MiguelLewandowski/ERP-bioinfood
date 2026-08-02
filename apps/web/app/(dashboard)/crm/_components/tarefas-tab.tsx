@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ListChecks, Plus, RotateCcw, CalendarDays } from 'lucide-react';
+import { ListChecks, RotateCcw, CalendarDays } from 'lucide-react';
 import type { CrmActivityDto, CrmActivityType, UserDto } from '@bioinfood/shared';
 import { crmActivitiesApi } from '@/lib/api-hooks';
 import { getErrorMessage } from '@/lib/errors';
@@ -114,11 +114,6 @@ export function TarefasTab({ users, canEdit }: TarefasTabProps) {
     setShowDone(false);
   }
 
-  function openNew() {
-    setEditing(null);
-    setDialogOpen(true);
-  }
-
   const rowProps = {
     showContext: true,
     onToggle: canEdit ? toggleDone : undefined,
@@ -175,12 +170,6 @@ export function TarefasTab({ users, canEdit }: TarefasTabProps) {
                 </button>
               ))}
             </div>
-
-            {canEdit && (
-              <Button size="sm" onClick={openNew}>
-                <Plus size={15} /> Nova tarefa
-              </Button>
-            )}
           </div>
         </div>
 
@@ -252,13 +241,11 @@ export function TarefasTab({ users, canEdit }: TarefasTabProps) {
           description={
             filtersActive
               ? 'Ajuste os filtros para ver outras tarefas.'
-              : 'Nenhuma tarefa no CRM. Crie uma para registrar o próximo passo de um negócio.'
+              : 'Nenhuma tarefa no CRM. Crie uma a partir da oportunidade para registrar o próximo passo.'
           }
           action={filtersActive
             ? <Button variant="outline" onClick={resetFilters}>Limpar filtros</Button>
-            : canEdit
-              ? <Button onClick={openNew}><Plus size={15} /> Nova tarefa</Button>
-              : undefined}
+            : undefined}
         />
       )}
 

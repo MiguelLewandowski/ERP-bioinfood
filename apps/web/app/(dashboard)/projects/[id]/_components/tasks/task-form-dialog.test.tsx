@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { TaskDto as Task } from '@bioinfood/shared';
 import type { ProjectMember } from '@/lib/project-members';
 import { ApiError } from '@/lib/errors';
-import { renderWithProviders, screen, waitFor, TEST_TOKEN } from '@/lib/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent, TEST_TOKEN } from '@/lib/test-utils';
 import { TaskFormDialog } from './task-form-dialog';
 
 const getMock = vi.fn();
@@ -98,7 +98,9 @@ describe('TaskFormDialog — create mode', () => {
     const user = userEvent.setup();
     setup();
 
-    await user.type(screen.getByLabelText('Título *'), 'x'.repeat(201));
+    // Ver docs/tasks/test-suite-web-instavel-sob-carga.md: 201 caracteres tecla a
+    // tecla estouravam o timeout sob carga. O zod valida no submit, não por tecla.
+    fireEvent.change(screen.getByLabelText('Título *'), { target: { value: 'x'.repeat(201) } });
     await user.click(screen.getByRole('button', { name: /Criar|Salvar/ }));
 
     expect(

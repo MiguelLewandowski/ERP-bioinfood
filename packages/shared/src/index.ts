@@ -224,6 +224,7 @@ export interface OpportunityDto {
   expectedCloseDate: string | null;
   closedAt: string | null;
   frozenAt: string | null;
+  frozenReason: string | null;
   order: number;
   engagementStageId: string | null;
   organization: { id: string; legalName: string; tradeName: string | null };
@@ -308,9 +309,9 @@ export type InteractionDirection = 'INBOUND' | 'OUTBOUND' | 'INTERNAL';
 
 export interface InteractionDto {
   id: string;
-  orgId: string;
   contactId: string | null;
   userId: string | null;
+  opportunityId: string;
   type: InteractionType;
   direction: InteractionDirection;
   subject: string | null;
@@ -326,7 +327,7 @@ export interface InteractionDto {
 
 export type ActivityStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 export type DueFilter = 'today' | 'overdue' | 'week';
-export type CrmActivityType = 'NOTE' | 'EMAIL' | 'CALL' | 'WHATSAPP' | 'PROPOSAL' | 'MEETING' | 'VISIT';
+export type CrmActivityType = 'NOTE' | 'EMAIL' | 'CALL' | 'WHATSAPP' | 'PROPOSAL' | 'MEETING' | 'VISIT' | 'OTHER';
 
 export interface CrmActivityDto {
   id: string;
@@ -335,7 +336,7 @@ export interface CrmActivityDto {
   interactionId: string | null;
   opportunityId: string | null;
   responsibleId: string | null;
-  title: string;
+  title: string | null;
   description: string | null;
   type: CrmActivityType;
   priority: TaskPriority;
@@ -410,9 +411,24 @@ export interface TaskDto {
   status: TaskStatus;
   priority: TaskPriority;
   storyPoints: number | null;
+  /**
+   * Se a tarefa exige POP. `false` = administrativa: sai do denominador da
+   * métrica de cobertura da tela de Metodologia. Default `true` no banco, então
+   * tarefa antiga continua contando — o número não se move sozinho num deploy.
+   */
+  requiresSOP: boolean;
   order: number;
   parentId: string | null;
   assignee: { id: string; name: string } | null;
+  /**
+   * Corresponsáveis, além do `assignee`.
+   *
+   * `assignee` continua sendo o responsável PRINCIPAL. Mover todos para uma
+   * lista só obrigaria a reescrever kanban, backlog, Gantt, Atividades e os
+   * filtros de "minhas tarefas" de uma vez — e quebraria o `assigneeId` que já
+   * está em produção.
+   */
+  coAssignees: Array<{ id: string; name: string }>;
   wbsNode: { id: string; code: string; title: string } | null;
   startDate: string | null;
   dueDate: string | null;
@@ -460,6 +476,14 @@ export interface RiskDto {
   score: number;
   response: string | null;
   owner: { id: string; name: string } | null;
+  /**
+   * Corresponsáveis, além do `owner`.
+   *
+   * `owner` continua sendo o responsável PRINCIPAL — quem responde numa
+   * escalada. Esta lista é quem divide a responsabilidade. Modelado assim para
+   * a mudança ser aditiva: nenhum consumidor de `owner` precisou mudar.
+   */
+  coOwners: Array<{ id: string; name: string }>;
 }
 
 // ── Stakeholders (registro de partes interessadas, PMBOK) ──────────────────────
@@ -568,6 +592,87 @@ export interface CharterDto {
   lastEditedBy: { id: string; name: string } | null;
   lastEditedAt: string | null;
   createdAt: string;
+  updatedAt: string;
+}
+
+// ── Estoque (cadastro de itens) ───────────────────────────────────────────────
+//
+// Cadastro do que a Bioinfood tem e usa nos projetos. Deliberadamente básico:
+// sem movimentação, saldo, reserva ou agenda de uso.
+
+/** Situações possíveis de um item no cadastro. */
+export const STOCK_ITEM_STATUSES = ['ACTIVE', 'MAINTENANCE', 'RETIRED'] as const;
+export type StockItemStatus = (typeof STOCK_ITEM_STATUSES)[number];
+
+export const STOCK_ITEM_STATUS_LABELS: Record<StockItemStatus, string> = {
+  ACTIVE: 'Disponível',
+  MAINTENANCE: 'Em manutenção',
+  RETIRED: 'Aposentado',
+};
+
+export interface StockCategoryDto {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
+}
+
+export interface StockItemDto {
+  id: string;
+  name: string;
+  /** Patrimônio/etiqueta. Nem todo item tem, mas quando tem é único. */
+  code: string | null;
+  category: { id: string; name: string };
+  categoryId: string;
+  quantity: number;
+  unit: string | null;
+  location: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Checklist de recursos do TAP ──────────────────────────────────────────────
+
+/** Item do cadastro de estoque vinculado a um TAP. `checked` = providenciado. */
+export interface CharterEquipmentDto {
+  id: string;
+  stockItemId: string;
+  quantity: number;
+  checked: boolean;
+  item: {
+    id: string;
+    name: string;
+    code: string | null;
+    unit: string | null;
+    location: string | null;
+    status: string;
+    category: { id: string; name: string };
+  };
+}
+
+// ── Anotações pessoais ────────────────────────────────────────────────────────
+//
+// ⚠️ PRIVADAS: só o dono lê, **nem ADMIN**. Não existe DTO com `ownerId` de
+// propósito — o dono nunca trafega, porque nunca é escolhido pelo cliente. Ver
+// a seção de controle de acesso no CLAUDE.md antes de acrescentar um.
+
+export interface NoteDto {
+  id: string;
+  title: string;
+  contentHtml: string | null;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Item de lista: sem o HTML inteiro, com uma prévia em texto puro. */
+export interface NoteListItemDto {
+  id: string;
+  title: string;
+  preview: string;
+  pinned: boolean;
   updatedAt: string;
 }
 

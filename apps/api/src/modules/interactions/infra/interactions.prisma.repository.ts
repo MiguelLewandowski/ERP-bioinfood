@@ -10,9 +10,9 @@ import {
 
 const SELECT = {
   id: true,
-  orgId: true,
   contactId: true,
   userId: true,
+  opportunityId: true,
   type: true,
   direction: true,
   subject: true,
@@ -42,10 +42,10 @@ function toItem(row: Row): InteractionListItem {
 export class InteractionsPrismaRepository implements IInteractionRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findByOrg(orgId: string, filter: ListInteractionsFilter): Promise<InteractionListItem[]> {
+  async findByOpportunity(opportunityId: string, filter: ListInteractionsFilter): Promise<InteractionListItem[]> {
     const rows = await this.prisma.interaction.findMany({
       where: {
-        orgId,
+        opportunityId,
         deletedAt: null,
         contactId: filter.contactId,
         type: filter.type,

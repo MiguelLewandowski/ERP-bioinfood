@@ -8,7 +8,7 @@ import {
 export const INTERACTION_REPOSITORY = 'INTERACTION_REPOSITORY';
 
 export interface IInteractionRepository {
-  findByOrg(orgId: string, filter: ListInteractionsFilter): Promise<InteractionListItem[]>;
+  findByOpportunity(opportunityId: string, filter: ListInteractionsFilter): Promise<InteractionListItem[]>;
   findById(id: string): Promise<InteractionListItem | null>;
   // undefined = registro não encontrado; null = encontrado mas sem autor definido.
   findAuthorId(id: string): Promise<string | null | undefined>;

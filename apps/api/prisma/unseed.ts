@@ -146,7 +146,7 @@ async function analyze() {
   for (const org of orgs) {
     const [opportunities, interactions, realProjects, labOrders] = await Promise.all([
       prisma.opportunity.count({ where: { orgId: org.id } }),
-      prisma.interaction.count({ where: { orgId: org.id } }),
+      prisma.interaction.count({ where: { opportunity: { orgId: org.id } } }),
       prisma.project.count({ where: { clientId: org.id, id: { notIn: SEED_PROJECT_IDS } } }),
       prisma.labOrder.count({ where: { orgId: org.id } }),
     ]);
@@ -267,7 +267,14 @@ async function main() {
     skipped.forEach((line) => console.log(`  - ${line}`));
   }
 
-  console.log('\nPreservado sempre: admin@bioinfood.com, taxonomias e o funil padrão do CRM.');
+  // O cadastro de estoque não entra no plano de remoção: item de estoque é
+  // cadastro real da casa, nunca sai do seed (só a categoria "Equipamento" sai,
+  // e ela é taxonomia). A checklist dos TAPs some junto com os projetos, por
+  // cascata em Charter.
+  console.log(
+    '\nPreservado sempre: admin@bioinfood.com, taxonomias (inclusive as categorias ' +
+    'de estoque), o cadastro de estoque e o funil padrão do CRM.',
+  );
 
   if (!confirmed) {
     console.log(

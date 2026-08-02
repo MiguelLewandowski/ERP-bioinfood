@@ -41,6 +41,27 @@ export type UpsertCharterData = Partial<Omit<CharterEntity,
   teamUserIds?: string[];
 };
 
+/**
+ * Item do cadastro de estoque na checklist de recursos do TAP.
+ * `checked` = já providenciado. Planejamento puro — sem reserva nem janela de
+ * uso, então dois projetos podem declarar o mesmo equipamento sem conflito.
+ */
+export interface CharterEquipmentEntity {
+  id: string;
+  stockItemId: string;
+  quantity: number;
+  checked: boolean;
+  stockItem: {
+    id: string;
+    name: string;
+    code: string | null;
+    unit: string | null;
+    location: string | null;
+    status: string;
+    category: { id: string; name: string };
+  };
+}
+
 // Quem fez a última alteração de conteúdo, derivado do AuditLog (nenhuma
 // coluna nova no Charter — reusa a infra de auditoria já existente).
 export interface CharterLastEdit {

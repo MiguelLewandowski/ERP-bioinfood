@@ -13,6 +13,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { ACTIVITY_TYPE_LABELS } from '@/lib/crm-tasks';
+import { useFormDraft, clearFormDraft } from '@/lib/use-form-draft';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -54,23 +55,29 @@ export function TaskDialog({
   const [deleting, setDeleting] = useState(false);
   const isEdit = !!task;
 
+  const defaultValues: CrmTaskFormData = {
+    type: task?.type ?? 'CALL',
+    priority: task?.priority ?? 'MEDIUM',
+    dueDate: task?.dueDate?.slice(0, 10) ?? '',
+    responsibleId: task?.responsibleId ?? session.sub,
+    description: task?.description ?? '',
+  };
+
   const {
-    register, handleSubmit, formState: { errors, isSubmitting },
+    register, handleSubmit, watch, reset, formState: { errors, isSubmitting },
   } = useForm<CrmTaskFormData>({
     resolver: zodResolver(crmTaskSchema),
-    defaultValues: {
-      title: task?.title ?? '',
-      type: task?.type ?? 'CALL',
-      priority: task?.priority ?? 'MEDIUM',
-      dueDate: task?.dueDate?.slice(0, 10) ?? '',
-      responsibleId: task?.responsibleId ?? session.sub,
-      description: task?.description ?? '',
-    },
+    defaultValues,
   });
+
+  // Só rascunho de criação: editar já parte de dado real do servidor, e um
+  // rascunho velho sobrescrevendo uma tarefa mudada por outra pessoa é pior
+  // que perder o clique acidental que fecha o modal.
+  const draftKey = isEdit ? null : `draft:crm-task:${defaults?.opportunityId ?? defaults?.orgId ?? 'solta'}`;
+  useFormDraft(draftKey, watch, reset, defaultValues);
 
   async function onSubmit(v: CrmTaskFormData) {
     const payload = {
-      title: v.title,
       type: v.type,
       priority: v.priority,
       dueDate: v.dueDate || undefined,
@@ -82,6 +89,7 @@ export function TaskDialog({
         ? await crmActivitiesApi.update(task!.id, payload, token)
         : await crmActivitiesApi.create({ ...payload, ...defaults }, token);
       onSaved(saved);
+      if (draftKey) clearFormDraft(draftKey);
       toast.success(isEdit ? 'Tarefa atualizada' : 'Tarefa criada');
       onOpenChange(false);
     } catch (err) {
@@ -93,7 +101,7 @@ export function TaskDialog({
     if (!task) return;
     const ok = await confirm({
       title: 'Excluir tarefa',
-      description: `"${task.title}" será removida permanentemente.`,
+      description: `A tarefa de ${ACTIVITY_TYPE_LABELS[task.type]} será removida permanentemente.`,
       confirmLabel: 'Excluir',
       variant: 'destructive',
     });
@@ -119,16 +127,10 @@ export function TaskDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="task-title">Título *</Label>
-            <Input id="task-title" {...register('title')} placeholder="Ex: Retornar ligação da ACME" autoFocus />
-            {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>}
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="task-type">Tipo</Label>
-              <Select id="task-type" {...register('type')}>
+              <Select id="task-type" autoFocus {...register('type')}>
                 {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}

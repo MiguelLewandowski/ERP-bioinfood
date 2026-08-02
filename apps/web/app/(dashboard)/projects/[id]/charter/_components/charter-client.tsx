@@ -7,26 +7,50 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import {
-  Save, CheckCircle2, Info, Target, FlaskConical,
+  CheckCircle2, Info, Target, FlaskConical,
   Layers, Package, Users, Link2, Wrench,
-  FileDown, Pencil, Mail, Phone,
+  FileDown, Pencil, Mail, Phone, ShieldAlert, ArrowRight,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import type { ProjectDto, ContactListItemDto } from '@bioinfood/shared';
+import { Badge } from '@/components/ui/badge';
+import type {
+  ProjectDto, ContactListItemDto, RiskDto, CharterEquipmentDto,
+} from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { getErrorMessage } from '@/lib/errors';
-import { charterApi, contactsApi, usersApi } from '@/lib/api-hooks';
+import { charterApi, charterEquipmentApi, contactsApi, usersApi } from '@/lib/api-hooks';
 import { cn } from '@/lib/utils';
 import { formatDay } from '@/lib/dates';
 import { extractMembers, type ProjectMember } from '@/lib/project-members';
 import { MaskedInput } from '@/components/ui/masked-input';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { CharterEquipmentSection } from './charter-equipment-section';
 import { maskCurrencyBRL, parseCurrencyBRL, formatCurrencyForInput } from '@/lib/masks';
+import { riskBand } from '@/lib/project-metrics';
 import { PROJECT_STATUS_LABELS, printHtml } from '@/lib/project-report';
-import { buildCharterHtml } from '@/lib/charter-report';
+import { buildCharterHtml, type CharterPrintEquipment } from '@/lib/charter-report';
 
 const PRIORITY_OPTIONS = ['Alta', 'Média', 'Baixa'] as const;
+
+// Tipos pedidos na reunião de 28/07/2026. Ficam como LISTA na tela, não como
+// `enum` no banco: `Charter.projectType` já é `String?` livre e converter a
+// coluna exigiria migrar os valores já gravados, sem ganho — a validação que
+// importa (o usuário escolher em vez de digitar) mora aqui.
+//
+// Valor antigo fora desta lista continua sendo exibido e preservado — ver o
+// `legacyOption` no render do campo.
+const PROJECT_TYPE_OPTIONS = ['Interno', 'Parceria', 'Contrato', 'Serviço', 'Subvenção'] as const;
+
+// Mesmas faixas de `riskBand` (lib/project-metrics.ts) — a bolinha do TAP não
+// pode discordar da cor que a aba Riscos usa para o mesmo risco.
+const RISK_DOT: Record<string, string> = {
+  critical: 'bg-destructive',
+  high:     'bg-accent',
+  medium:   'bg-warning',
+  low:      'bg-success',
+};
 
 // Dois tipos, duas funções — ver CLAUDE.md, "Datas — dia de calendário vs instante".
 // Um helper só para os dois estava errado nas duas pontas: corrigir o dia
@@ -44,6 +68,11 @@ function fmtInstant(iso: string | null, withTime = false): string {
   return withTime
     ? d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
     : d.toLocaleDateString('pt-BR');
+}
+
+/** Hora do último autosave — instante, logo hora local. */
+function fmtClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 const schema = z.object({
@@ -97,6 +126,8 @@ interface CharterClientProps {
   projectId: string;
   initialData: CharterInitialData | null;
   project: ProjectDto | null;
+  /** Riscos do projeto, só para LEITURA — o cadastro continua na aba Riscos. */
+  risks?: RiskDto[];
 }
 
 type FieldDef = {
@@ -105,6 +136,15 @@ type FieldDef = {
   placeholder?: string;
   rows?: number;
   options?: readonly string[];
+  /** Ocupa meia largura no grid da seção; sem isso o campo atravessa as duas colunas. */
+  half?: boolean;
+  /**
+   * Campo narrativo com editor rico (títulos, listas aninhadas, checklist).
+   * O valor gravado passa a ser HTML, sanitizado no servidor pela allowlist de
+   * `common/sanitize/rich-text.ts`. Campo de lista fechada e numérico NÃO
+   * entram aqui.
+   */
+  rich?: boolean;
 };
 
 const SECTIONS: Array<{
@@ -116,19 +156,19 @@ const SECTIONS: Array<{
     icon: Info,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'projectType', label: 'Tipo', placeholder: 'Ex: Subvenção, P&D Interno, Consultoria…', rows: 1 },
-      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS },
+      { key: 'projectType', label: 'Tipo', options: PROJECT_TYPE_OPTIONS, half: true },
+      { key: 'priority',    label: 'Prioridade', options: PRIORITY_OPTIONS, half: true },
     ],
   },
   {
     id: 'contexto',
     label: 'Contexto e Justificativa',
     icon: FlaskConical,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
-      { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4 },
-      { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3 },
-      { key: 'assumptions',   label: 'Premissas', placeholder: 'Fatores considerados verdadeiros sem confirmação formal…', rows: 3 },
+      { key: 'problem',       label: 'Problema / Oportunidade', placeholder: 'Qual o problema ou oportunidade que motiva este projeto?', rows: 4, rich: true },
+      { key: 'justification', label: 'Justificativa (por que agora?)', placeholder: 'Por que este projeto precisa ser feito neste momento?', rows: 3, rich: true },
+      { key: 'assumptions',   label: 'Premissas', placeholder: 'Fatores considerados verdadeiros sem confirmação formal…', rows: 3, rich: true },
     ],
   },
   {
@@ -137,9 +177,9 @@ const SECTIONS: Array<{
     icon: Target,
     color: 'hsl(var(--accent))',
     fields: [
-      { key: 'mainObjective',      label: 'Objetivo Principal',     placeholder: 'O que este projeto precisa alcançar?', rows: 3 },
-      { key: 'specificObjectives', label: 'Objetivos Específicos',  placeholder: 'Liste os objetivos específicos, um por linha…', rows: 4 },
-      { key: 'kpis',               label: 'Critérios de Sucesso / KPIs', placeholder: 'Métricas objetivas que definem o sucesso do projeto…', rows: 3 },
+      { key: 'mainObjective',      label: 'Objetivo Principal',     placeholder: 'O que este projeto precisa alcançar?', rows: 3, rich: true },
+      { key: 'specificObjectives', label: 'Objetivos Específicos',  placeholder: 'Use a lista numerada para os objetivos, e Tab para desdobrar em subitens…', rows: 4, rich: true },
+      { key: 'kpis',               label: 'Critérios de Sucesso / KPIs', placeholder: 'Métricas objetivas que definem o sucesso do projeto…', rows: 3, rich: true },
     ],
   },
   {
@@ -148,18 +188,22 @@ const SECTIONS: Array<{
     icon: Layers,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4 },
-      { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3 },
-      { key: 'constraints', label: 'Restrições',     placeholder: 'Limitações de prazo, recursos, regulação…', rows: 2 },
+      { key: 'scope',       label: 'Em Escopo',      placeholder: 'O que está incluído neste projeto…', rows: 4, rich: true },
+      { key: 'outOfScope',  label: 'Fora de Escopo', placeholder: 'O que está explicitamente excluído…', rows: 3, rich: true },
+      // "Restrições" saiu da tela a pedido da reunião de teste de 28/07/2026.
+      // A COLUNA `Charter.constraints` continua no banco de propósito: apagá-la
+      // é migration destrutiva e levaria junto o que já foi escrito. O campo
+      // deixou de ser editável e de ser exportado; a remoção da coluna, se for
+      // desejada, é uma segunda publicação. Ver docs/tasks/feat-remover-restricoes-tap.md.
     ],
   },
   {
     id: 'entregaveis',
     label: 'Entregáveis',
     icon: Package,
-    color: '#46AD48',
+    color: 'hsl(var(--success))',
     fields: [
-      { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais, um por linha…', rows: 4 },
+      { key: 'deliverables', label: 'Lista de Entregáveis', placeholder: 'Liste os entregáveis principais — a lista com marcadores ou a checklist ajudam aqui…', rows: 4, rich: true },
     ],
   },
   {
@@ -176,8 +220,16 @@ const SECTIONS: Array<{
     icon: Users,
     color: 'hsl(var(--primary))',
     fields: [
-      { key: 'governance', label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3 },
+      { key: 'governance', label: 'RACI / Cadência / Reporting', placeholder: 'Papéis (RACI), ritmo de acompanhamento e comunicação…', rows: 3, rich: true },
     ],
+  },
+  {
+    id: 'riscos',
+    label: 'Riscos',
+    icon: ShieldAlert,
+    color: 'hsl(var(--accent))',
+    // Bloco próprio, só leitura — ver activeSection === 'riscos'.
+    fields: [],
   },
   {
     id: 'dependencias',
@@ -185,21 +237,29 @@ const SECTIONS: Array<{
     icon: Link2,
     color: 'hsl(var(--muted-foreground))',
     fields: [
-      { key: 'dependencies', label: 'Dependências Externas e Internas', placeholder: 'Dependências externas, interfaces entre frentes (ex: Bioprocessos ↔ Genética)…', rows: 3 },
+      { key: 'dependencies', label: 'Dependências Externas e Internas', placeholder: 'Dependências externas, interfaces entre frentes (ex: Bioprocessos ↔ Genética)…', rows: 3, rich: true },
     ],
   },
 ];
 
-export function CharterClient({ projectId, initialData, project }: CharterClientProps) {
+export function CharterClient({ projectId, initialData, project, risks = [] }: CharterClientProps) {
   const { token, session } = useAuth();
   const confirm = useConfirm();
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('identificacao');
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(SECTIONS.map((s) => s.id));
   const [contacts, setContacts] = useState<ContactListItemDto[] | null>(null);
+  /**
+   * Checklist de recursos. Vive AQUI, e não dentro da seção, por dois motivos:
+   * a bolinha do menu lateral precisa do número mesmo com a aba Recursos
+   * fechada, e a exportação em PDF precisa da lista sem depender de a seção
+   * ter sido montada. A seção recebe as linhas e devolve as alterações.
+   */
+  const [equipment, setEquipment] = useState<CharterEquipmentDto[]>([]);
+  const equipmentCount = equipment.length;
   const [allUsers, setAllUsers] = useState<ProjectMember[] | null>(null);
   const [lastEdit, setLastEdit] = useState(
     initialData?.lastEditedAt
@@ -236,6 +296,14 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
 
   const values = watch();
 
+  useEffect(() => {
+    let cancelled = false;
+    charterEquipmentApi.list(projectId, token)
+      .then((rows) => { if (!cancelled) setEquipment(rows); })
+      .catch(() => { if (!cancelled) setEquipment([]); });
+    return () => { cancelled = true; };
+  }, [projectId, token]);
+
   // Contatos reais do cliente do projeto, para a seção de Stakeholders.
   useEffect(() => {
     if (!project?.client) { setContacts([]); return; }
@@ -251,6 +319,8 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   // limitar a lista a `project.accesses` deixava quase todo mundo de fora.
   // `GET /users` exige ADMIN ou PADRAO — CLIENTE cai nos membros do projeto.
   const canListUsers = session.role === 'ADMIN' || session.role === 'PADRAO';
+  // Escrita no TAP é @Roles(PADRAO) no backend — CLIENTE lê e não edita.
+  const canEdit = canListUsers;
 
   useEffect(() => {
     if (!canListUsers) return;
@@ -278,18 +348,27 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   const sectionHasContent = useMemo(() => {
     const map: Record<string, boolean> = {};
     for (const section of SECTIONS) {
+      // Riscos não tem campo de formulário: o que a preenche são os riscos
+      // cadastrados na aba. Sem isto ela apareceria eternamente vazia no nav.
+      if (section.id === 'riscos') {
+        map[section.id] = risks.length > 0;
+        continue;
+      }
       if (section.id === 'recursos') {
+        // A checklist de equipamentos também preenche a seção. Sem contá-la, a
+        // bolinha ficaria cinza num TAP com a lista inteira montada.
         map[section.id] = !!(
           values.infrastructure?.trim()
           || values.budget?.trim()
           || (values.teamUserIds?.length ?? 0) > 0
+          || equipmentCount > 0
         );
         continue;
       }
       map[section.id] = section.fields.some((f) => (values[f.key] ?? '').toString().trim() !== '');
     }
     return map;
-  }, [values]);
+  }, [values, risks.length, equipmentCount]);
   const filledCount = Object.values(sectionHasContent).filter(Boolean).length;
 
   function toggleSection(id: string) {
@@ -299,7 +378,7 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   }
 
   function handleExport() {
-    const html = buildCharterHtml(getValues(), selectedIds, members, SECTIONS);
+    const html = buildCharterHtml(getValues(), selectedIds, members, SECTIONS, equipment);
     printHtml(html);
     setExportOpen(false);
   }
@@ -315,9 +394,9 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
       // se o usuário já começou a editar outro campo enquanto isso salvava,
       // isso evita que o reset apague o que ele digitou nesse meio-tempo.
       reset(getValues());
-      setLastEdit({ name: 'você', at: new Date().toISOString() });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      const at = new Date().toISOString();
+      setLastEdit({ name: 'você', at });
+      setLastSavedAt(at);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -330,6 +409,16 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
   function handleFieldBlur() {
     if (isDirty) persist(getValues());
   }
+
+  // Não existe mais botão Salvar: o autosave depende do blur, e fechar a aba com o
+  // cursor ainda dentro do campo nunca dispara blur. É o único caminho de perda de
+  // texto que a remoção do botão abriu — este aviso é a contrapartida dela.
+  useEffect(() => {
+    if (!isDirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty]);
 
   // Checkbox não dispara blur de forma confiável — salva no próprio clique.
   function toggleTeamMember(userId: string) {
@@ -385,15 +474,18 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
             >
               <Icon size={13} className="shrink-0" />
               <span className="leading-snug flex-1">{i + 1}. {label}</span>
-              {sectionHasContent[id] && (
-                <span
-                  className={cn(
-                    'h-1.5 w-1.5 rounded-full shrink-0',
-                    activeSection === id ? 'bg-white' : 'bg-success',
-                  )}
-                  aria-label="Seção preenchida"
-                />
-              )}
+              {/* Dois estados, duas cores. Antes a bolinha só existia quando havia
+                  conteúdo — daí "todas verdes": o que faltava não era mapa de cor,
+                  era mostrar também o que ainda está vazio. */}
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full shrink-0',
+                  activeSection === id
+                    ? sectionHasContent[id] ? 'bg-white' : 'bg-white/40'
+                    : sectionHasContent[id] ? 'bg-success' : 'bg-border',
+                )}
+                aria-label={sectionHasContent[id] ? 'Seção preenchida' : 'Seção vazia'}
+              />
             </button>
           ))}
         </nav>
@@ -418,7 +510,22 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Substitui o botão "Salvar": ele ficava `disabled` quase sempre — porque
+                  o autosave do blur já tinha salvado — e um botão apagado lê como defeito.
+                  O que faltava era dizer em que estado o documento está, não uma ação. */}
+              <span
+                aria-live="polite"
+                className="text-xs font-medium text-muted-foreground tabular-nums"
+              >
+                {saving
+                  ? 'Salvando…'
+                  : isDirty
+                    ? 'Alterações não salvas'
+                    : lastSavedAt
+                      ? `Salvo às ${fmtClock(lastSavedAt)}`
+                      : ''}
+              </span>
               <button
                 type="button"
                 onClick={() => setExportOpen(true)}
@@ -428,9 +535,12 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                 Exportar PDF
               </button>
               {isApproved ? (
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: 'hsl(var(--success) / 0.6)', color: 'hsl(var(--primary-dark))' }}>
+                // Estado, não ação: badge do catálogo em vez de um pill com o mesmo
+                // peso dos botões vizinhos — era isso que fazia três elementos
+                // competirem no header.
+                <Badge variant="success" className="gap-1.5">
                   <CheckCircle2 size={12} /> Aprovado em {fmtInstant(initialData!.approvedAt!)}
-                </span>
+                </Badge>
               ) : (
                 <button
                   type="button"
@@ -442,15 +552,6 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                   {approving ? 'Aprovando…' : 'Aprovar TAP'}
                 </button>
               )}
-              <button
-                type="submit"
-                disabled={saving || !isDirty}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
-              >
-                <Save size={13} />
-                {saving ? 'Salvando…' : saved ? 'Salvo ✓' : 'Salvar'}
-              </button>
             </div>
           </div>
 
@@ -504,6 +605,63 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                     </div>
                   )}
                 </dl>
+              </div>
+            )}
+
+            {activeSection === 'riscos' && (
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Riscos do projeto</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Leitura do que já está cadastrado — o registro e a resposta vivem na aba Riscos.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/projects/${projectId}/risks`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-gray-50"
+                  >
+                    Gerenciar riscos <ArrowRight size={12} />
+                  </Link>
+                </div>
+
+                {risks.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center">
+                    <ShieldAlert size={24} className="mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Nenhum risco mapeado ainda.</p>
+                    <Link
+                      href={`/projects/${projectId}/risks`}
+                      className="mt-1 inline-block text-sm font-semibold text-primary hover:underline"
+                    >
+                      Mapear o primeiro risco →
+                    </Link>
+                  </div>
+                ) : (
+                  // Maior score primeiro: num TAP, o que importa é o que pode
+                  // derrubar o projeto, não a ordem de cadastro.
+                  <ul className="divide-y divide-gray-100">
+                    {[...risks].sort((a, b) => b.score - a.score).map((r) => (
+                      <li key={r.id} className="flex items-center gap-3 py-2.5">
+                        <span
+                          className={cn('h-2 w-2 shrink-0 rounded-full', RISK_DOT[riskBand(r.score)])}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-foreground">{r.title}</span>
+                          {r.owner && (
+                            <span className="text-xs text-muted-foreground">{r.owner.name}</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                          P{r.probability} × I{r.impact}
+                        </span>
+                        <span className="w-8 shrink-0 text-right text-sm font-bold tabular-nums text-foreground">
+                          {r.score}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -578,13 +736,29 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
                     {!canListUsers && ' Seu perfil só enxerga quem já tem acesso ao projeto.'}
                   </p>
                 </div>
+                {/* Checklist puxada do cadastro de estoque. O campo de texto
+                    abaixo continua existindo para o que não é item de catálogo
+                    (laboratório de terceiro, sala alugada) e para o que já foi
+                    escrito ali antes de a checklist existir. */}
+                <CharterEquipmentSection
+                  projectId={projectId}
+                  canEdit={canEdit}
+                  rows={equipment}
+                  onChange={setEquipment}
+                />
+
                 <div>
-                  <label className="block text-sm font-semibold text-foreground mb-1.5">Infraestrutura</label>
-                  <textarea
-                    {...register('infrastructure', { onBlur: handleFieldBlur })}
-                    rows={3}
-                    placeholder="Equipamentos, insumos, laboratórios, ferramentas necessárias…"
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
+                  <label className="block text-sm font-semibold text-foreground mb-1.5">
+                    Observações de infraestrutura
+                  </label>
+                  <RichTextEditor
+                    value={values.infrastructure ?? ''}
+                    onChange={(html) => setValue('infrastructure', html, { shouldDirty: true })}
+                    onBlur={handleFieldBlur}
+                    placeholder="Laboratórios, salas, ferramentas e condições que não são item de cadastro…"
+                    compact
+                    minHeight={102}
+                    aria-label="Observações de infraestrutura"
                   />
                 </div>
                 <div>
@@ -599,33 +773,61 @@ export function CharterClient({ projectId, initialData, project }: CharterClient
               </>
             )}
 
-            {activeData.fields.map(({ key, label, placeholder, rows, options }) => (
-              <div key={key}>
-                <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
-                {options ? (
-                  <select
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  >
-                    <option value="">—</option>
-                    {options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : rows === 1 ? (
-                  <input
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
-                  />
-                ) : (
-                  <textarea
-                    {...register(key, { onBlur: handleFieldBlur })}
-                    rows={rows}
-                    placeholder={placeholder}
-                    className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
-                  />
-                )}
-              </div>
-            ))}
+            {/* Campo sem `half` atravessa as duas colunas — só Tipo/Prioridade,
+                que são curtos, dividem a linha. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+              {activeData.fields.map(({ key, label, placeholder, rows, options, half, rich }) => {
+                // Valor gravado antes de o campo virar lista fechada. Sem esta
+                // opção o `<select>` apareceria vazio e o primeiro salvamento
+                // apagaria o que o usuário tinha escrito.
+                const current = (values[key] ?? '').toString();
+                const legacyOption = options && current && !options.includes(current) ? current : null;
+
+                return (
+                <div key={key} className={half ? undefined : 'col-span-2'}>
+                  <label className="block text-sm font-semibold text-foreground mb-1.5">{label}</label>
+                  {options ? (
+                    <select
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      className="w-full text-sm text-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    >
+                      <option value="">—</option>
+                      {legacyOption && <option value={legacyOption}>{legacyOption}</option>}
+                      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : rich ? (
+                    // `register` não alcança o Tiptap: ele é contenteditable, não
+                    // input. Marcar o campo como dirty no onChange e chamar o
+                    // mesmo handleFieldBlur mantém intacto o autosave que o
+                    // roteiro de teste já validou — inclusive o aviso do
+                    // navegador ao fechar a aba com alteração pendente.
+                    <RichTextEditor
+                      value={current}
+                      onChange={(html) => setValue(key, html, { shouldDirty: true })}
+                      onBlur={handleFieldBlur}
+                      placeholder={placeholder}
+                      compact
+                      minHeight={(rows ?? 3) * 26 + 24}
+                      aria-label={label}
+                    />
+                  ) : rows === 1 ? (
+                    <input
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none transition-colors"
+                    />
+                  ) : (
+                    <textarea
+                      {...register(key, { onBlur: handleFieldBlur })}
+                      rows={rows}
+                      placeholder={placeholder}
+                      className="w-full text-sm text-foreground placeholder:text-muted-foreground bg-white rounded-lg px-3 py-2.5 border border-gray-200 focus:border-ring focus:outline-none resize-y transition-colors"
+                    />
+                  )}
+                </div>
+                );
+              })}
+            </div>
           </div>
         </form>
       </div>

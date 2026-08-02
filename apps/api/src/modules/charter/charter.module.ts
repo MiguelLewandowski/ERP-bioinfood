@@ -6,6 +6,7 @@ import { CharterController } from './infra/charter.controller';
 import { GetCharterUseCase } from './application/get-charter.use-case';
 import { UpsertCharterUseCase } from './application/upsert-charter.use-case';
 import { ApproveCharterUseCase } from './application/approve-charter.use-case';
+import { ManageCharterEquipmentUseCase } from './application/manage-charter-equipment.use-case';
 
 @Module({
   imports: [PrismaModule],
@@ -15,6 +16,7 @@ import { ApproveCharterUseCase } from './application/approve-charter.use-case';
     GetCharterUseCase,
     UpsertCharterUseCase,
     ApproveCharterUseCase,
+    ManageCharterEquipmentUseCase,
   ],
 })
 export class CharterModule {}

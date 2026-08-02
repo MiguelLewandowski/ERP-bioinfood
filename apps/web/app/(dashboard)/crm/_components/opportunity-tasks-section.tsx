@@ -109,7 +109,7 @@ export function OpportunityTasksSection({
 
       {!loading && tasks.length === 0 && (
         <p className="py-3 text-center text-xs text-muted-foreground">
-          Nenhuma tarefa neste negócio.
+          Nenhuma tarefa nesta oportunidade.
           {canEdit && ' Crie uma para não perder o próximo passo.'}
         </p>
       )}

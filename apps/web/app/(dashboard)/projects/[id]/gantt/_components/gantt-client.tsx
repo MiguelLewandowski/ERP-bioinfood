@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Gantt, Editor, Tooltip, ContextMenu, Willow,
@@ -8,16 +8,18 @@ import {
 import { Locale } from '@svar-ui/react-core';
 import '@svar-ui/react-gantt/all.css';
 import './gantt-status.css';
-import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus } from 'lucide-react';
-import type { TaskDto as Task, MilestoneDto as Milestone } from '@bioinfood/shared';
+import { BarChart2, AlertTriangle, Lock, Flag, Loader2, Plus, CalendarClock } from 'lucide-react';
+import type { TaskDto as Task, MilestoneDto as Milestone, WbsNodeDto } from '@bioinfood/shared';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useConfirm } from '@/components/providers/confirm-provider';
 import { projectsApi } from '@/lib/api-hooks';
+import { cn } from '@/lib/utils';
 import type { ProjectMember } from '@/lib/project-members';
 import { TaskFormDialog } from '../../_components/tasks/task-form-dialog';
 import {
-  EDITABLE_ROLES, BASELINE_ROLES,
-  buildGanttTasks, buildGanttLinks, buildMarkers, scales, columns,
+  EDITABLE_ROLES, BASELINE_ROLES, ZOOM_LEVELS, DEFAULT_ZOOM_LEVEL, zoomConfig,
+  buildGanttTasks, buildGanttLinks, buildMarkers, buildGroupLabels, scales, columns,
+  type ZoomLevelId,
 } from './gantt-mapping';
 import { useGanttPersistence } from './use-gantt-persistence';
 import { ganttLocalePt } from './gantt-locale-pt';
@@ -26,11 +28,42 @@ interface GanttClientProps {
   projectId: string;
   tasks: Task[];
   milestones: Milestone[];
+  wbsNodes: WbsNodeDto[];
   members: ProjectMember[];
   projectStart: string | null;
   projectEnd: string | null;
   baselineSetAt: string | null;
   baselineSetByName: string | null;
+}
+
+/**
+ * Leva o gráfico para hoje.
+ *
+ * `exec('scroll-chart', { date })` não movia nada na prática. Em vez de insistir
+ * numa ação inferida do tipo do payload, isto usa `scrollToTask`, que é **método
+ * documentado** da store da SVAR: acha a tarefa que está em curso hoje (ou a
+ * próxima a começar) e rola até ela. O `scroll-chart` fica só como último
+ * recurso, para o caso de o projeto não ter nenhuma tarefa com data.
+ */
+function scrollToToday(api: any, tasks: Task[]): void {
+  if (!api) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const dated = tasks
+    .filter((t) => !t.deletedAt && t.startDate && t.dueDate)
+    .sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''));
+
+  const current = dated.find((t) => (
+    (t.startDate ?? '').slice(0, 10) <= today && today <= (t.dueDate ?? '').slice(0, 10)
+  ));
+  const next = dated.find((t) => (t.startDate ?? '').slice(0, 10) >= today);
+  // Nada em curso nem à frente → a última que houve, que é o fim do projeto.
+  const target = current ?? next ?? dated[dated.length - 1];
+
+  if (target && typeof api.scrollToTask === 'function') {
+    api.scrollToTask(target.id, 'auto');
+    return;
+  }
+  api.exec?.('scroll-chart', { date: new Date() });
 }
 
 // ─── wrapper: RBAC + barra de baseline + reversão automática em caso de falha ───
@@ -46,6 +79,9 @@ export function GanttClient(props: GanttClientProps) {
   const [baselineBusy, setBaselineBusy] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevelId>(DEFAULT_ZOOM_LEVEL);
+  // Instância da SVAR erguida do board: o botão "Hoje" vive na barra de cima.
+  const apiRef = useRef<any>(null);
 
   // Recarrega o board a partir do servidor após criar/editar/excluir uma
   // tarefa pelo TaskFormDialog (mesmo dialog do Kanban/Backlog).
@@ -90,21 +126,54 @@ export function GanttClient(props: GanttClientProps) {
     return () => clearTimeout(id);
   }, [saveError]);
 
+
+
+
+
   const baselineLabel = props.baselineSetAt
     ? `Linha de base: ${new Date(props.baselineSetAt).toLocaleDateString('pt-BR')}${props.baselineSetByName ? ` · ${props.baselineSetByName}` : ''}`
     : 'Linha de base não definida';
 
   return (
+    // Sem `h-full` e sem `overflow-hidden` aqui: a SVAR precisa de altura em
+    // PIXELS para montar as próprias barras de rolagem, e amarrar o pai com flex
+    // deixava o widget sem altura medível — resultado, nem rolagem nem arraste.
+    // Quem calcula a altura é o `useGanttHeight` abaixo, medindo. Ver comentário
+    // lá para o histórico das três tentativas que falharam.
     <div className="flex flex-col">
-      {editable && (
-        <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
-          {canBaseline ? (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
-              {baselineLabel}
-            </span>
-          ) : <span />}
-          <div className="flex items-center gap-2">
+      {/* UMA barra só. Antes eram duas linhas mais uma de legenda: além de comer
+          altura, os controles de visualização ficavam separados das ações e
+          ficavam separados das ações de escrita. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gray-200 bg-white px-4 py-2.5">
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+          {ZOOM_LEVELS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setZoomLevel(id)}
+              aria-pressed={zoomLevel === id}
+              className={cn(
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                zoomLevel === id
+                  ? 'bg-white text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => scrollToToday(apiRef.current, props.tasks)}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground"
+        >
+          <CalendarClock size={13} /> Hoje
+        </button>
+
+
+        {editable && (
+          <>
+            <span className="mx-1 hidden h-5 w-px bg-gray-200 sm:block" />
             <button
               onClick={() => setCreating(true)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90"
@@ -116,15 +185,34 @@ export function GanttClient(props: GanttClientProps) {
               <button
                 onClick={handleSetBaseline}
                 disabled={baselineBusy}
+                title={baselineLabel}
                 className="flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors disabled:opacity-50"
               >
                 {baselineBusy ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />}
                 {props.baselineSetAt ? 'Redefinir linha de base' : 'Definir linha de base'}
               </button>
             )}
-          </div>
+          </>
+        )}
+
+        {/* A legenda de cores por status SAIU: ela descrevia cinza/âmbar/verde nas
+            barras, e as barras são todas azuis — `task.css` não chega ao elemento
+            da barra nesta versão da SVAR (index.es.js:2129). Legenda que não
+            corresponde à tela é pior que nenhuma. O status agora é uma COLUNA da
+            grade, que não depende de estilo da lib.
+            Fica só a linha de base, que a lib desenha de fato. */}
+        <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <i className="h-2 w-4 rounded-sm border border-dashed border-muted-foreground" /> Linha de base
+        </div>
+      </div>
+
+      {canBaseline && editable && (
+        <div className="flex items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-1.5 text-xs text-muted-foreground">
+          <Flag size={13} className={props.baselineSetAt ? 'text-primary' : 'text-muted-foreground'} />
+          {baselineLabel}
         </div>
       )}
+
       {!editable && (
         <div className="flex items-center gap-1.5 bg-gray-100 text-muted-foreground px-4 py-2 text-xs font-medium">
           <Lock size={13} /> Modo somente leitura — seu perfil ({session.role}) não pode editar o cronograma.
@@ -145,9 +233,13 @@ export function GanttClient(props: GanttClientProps) {
         </div>
       )}
       <GanttBoard
-        key={reloadKey}
+        // Remonta ao trocar zoom/agrupamento/caminho crítico: a store da SVAR lê
+        // essas configs na inicialização, não a cada render.
+        key={`${reloadKey}-${zoomLevel}`}
         {...props}
         editable={editable}
+        zoomLevel={zoomLevel}
+        onApi={(a) => { apiRef.current = a; }}
         onSaveError={handleSaveError}
         onEditTask={setEditingTaskId}
       />
@@ -181,24 +273,96 @@ export function GanttClient(props: GanttClientProps) {
   );
 }
 
+/**
+ * Altura do board, em pixels, medida da própria posição na tela até a base da
+ * janela.
+ *
+ * Histórico, para ninguém repetir: a versão original usava
+ * `height: calc(100vh - 180px)`. Funcionava — a SVAR monta as barras de rolagem
+ * quando recebe pixels — mas o `180px` era um palpite da altura do cabeçalho, e
+ * como sobrava conteúdo a barra HORIZONTAL ia para o fim da página, fora de
+ * alcance. Trocar o palpite por outro (`13rem`) só mudou o erro de lado: passou
+ * a faltar espaço e a tela ganhou DUAS barras verticais. Amarrar tudo com
+ * `flex-1 h-full` tirou os dois problemas e criou o pior: sem altura em pixels,
+ * o widget ficou sem rolagem e sem arraste.
+ *
+ * Medir resolve os três de uma vez, e sem número mágico: `getBoundingClientRect`
+ * já sabe onde o board começa, seja qual for a altura das barras acima.
+ */
+function useGanttHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  // Palpite só para o primeiro paint; a medição corrige no efeito.
+  const [height, setHeight] = useState(520);
+
+  useEffect(() => {
+    function measure() {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      // A margem final evita que a barra horizontal fique rente ao limite da
+      // janela, onde alguns navegadores a deixam difícil de pegar.
+      setHeight(Math.max(320, Math.round(window.innerHeight - top - 8)));
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  return { ref, height };
+}
+
 // ─── board: monta os dados e renderiza o widget SVAR ────────────────────────────
 
 interface GanttBoardProps extends GanttClientProps {
   editable: boolean;
+  zoomLevel: ZoomLevelId;
+  onApi: (api: any) => void;
   onSaveError: () => void;
   onEditTask: (taskId: string) => void;
 }
 
 function GanttBoard({
-  projectId, tasks, milestones, projectEnd, editable, onSaveError, onEditTask,
+  projectId, tasks, milestones, wbsNodes, projectEnd, editable,
+  zoomLevel, onApi, onSaveError, onEditTask,
 }: GanttBoardProps) {
   const { token } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [api, setApi] = useState<any>(undefined);
 
+  // Guarda o callback num ref para o efeito abaixo não depender da identidade
+  // dele (o pai passa arrow inline).
+  const onApiRef = useRef(onApi);
+  onApiRef.current = onApi;
+
+  const { ref: boardRef, height: boardHeight } = useGanttHeight();
+
   useEffect(() => { setMounted(true); }, []);
 
-  const ganttTasks = useMemo(() => buildGanttTasks(tasks, milestones), [tasks, milestones]);
+  // Entrega a instância ao wrapper (é de lá que o botão "Hoje" a usa) e abre já
+  // mostrando hoje.
+  //
+  // `onApi` chegava como arrow inline, mudando a cada render: este efeito
+  // re-disparava sem parar e re-scrollava o gráfico continuamente, o que podia
+  // engolir a rolagem do usuário. Agora depende só de `api`, e o auto-scroll
+  // acontece UMA vez por montagem.
+  const scrolledOnMount = useRef(false);
+  useEffect(() => {
+    if (!api) return;
+    onApiRef.current(api);
+    if (scrolledOnMount.current) return;
+    scrolledOnMount.current = true;
+    // Um tick depois: no momento em que `init` dispara, a SVAR ainda não terminou
+    // de medir a área do gráfico, e rolar antes disso não tem efeito.
+    const id = setTimeout(() => scrollToToday(api, tasks), 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
+
+  const groupLabels = useMemo(() => buildGroupLabels(tasks, wbsNodes), [tasks, wbsNodes]);
+  const ganttTasks = useMemo(
+    () => buildGanttTasks(tasks, milestones, groupLabels),
+    [tasks, milestones, groupLabels],
+  );
   const ganttLinks = useMemo(() => {
     const visibleIds = new Set(ganttTasks.map((t) => String(t.id)));
     return buildGanttLinks(tasks, visibleIds);
@@ -206,7 +370,8 @@ function GanttBoard({
   const markers = useMemo(() => buildMarkers(projectEnd, ganttTasks), [projectEnd, ganttTasks]);
 
   const { menuHandler } = useGanttPersistence(api, {
-    editable, projectId, token, links: ganttLinks, tasks, onError: onSaveError, onEditTask,
+    editable, projectId, token, links: ganttLinks, tasks, milestones,
+    onError: onSaveError, onEditTask,
   });
 
   if (ganttTasks.length === 0) {
@@ -222,7 +387,9 @@ function GanttBoard({
   }
 
   if (!mounted) {
-    return <div style={{ height: 'calc(100vh - 150px)' }} />;
+    // Reserva de espaço até o widget montar (ele é client-only). Usa o mesmo ref
+    // e a mesma altura do board, para medir antes e não haver salto.
+    return <div ref={boardRef} style={{ height: boardHeight }} />;
   }
 
   const CtxMenu = ContextMenu as any;
@@ -236,11 +403,13 @@ function GanttBoard({
             caminho de escrita não controlado — ver docs/incidentes/timezone-cronograma.md.
             O botão "Nova Tarefa" acima cobre a mesma função pelo caminho certo. */}
         <div
-          style={{ height: 'calc(100vh - 180px)' }}
+          ref={boardRef}
+          style={{ height: boardHeight }}
           onContextMenu={(e) => {
             if (menuHandler.current) { e.preventDefault(); menuHandler.current(e); }
           }}
         >
+          <div className="h-full">
           <Gantt
             init={setApi}
             tasks={ganttTasks}
@@ -248,11 +417,26 @@ function GanttBoard({
             scales={scales}
             columns={columns}
             markers={markers}
-            criticalPath={{ type: 'flexible' }}
+            // Caminho crítico DESLIGADO e sem botão. A config existe
+            // (`criticalPath={{ type: 'flexible' }}`), mas nunca destacou nada na
+            // tela e não conseguimos confirmar se a lib chega a marcar as barras.
+            // Decisão do dono do produto em 2026-07-29: o Gantt não precisa dele.
+            // Ver docs/tasks/feat-gantt-caminho-critico-descartado.md.
+            criticalPath={null}
+            // Agrupamento por pacote da EAP: REMOVIDO, porque não existe neste
+            // build da SVAR. `groupBy` é prop declarada e tipada, mas o módulo que
+            // a implementa (`groupManager`) não é distribuído: no
+            // @svar-ui/gantt-store 2.7.1 a string aparece UMA vez, na linha que o
+            // procura (`this._modules.get("groupManager")`), e ZERO vezes no
+            // @svar-ui/react-gantt. Não há registro em lugar nenhum — é recurso da
+            // versão paga.
+            // Ver docs/tasks/feat-gantt-agrupar-por-pacote-indisponivel.md.
+            groupBy={null}
             baselines
             readonly={!editable}
-            zoom
+            zoom={{ ...zoomConfig, level: ZOOM_LEVELS.findIndex((l) => l.id === zoomLevel) }}
           />
+          </div>
         </div>
         {api && <Tooltip api={api} />}
         {editable && api && <Editor api={api} />}

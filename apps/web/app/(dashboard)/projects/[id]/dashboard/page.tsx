@@ -12,6 +12,7 @@ import {
 } from '@/lib/project-metrics';
 import { ScheduleCard } from './_components/schedule-card';
 import { TasksCard } from './_components/tasks-card';
+import { AssigneeLoadCard } from './_components/assignee-load-card';
 import { RisksCard } from './_components/risks-card';
 import { MilestonesCard } from './_components/milestones-card';
 import { OverviewCard } from './_components/overview-card';
@@ -86,6 +87,7 @@ export default async function ProjectDashboardPage({ params }: Props) {
         <div className="flex flex-col gap-4 lg:col-span-2">
           <ScheduleCard schedule={schedule} />
           <TasksCard projectId={id} metrics={taskMetrics} />
+          <AssigneeLoadCard loads={taskMetrics.byAssignee} />
         </div>
 
         <div className="flex flex-col gap-4">

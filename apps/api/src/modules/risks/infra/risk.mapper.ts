@@ -11,6 +11,8 @@ export interface RiskDto {
   score: number;
   response: string | null;
   owner: { id: string; name: string } | null;
+  /** Corresponsáveis, além do `owner`. Vazio quando ninguém divide. */
+  coOwners: Array<{ id: string; name: string }>;
 }
 
 export function toRiskDto(r: RiskWithOwner): RiskDto {
@@ -24,5 +26,6 @@ export function toRiskDto(r: RiskWithOwner): RiskDto {
     score: r.score,
     response: r.response,
     owner: r.owner,
+    coOwners: (r.coOwners ?? []).map((c) => c.user),
   };
 }

@@ -1,5 +1,32 @@
 # Análise de UI/UX — ERP Bioinfood
 
+## Passagem mais recente: **2026-07-30 — Atividades, COM renderização real**
+
+Análise dedicada da tela de Atividades, com `pnpm dev` no ar e inspeção de tela
+(visão Mês, visão Semana, modal de detalhe), dados conferidos contra a API.
+Relatório completo: **[`analise-uiux-atividades.md`](./analise-uiux-atividades.md)**.
+
+Ela **fecha o #10 abaixo** e traz dois achados 🔴 que não são de estética:
+
+- 🔴 **A visão Semana esconde a maior parte do trabalho da semana.** O cabeçalho diz
+  "6 Total" e a lista mostra 1. `groupByDay` agrupa pela data-âncora e descarta o que
+  começou antes da semana — inclusive quatro prazos que vencem nela. A visão Mês não
+  tem o defeito (usa `effectiveInterval`).
+- 🔴 **Todas as datas aparecem um dia antes, com hora inventada.** O modal mostra
+  "01 de ago, 21:00 — 20 de ago, 21:00" para uma atividade de 02/08 a 21/08.
+  `lib/activities.ts` usa `parseISO` em campo que é dia de calendário — o incidente de
+  `docs/incidentes/timezone-cronograma.md` vivo nesta tela.
+
+E uma **regressão cross-tela** que a verificação de código de 2026-07-20 não pegou:
+
+- 🟡 **A unificação da escala de prioridade (#1, marcada como resolvida) não alcançou
+  `lib/activities.ts`.** O arquivo mantém `PRIORITY_META` com hex cru, e `CRITICAL` é
+  `#D64550` — que **não** é o token `destructive`. A mesma Task tem vermelhos
+  diferentes em Atividades e no Kanban. São 11 hex crus, invisíveis ao ESLint porque
+  atravessam por `style={{}}` a partir de um `.ts` de lib, não por `className`.
+
+---
+
 **Data:** 2026-07-20 (verificação de delta) · **Escopo:** revisão dos 12 achados da passagem renderizada de 2026-07-19 contra o código atual + fluxos principais fora do CRM.
 
 > **⚠️ Método desta passagem — SEM renderização real.** O Docker Desktop está instalado mas com o daemon parado; o Postgres local (5432) está fechado. Subir o stack completo (db + migrations + seed + api + web + automação de browser) não foi viável nesta sessão. Portanto **esta passagem é verificação de código**, não inspeção de pixels. Isso é adequado para o que faço aqui — quase todos os 12 achados anteriores são verificáveis no código (mapas de cor, adoção de `StatusBadge`, config do Gantt, alvo do redirect, filtros, itens de menu). **Não adicionei achados novos de hierarquia/contraste/espaçamento** — esses exigem ver a tela, e a última inspeção renderizada (2026-07-19) segue sendo a fonte para eles. Um item novo marcado *(confirmar renderizado)* precisa de olho na tela para fechar.
@@ -52,7 +79,7 @@ Boa evolução desde a passagem renderizada. **Os dois piores achados semântico
 
 ### 🔵 Baixo
 
-**#10 — Calendário de Atividades: estado por dois canais (bolinhas na legenda × cor de fundo/texto nas barras).** Não reverificado sem render; provável que persista. Reavaliar com dados reais.
+**#10 — Calendário de Atividades: estado por dois canais (bolinhas na legenda × cor de fundo/texto nas barras).** ✅ **CONFIRMADO em 2026-07-30, com renderização real** — persiste, e ganhou diagnóstico próprio (A6 em [`analise-uiux-atividades.md`](./analise-uiux-atividades.md)): são cinco chips numéricos e uma legenda de quatro quadradinhos dizendo a mesma coisa, lado a lado. Correção proposta: colorir os próprios chips e eliminar a legenda. Este item passa a ser rastreado no relatório dedicado.
 
 **#11 — Ações da tabela de Usuários misturam padrões.** `users-client.tsx`: ícones (editar/reset/acesso) + botão-texto "Desativar/Ativar" na mesma célula (`:143`). **Positivo:** todos os ícones têm `aria-label` (`:113,122,132`) e o toggle usa `ConfirmDialog` com o nome real. Só o híbrido visual permanece — padronizar (ex.: `dropdown-menu`) quando a tela for revisitada.
 

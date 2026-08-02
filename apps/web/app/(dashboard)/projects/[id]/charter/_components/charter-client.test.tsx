@@ -7,6 +7,7 @@ import { CharterClient } from './charter-client';
 const upsertMock = vi.fn();
 const listUsersMock = vi.fn();
 const listContactsMock = vi.fn();
+const listEquipmentMock = vi.fn();
 
 vi.mock('@/lib/api-hooks', () => ({
   charterApi: {
@@ -15,6 +16,14 @@ vi.mock('@/lib/api-hooks', () => ({
   },
   contactsApi: { list: (...args: unknown[]) => listContactsMock(...args) },
   usersApi: { list: (...args: unknown[]) => listUsersMock(...args) },
+  // A checklist de recursos é buscada na montagem do TAP, para a bolinha do
+  // menu lateral saber contar mesmo com a aba Recursos fechada.
+  charterEquipmentApi: {
+    list: (...args: unknown[]) => listEquipmentMock(...args),
+    add: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
 }));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -57,6 +66,7 @@ describe('CharterClient — equipe do TAP', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
@@ -132,6 +142,134 @@ describe('CharterClient — equipe do TAP', () => {
 });
 
 /**
+ * O botão "Salvar" saiu na Onda 2 de UI: ele ficava `disabled` quase o tempo todo
+ * — porque o autosave do blur já tinha salvado — e botão apagado lê como defeito.
+ * O que entrou no lugar não é uma ação, é o estado do documento.
+ *
+ * O caso que protege a troca é o terceiro: sem botão, o único jeito de salvar é o
+ * blur. Se ele parar de disparar, o usuário perde texto em silêncio.
+ */
+describe('CharterClient — estado de salvamento', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertMock.mockResolvedValue({});
+    listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
+    listUsersMock.mockResolvedValue(ALL_USERS);
+  });
+
+  it('should not offer a Salvar button, since the blur already persists', () => {
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    expect(screen.queryByRole('button', { name: /^Salvar/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * O autosave se exercita no **Orçamento**, e não num campo narrativo.
+   *
+   * Os campos narrativos viraram editor rico (Tiptap), que é `contenteditable`
+   * sobre ProseMirror — e ProseMirror não funciona em jsdom: falta `Range`,
+   * falta `getClientRects`, e o placeholder dele é CSS (`content: attr(...)`),
+   * então nem `getByPlaceholderText` o encontra.
+   *
+   * O que estes testes protegem é o **mecanismo de autosave**, não um campo
+   * específico: "Alterações não salvas" enquanto edita, `PUT` no blur, "Salvo
+   * às HH:MM" depois. O Orçamento é `<input>` de verdade e passa pelo MESMO
+   * `handleFieldBlur`, então o mecanismo continua coberto.
+   *
+   * O que ficou SEM cobertura automática: digitar dentro do editor rico. Isso
+   * é teste manual — está no roteiro.
+   */
+  it('should warn that changes are pending while the field is still focused', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Recursos e Orçamento/ }));
+    await user.type(screen.getByPlaceholderText('0,00'), '1200');
+
+    expect(screen.getByText('Alterações não salvas')).toBeInTheDocument();
+    expect(upsertMock).not.toHaveBeenCalled();
+  });
+
+  it('should report the time of the autosave once the field loses focus', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Recursos e Orçamento/ }));
+    await user.type(screen.getByPlaceholderText('0,00'), '1200');
+    await user.tab();
+
+    await waitFor(() => expect(upsertMock).toHaveBeenCalled());
+    expect(await screen.findByText(/^Salvo às \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(screen.queryByText('Alterações não salvas')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * "Todas as bolinhas verdes" não era mapa de cor errado: a bolinha só era
+ * renderizada quando a seção tinha conteúdo, então nunca havia uma segunda cor
+ * para comparar. Os dois casos precisam existir juntos — testar só a preenchida
+ * passa com o comportamento antigo.
+ */
+describe('CharterClient — progresso das seções no nav', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    upsertMock.mockResolvedValue({});
+    listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
+    listUsersMock.mockResolvedValue(ALL_USERS);
+  });
+
+  // A contagem sai do próprio nav: acrescentar uma seção ao TAP não deve
+  // quebrar este teste por um número fixo desatualizado.
+  it('should mark every section as empty when the charter has no content', () => {
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={null} project={PROJECT} />,
+    );
+
+    const sections = screen.getAllByRole('button').filter((b) => /^\d+\./.test(b.textContent ?? ''));
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(sections.length);
+    expect(screen.queryByLabelText('Seção preenchida')).not.toBeInTheDocument();
+  });
+
+  it('should distinguish a filled section from the empty ones', () => {
+    const charter = {
+      mainObjective: 'Reduzir o custo do xarope de xilose em 30%.',
+      team: [],
+    } as unknown as Parameters<typeof CharterClient>[0]['initialData'];
+
+    renderWithProviders(
+      <CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />,
+    );
+
+    const sections = screen.getAllByRole('button').filter((b) => /^\d+\./.test(b.textContent ?? ''));
+    expect(screen.getAllByLabelText('Seção preenchida')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Seção vazia')).toHaveLength(sections.length - 1);
+  });
+
+  // A seção Riscos não tem campo de formulário — quem a preenche são os riscos
+  // cadastrados na aba. Sem isso ela ficaria eternamente cinza.
+  it('should mark the risks section as filled when the project has risks', () => {
+    renderWithProviders(
+      <CharterClient
+        projectId="proj-1"
+        initialData={null}
+        project={PROJECT}
+        risks={[{ id: 'r-1', title: 'Fornecedor único', score: 12, probability: 3, impact: 4, owner: null }] as never}
+      />,
+    );
+
+    expect(screen.getAllByLabelText('Seção preenchida')).toHaveLength(1);
+  });
+});
+
+/**
  * O `charter-client` tinha UM `fmtDate` servindo aos dois tipos de data — e por
  * isso estava errado nas duas pontas: corrigir o dia de calendário quebraria o
  * instante, e deixar como estava mantinha o dia deslocado. O split em
@@ -150,6 +288,7 @@ describe('CharterClient — dia de calendário vs instante', () => {
     vi.clearAllMocks();
     upsertMock.mockResolvedValue({});
     listContactsMock.mockResolvedValue([]);
+    listEquipmentMock.mockResolvedValue([]);
     listUsersMock.mockResolvedValue(ALL_USERS);
   });
 
@@ -185,5 +324,35 @@ describe('CharterClient — dia de calendário vs instante', () => {
     );
 
     expect(screen.getByText(/Aprovado em 01\/10\/2026/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * "Tipo" era campo de texto livre. Virou lista fechada com os cinco tipos
+ * pedidos na reunião de 28/07/2026 — mas `Charter.projectType` continua
+ * `String?` no banco, então valor antigo fora da lista precisa sobreviver.
+ */
+describe('CharterClient — tipo de projeto', () => {
+  it('should offer the five agreed project types', () => {
+    renderWithProviders(<CharterClient projectId="proj-1" initialData={null} project={PROJECT} />);
+
+    // Tipo é o primeiro dos dois selects da seção (o outro é Prioridade).
+    const [tipo] = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    const options = Array.from(tipo.options).map((o) => o.value).filter(Boolean);
+    expect(options).toEqual(['Interno', 'Parceria', 'Contrato', 'Serviço', 'Subvenção']);
+  });
+
+  // Sem isto o select apareceria vazio e o primeiro salvamento apagaria o que
+  // o usuário já tinha escrito à mão.
+  it('should keep a legacy free-text value selectable', () => {
+    const charter = {
+      projectType: 'P&D Interno (texto antigo)',
+      team: [],
+    } as unknown as Parameters<typeof CharterClient>[0]['initialData'];
+
+    renderWithProviders(<CharterClient projectId="proj-1" initialData={charter} project={PROJECT} />);
+
+    expect(screen.getByRole('option', { name: 'P&D Interno (texto antigo)' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('P&D Interno (texto antigo)')).toBeInTheDocument();
   });
 });

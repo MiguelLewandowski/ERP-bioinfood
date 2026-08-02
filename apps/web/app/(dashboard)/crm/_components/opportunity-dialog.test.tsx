@@ -56,6 +56,7 @@ const EXISTING_OPPORTUNITY = {
   description: 'Negócio em andamento',
   organization: { id: 'org-1', legalName: 'ACME LTDA', tradeName: 'ACME' },
   responsible: { id: 'user-5', name: 'Fernanda Alves' },
+  pipeline: { id: 'pipe-1', name: 'Padrão' },
 } as unknown as OpportunityDto;
 
 function setup(props: Partial<React.ComponentProps<typeof OpportunityDialog>> = {}) {
@@ -67,6 +68,7 @@ function setup(props: Partial<React.ComponentProps<typeof OpportunityDialog>> = 
       mode="create"
       pipelineId="pipe-1"
       defaultStageId="stage-1"
+      pipelines={[]}
       users={USERS}
       canEdit
       onSaved={onSaved}
@@ -218,7 +220,7 @@ describe('OpportunityDialog — edit mode', () => {
 
     await user.click(screen.getByRole('button', { name: /Excluir/ }));
 
-    expect(await screen.findByText('Excluir negócio')).toBeInTheDocument();
+    expect(await screen.findByText('Excluir oportunidade')).toBeInTheDocument();
     expect(removeMock).not.toHaveBeenCalled();
   });
 
@@ -227,7 +229,7 @@ describe('OpportunityDialog — edit mode', () => {
     const { onDeleted, onClose } = setup({ mode: 'edit', opportunity: EXISTING_OPPORTUNITY });
 
     await user.click(screen.getByRole('button', { name: /Excluir/ }));
-    await screen.findByText('Excluir negócio');
+    await screen.findByText('Excluir oportunidade');
     await user.click(screen.getByRole('button', { name: 'Excluir' }));
 
     await waitFor(() => expect(removeMock).toHaveBeenCalledWith('opp-1', TEST_TOKEN));
@@ -240,23 +242,35 @@ describe('OpportunityDialog — edit mode', () => {
     const { onDeleted } = setup({ mode: 'edit', opportunity: EXISTING_OPPORTUNITY });
 
     await user.click(screen.getByRole('button', { name: /Excluir/ }));
-    await screen.findByText('Excluir negócio');
+    await screen.findByText('Excluir oportunidade');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
-    await waitFor(() => expect(screen.queryByText('Excluir negócio')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Excluir oportunidade')).not.toBeInTheDocument());
     expect(removeMock).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });
 
-  it('should freeze an active deal and confirm it to the user', async () => {
+  it('should ask for a reason before freezing an active deal', async () => {
     const user = userEvent.setup();
     const { onSaved } = setup({ mode: 'edit', opportunity: EXISTING_OPPORTUNITY });
 
     await user.click(screen.getByRole('button', { name: /Congelar/ }));
+    await user.type(screen.getByLabelText('Motivo do congelamento'), 'Aguardando orçamento');
+    await user.click(screen.getByRole('button', { name: /Congelar/ }));
 
-    await waitFor(() => expect(freezeMock).toHaveBeenCalledWith('opp-1', TEST_TOKEN));
-    expect(toastSuccessMock).toHaveBeenCalledWith('Negócio congelado');
+    await waitFor(() => expect(freezeMock).toHaveBeenCalledWith('opp-1', 'Aguardando orçamento', TEST_TOKEN));
+    expect(toastSuccessMock).toHaveBeenCalledWith('Oportunidade congelada');
     expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('should freeze without a reason when the field is left blank', async () => {
+    const user = userEvent.setup();
+    setup({ mode: 'edit', opportunity: EXISTING_OPPORTUNITY });
+
+    await user.click(screen.getByRole('button', { name: /Congelar/ }));
+    await user.click(screen.getByRole('button', { name: /Congelar/ }));
+
+    await waitFor(() => expect(freezeMock).toHaveBeenCalledWith('opp-1', undefined, TEST_TOKEN));
   });
 
   it('should reactivate a frozen deal', async () => {
@@ -268,7 +282,7 @@ describe('OpportunityDialog — edit mode', () => {
     await user.click(screen.getByRole('button', { name: /Reativar/ }));
 
     await waitFor(() => expect(unfreezeMock).toHaveBeenCalledWith('opp-1', TEST_TOKEN));
-    expect(toastSuccessMock).toHaveBeenCalledWith('Negócio reativado');
+    expect(toastSuccessMock).toHaveBeenCalledWith('Oportunidade reativada');
   });
 
   it('should report the error and keep the dialog open when the update fails', async () => {

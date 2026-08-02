@@ -195,6 +195,8 @@ export function CrmClient(props: CrmClientProps) {
 
   function onSaved(saved: OpportunityDto) {
     setOpps((prev) => {
+      // Movida para outro funil: some da visão atual, que é por pipeline.
+      if (pipeline && saved.pipelineId !== pipeline.id) return prev.filter((o) => o.id !== saved.id);
       const exists = prev.some((o) => o.id === saved.id);
       return exists ? prev.map((o) => (o.id === saved.id ? saved : o)) : [saved, ...prev];
     });
@@ -271,7 +273,7 @@ export function CrmClient(props: CrmClientProps) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar negócio ou empresa…"
+            placeholder="Buscar oportunidade ou empresa…"
             className="h-8 pl-8 pr-7 text-xs"
           />
           {search && (
@@ -294,7 +296,7 @@ export function CrmClient(props: CrmClientProps) {
               : 'border-input text-muted-foreground hover:bg-muted/60',
           )}
         >
-          <User size={13} /> Meus negócios
+          <User size={13} /> Minhas oportunidades
         </button>
         {filterActive && (
           <button
@@ -308,9 +310,8 @@ export function CrmClient(props: CrmClientProps) {
       </div>
 
       {summary && (
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3">
           <Metric label="Em aberto" value={formatBRL(summary.openTotal)} />
-          <Metric label="Ponderado" value={formatBRL(summary.weightedTotal)} />
           <Metric
             label="Conversão"
             value={`${Math.round(summary.conversionRate * 100)}%`}
@@ -323,13 +324,22 @@ export function CrmClient(props: CrmClientProps) {
       <div className="overflow-x-auto pb-2">
         <DndContext id="crm-kanban-dnd" sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <div className="grid items-start gap-3" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(220px, 1fr))` }}>
-            {stages.map((stage) => {
-              // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
-              const colOpps = opps
-                .filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o))
-                .sort((a, b) => a.order - b.order);
-              return (
-                <CrmColumn key={stage.id} stage={stage} count={colOpps.length} amount={stageAmount(stage.id)}>
+            {(() => {
+              // Base da porcentagem por etapa: mesma população que aparece nas colunas.
+              const totalActive = opps.filter((o) => !o.frozenAt && matchesFilter(o)).length;
+              return stages.map((stage) => {
+                // Congelados saem do funil ativo (decisão 7) — vivem na seção abaixo.
+                const colOpps = opps
+                  .filter((o) => o.stageId === stage.id && !o.frozenAt && matchesFilter(o))
+                  .sort((a, b) => a.order - b.order);
+                return (
+                  <CrmColumn
+                    key={stage.id}
+                    stage={stage}
+                    count={colOpps.length}
+                    percent={totalActive > 0 ? Math.round((colOpps.length / totalActive) * 100) : null}
+                    amount={stageAmount(stage.id)}
+                  >
                   <SortableContext items={colOpps.map((o) => o.id)} strategy={verticalListSortingStrategy}>
                     {colOpps.map((o) => (
                       <CrmCard
@@ -349,8 +359,9 @@ export function CrmClient(props: CrmClientProps) {
                     </p>
                   )}
                 </CrmColumn>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
           <DragOverlay>{active && <CrmCard opportunity={active} isOverlay draggable={false} />}</DragOverlay>
         </DndContext>
@@ -361,31 +372,48 @@ export function CrmClient(props: CrmClientProps) {
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-foreground">
             <Snowflake size={15} className="text-blue-500" /> Congelados ({frozenOpps.length})
           </h3>
-          <ul className="space-y-2">
-            {frozenOpps.map((o) => (
-              <li
-                key={o.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => props.canEdit && setEditing(o)}
-                  className="min-w-0 flex-1 truncate text-left text-sm text-foreground hover:text-primary"
-                >
-                  {o.title} <span className="text-xs text-muted-foreground">· {o.organization.tradeName ?? o.organization.legalName}</span>
-                </button>
-                {props.canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => reactivate(o.id)}
-                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    <Sun size={13} /> Reativar
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                <th className="pb-2 font-medium">Oportunidade</th>
+                <th className="pb-2 font-medium">Motivo</th>
+                <th className="pb-2 font-medium">Congelado em</th>
+                {props.canEdit && <th className="pb-2 font-medium" />}
+              </tr>
+            </thead>
+            <tbody>
+              {frozenOpps.map((o) => (
+                <tr key={o.id} className="border-b border-border/40 last:border-0">
+                  <td className="max-w-0 py-2 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => props.canEdit && setEditing(o)}
+                      className="block truncate text-left text-foreground hover:text-primary"
+                    >
+                      {o.title} <span className="text-xs text-muted-foreground">· {o.organization.tradeName ?? o.organization.legalName}</span>
+                    </button>
+                  </td>
+                  <td className="max-w-0 truncate py-2 pr-2 text-xs text-muted-foreground">
+                    {o.frozenReason ?? '—'}
+                  </td>
+                  <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted-foreground">
+                    {o.frozenAt ? new Date(o.frozenAt).toLocaleDateString('pt-BR') : '—'}
+                  </td>
+                  {props.canEdit && (
+                    <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => reactivate(o.id)}
+                        className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-primary hover:underline"
+                      >
+                        <Sun size={13} /> Reativar
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       )}
 
@@ -394,6 +422,7 @@ export function CrmClient(props: CrmClientProps) {
           mode="create"
           pipelineId={pipeline.id}
           defaultStageId={firstOpen.id}
+          pipelines={props.pipelines}
           users={props.users}
           canEdit={props.canEdit}
           onSaved={onSaved}
@@ -408,6 +437,7 @@ export function CrmClient(props: CrmClientProps) {
           pipelineId={pipeline.id}
           defaultStageId={editing.stageId}
           opportunity={editing}
+          pipelines={props.pipelines}
           users={props.users}
           canEdit={props.canEdit}
           onSaved={onSaved}

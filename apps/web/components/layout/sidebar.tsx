@@ -55,10 +55,10 @@ export default function Sidebar({ session }: SidebarProps) {
       >
         {collapsed ? (
           <Image
-            src="/logo/logotipo-vertical.png"
+            src="/logo/bio_transparente.png"
             alt="Bioinfood"
-            width={1800}
-            height={1968}
+            width={1529}
+            height={1624}
             priority
             className="h-14 w-auto"
           />

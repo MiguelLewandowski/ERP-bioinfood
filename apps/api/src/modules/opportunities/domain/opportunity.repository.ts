@@ -11,6 +11,7 @@ export const OPPORTUNITY_REPOSITORY = 'OPPORTUNITY_REPOSITORY';
 
 export interface MoveData {
   stageId: string;
+  pipelineId: string;
   probability: number;
   closedAt: Date | null;
   lostReason: string | null;

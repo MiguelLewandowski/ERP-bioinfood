@@ -9,7 +9,7 @@ import {
 import type { CrmActivityDto, OpportunityDto } from '@bioinfood/shared';
 import { cn } from '@/lib/utils';
 import {
-  isOverdue, type OpportunityTaskState, type OpportunityTaskSummary,
+  ACTIVITY_TYPE_LABELS, isOverdue, type OpportunityTaskState, type OpportunityTaskSummary,
 } from '@/lib/crm-tasks';
 
 export function formatBRL(amount: string | null, currency = 'BRL'): string {
@@ -32,18 +32,18 @@ const TASK_STATE_META: Record<
   },
   today: {
     icon: Clock,
-    className: 'text-accent',
-    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — há uma para hoje`,
+    className: 'text-success',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — em dia, há uma para hoje`,
   },
   upcoming: {
     icon: ListChecks,
-    className: 'text-muted-foreground',
-    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''}`,
+    className: 'text-success',
+    label: (n) => `${n} tarefa${n > 1 ? 's' : ''} pendente${n > 1 ? 's' : ''} — em dia`,
   },
   none: {
     icon: CircleDashed,
-    className: 'text-muted-foreground/50',
-    label: () => 'Sem tarefa — negócio sem próximo passo',
+    className: 'text-warning',
+    label: () => 'Sem tarefa — oportunidade sem próximo passo',
   },
 };
 
@@ -128,13 +128,10 @@ export function CrmCard({
           </Link>
         )}
       </div>
-      <div className="mt-1.5 flex items-center justify-between">
+      <div className="mt-1.5">
         <span className="text-sm font-semibold text-primary">
           {formatBRL(opportunity.amount, opportunity.currency)}
         </span>
-        {opportunity.probability !== null && (
-          <span className="text-[11px] text-muted-foreground">{opportunity.probability}%</span>
-        )}
       </div>
       {opportunity.responsible && (
         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -151,7 +148,9 @@ export function CrmCard({
             )}
           >
             {overdue ? <AlertTriangle size={11} className="shrink-0" /> : <Clock size={11} className="shrink-0" />}
-            <span className="min-w-0 flex-1 truncate">{urgentTask.title}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {urgentTask.description ?? ACTIVITY_TYPE_LABELS[urgentTask.type]}
+            </span>
             {onCompleteTask && (
               <button
                 type="button"

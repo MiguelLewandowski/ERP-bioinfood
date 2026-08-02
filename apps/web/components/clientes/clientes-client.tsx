@@ -117,7 +117,7 @@ export default function ClientesClient({
           description="Cadastre o primeiro cliente para começar"
           action={
             canCreate(session.role) && (
-              <Button onClick={() => setOpen(true)}>+ Novo Cliente</Button>
+              <Button onClick={() => setOpen(true)}>+ Nova Empresa</Button>
             )
           }
           className="py-20"
@@ -177,7 +177,7 @@ export default function ClientesClient({
             </Link>
           )}
           {canCreate(session.role) && (
-            <Button onClick={() => setOpen(true)}>+ Novo Cliente</Button>
+            <Button onClick={() => setOpen(true)}>+ Nova Empresa</Button>
           )}
         </div>
       </div>

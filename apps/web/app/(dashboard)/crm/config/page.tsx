@@ -35,7 +35,7 @@ export default async function CrmConfigPage({ searchParams }: Props) {
     <div className="p-6">
       <PageHeader
         title="Configuração do CRM"
-        description="Taxonomias e funis usados no cadastro de empresas e negócios"
+        description="Taxonomias e funis usados no cadastro de empresas e oportunidades"
       />
       <ConfigTabs
         initialTab={initialTab}

@@ -11,6 +11,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { OrganizationSelect } from '@/components/shared/organization-select';
 import { MaskedInput } from '@/components/ui/masked-input';
 import { maskPhone } from '@/lib/masks';
+import { useFormDraft, clearFormDraft } from '@/lib/use-form-draft';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -45,13 +46,16 @@ export function PessoaDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(mode === 'edit');
   const [detail, setDetail] = useState<ContactDetailDto | null>(null);
+  const emptyValues: FormValues = {
+    name: '', whatsapp: '', email: '', sourceId: '', jobTitle: '', linkedin: '', orgId: '',
+  };
   const {
-    register, handleSubmit, reset, control, formState: { errors },
-  } = useForm<FormValues>({
-    defaultValues: {
-      name: '', whatsapp: '', email: '', sourceId: '', jobTitle: '', linkedin: '', orgId: '',
-    },
-  });
+    register, handleSubmit, reset, watch, control, formState: { errors },
+  } = useForm<FormValues>({ defaultValues: emptyValues });
+
+  // Só rascunho de criação — editar carrega o dado real do servidor no useEffect abaixo.
+  const draftKey = mode === 'create' ? 'draft:pessoa' : null;
+  useFormDraft(draftKey, watch, reset, emptyValues);
 
   const primaryLink = detail?.orgLinks[0];
 
@@ -92,6 +96,7 @@ export function PessoaDialog({
         const contact = await contactsApi.create(payload, token);
         await contactsApi.addLink(contact.id, { orgId: v.orgId, jobTitle: v.jobTitle || undefined }, token);
         onSaved(contact);
+        if (draftKey) clearFormDraft(draftKey);
         onClose();
       } else {
         const contact = await contactsApi.update(contactId!, payload, token);

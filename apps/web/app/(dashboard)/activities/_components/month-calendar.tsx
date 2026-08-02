@@ -15,7 +15,24 @@ interface MonthCalendarProps {
   onSelectDay: (date: Date, activities: ActivityDto[]) => void;
 }
 
-const MAX_LANES = 3; // trilhas de barras visíveis por linha antes do "+N"
+/**
+ * Trilhas de barras por semana.
+ *
+ * Era um teto FIXO de 3: qualquer semana com quatro atividades escondia a
+ * quarta atrás de "+1 mais", e só clicando dava para saber o que era. Agora a
+ * linha da semana **cresce até caber** — e o teto só existe para uma semana
+ * atípica não empurrar as outras para fora da tela.
+ *
+ * Semana tranquila continua com a mesma altura de antes (`MIN_LANES`), então o
+ * calendário não fica esparso à toa.
+ */
+const MIN_LANES = 3;
+const MAX_LANES = 8;
+
+const LANE_HEIGHT = 20;
+const LANE_GAP = 3;
+/** Altura do número do dia + respiro, acima da primeira trilha. */
+const HEADER_OFFSET = 32;
 const WEEKDAYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
 
 export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDay }: MonthCalendarProps) {
@@ -50,8 +67,12 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
       {/* Semanas */}
       {weeks.map((days) => {
         const bars = layoutWeekBars(days, activities);
-        const visible = bars.filter((b) => b.lane < MAX_LANES);
-        const hidden = bars.filter((b) => b.lane >= MAX_LANES);
+        // Quantas trilhas esta semana precisa, dentro do teto.
+        const needed = bars.reduce((max, b) => Math.max(max, b.lane + 1), 0);
+        const lanes = Math.min(Math.max(needed, MIN_LANES), MAX_LANES);
+        const visible = bars.filter((b) => b.lane < lanes);
+        const hidden = bars.filter((b) => b.lane >= lanes);
+        const rowHeight = HEADER_OFFSET + lanes * (LANE_HEIGHT + LANE_GAP);
 
         return (
           <div key={days[0].toISOString()} className="relative grid grid-cols-7 border-b border-gray-200 last:border-b-0">
@@ -67,7 +88,8 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
                 <button
                   key={day.toISOString()}
                   onClick={() => onSelectDay(day, activitiesForDay(day))}
-                  className={`flex min-h-[116px] flex-col border-r border-gray-100 px-1 pt-1 text-left transition-colors last:border-r-0 hover:bg-success/10 ${
+                  style={{ minHeight: rowHeight }}
+                  className={`flex flex-col border-r border-gray-100 px-1 pt-1 text-left transition-colors last:border-r-0 hover:bg-success/10 ${
                     isToday ? 'bg-success/10' : !inMonth ? 'bg-gray-50/60' : isWeekend ? 'bg-gray-50/40' : ''
                   }`}
                 >
@@ -97,27 +119,41 @@ export function MonthCalendar({ cursor, activities, onSelectActivity, onSelectDa
             {/* Camada de barras posicionadas */}
             <div
               className="pointer-events-none absolute inset-x-0 top-8 grid grid-cols-7 gap-x-1 px-1"
-              style={{ gridAutoRows: '20px', rowGap: '3px' }}
+              style={{ gridAutoRows: `${LANE_HEIGHT}px`, rowGap: `${LANE_GAP}px` }}
             >
               {visible.map((bar) => {
                 const status = STATUS_META[bar.activity.status];
                 const priority = PRIORITY_META[bar.activity.priority];
                 const overdue = isOverdue(bar.activity);
+                // Prioridade era só uma borda esquerda de 2px — invisível nesta
+                // densidade. Agora Alta/Crítica e atraso ganham um ponto sólido
+                // antes do título, que é o que se varre com o olho.
+                const urgent = overdue || bar.activity.priority === 'HIGH' || bar.activity.priority === 'CRITICAL';
+                const accentColor = overdue ? OVERDUE_COLOR : priority.color;
                 return (
                   <button
                     key={bar.activity.id + bar.colStart}
                     onClick={() => onSelectActivity(bar.activity)}
-                    title={`${bar.activity.title} · ${bar.activity.project.name}`}
-                    className="pointer-events-auto flex items-center truncate rounded border-l-2 px-1.5 text-left text-[11px] font-medium leading-tight hover:opacity-80"
+                    title={`${bar.activity.title} · ${bar.activity.project.name} · Prioridade: ${priority.label}${overdue ? ' · Atrasada' : ''}`}
+                    className="pointer-events-auto flex items-center gap-1 truncate rounded border-l-2 px-1.5 text-left text-[11px] leading-tight hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     style={{
                       gridColumn: `${bar.colStart + 1} / span ${bar.span}`,
                       gridRow: bar.lane + 1,
                       backgroundColor: status.bg,
                       color: status.color,
-                      borderColor: overdue ? OVERDUE_COLOR : priority.color,
+                      borderColor: accentColor,
                     }}
                   >
-                    <span className="truncate">{bar.activity.title}</span>
+                    {urgent && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: accentColor }}
+                        aria-hidden
+                      />
+                    )}
+                    <span className={`truncate ${urgent ? 'font-bold' : 'font-medium'}`}>
+                      {bar.activity.title}
+                    </span>
                   </button>
                 );
               })}

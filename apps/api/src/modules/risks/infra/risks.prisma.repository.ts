@@ -5,7 +5,23 @@ import { CreateRiskData, RiskWithOwner, UpdateRiskData } from '../domain/risk.en
 
 const WITH_OWNER = {
   owner: { select: { id: true, name: true } },
+  coOwners: { select: { user: { select: { id: true, name: true } } } },
 } as const;
+
+/**
+ * Separa os corresponsáveis do resto dos campos.
+ *
+ * `coOwnerIds` não é coluna de `Risk` — mandá-lo direto para o Prisma quebraria
+ * o update. Ausente significa "não mexer na lista"; presente substitui a lista
+ * inteira, que é o que o formulário envia.
+ */
+function splitCoOwners<T extends { coOwnerIds?: string[] }>(data: T) {
+  const { coOwnerIds, ...rest } = data;
+  const coOwners = coOwnerIds === undefined
+    ? undefined
+    : { deleteMany: {}, create: coOwnerIds.map((userId) => ({ userId })) };
+  return { rest, coOwners };
+}
 
 @Injectable()
 export class RisksPrismaRepository implements IRiskRepository {
@@ -28,16 +44,18 @@ export class RisksPrismaRepository implements IRiskRepository {
   }
 
   create(data: CreateRiskData & { score: number }): Promise<RiskWithOwner> {
+    const { rest, coOwners } = splitCoOwners(data);
     return this.prisma.risk.create({
-      data,
+      data: { ...rest, ...(coOwners ? { coOwners: { create: coOwners.create } } : {}) },
       include: WITH_OWNER,
     }) as Promise<RiskWithOwner>;
   }
 
   update(id: string, data: UpdateRiskData & { score?: number }): Promise<RiskWithOwner> {
+    const { rest, coOwners } = splitCoOwners(data);
     return this.prisma.risk.update({
       where: { id },
-      data,
+      data: { ...rest, ...(coOwners ? { coOwners } : {}) },
       include: WITH_OWNER,
     }) as Promise<RiskWithOwner>;
   }

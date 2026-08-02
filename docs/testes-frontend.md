@@ -55,7 +55,7 @@ pnpm --filter @bioinfood/web test:watch  # modo watch
 | `crm/_components/task-dialog` | 14 | Todos os 6 campos que a API aceita, exclusão só após confirmar |
 | `components/clientes/cliente-dialog` | 16 | **Regra de CNPJ obrigatório salvo empresa estrangeira**, máscara, enriquecimento por CNPJ, follow-ups best-effort |
 | `crm/empresas/[id]/contatos-tab` | 9 | Marcadores de relacionamento indo no **vínculo**, não no contato |
-| `crm/empresas/[id]/timeline-tab` | 9 | Follow-up opcional vinculado à interação recém-criada |
+| `crm/_components/opportunity-timeline` *(dívida)* | 0 | Timeline migrou de empresa p/ negócio (2026-08-01); os 9 testes antigos de `timeline-tab` foram removidos junto do arquivo e ainda não têm equivalente no componente novo |
 
 ### Projetos (prioridade 2 e 3)
 

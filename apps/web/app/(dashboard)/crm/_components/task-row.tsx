@@ -69,9 +69,11 @@ export function TaskRow({ task, onToggle, onEdit, showContext }: TaskRowProps) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <ActivityTypeBadge type={task.type} />
-          <span className={cn('text-sm', done ? 'text-muted-foreground line-through' : 'text-foreground')}>
-            {task.title}
-          </span>
+          {task.description && (
+            <span className={cn('truncate text-sm', done ? 'text-muted-foreground line-through' : 'text-foreground')}>
+              {task.description}
+            </span>
+          )}
           {!done && task.priority !== 'MEDIUM' && <PriorityBadge priority={task.priority} />}
         </div>
 

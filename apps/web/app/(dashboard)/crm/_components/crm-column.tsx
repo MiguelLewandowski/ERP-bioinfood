@@ -8,11 +8,13 @@ import { formatBRL } from './crm-card';
 interface CrmColumnProps {
   stage: StageDto;
   count: number;
+  /** % do total de oportunidades ativas do funil que está nesta etapa. */
+  percent: number | null;
   amount: string;
   children: React.ReactNode;
 }
 
-export function CrmColumn({ stage, count, amount, children }: CrmColumnProps) {
+export function CrmColumn({ stage, count, percent, amount, children }: CrmColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
     data: { stageId: stage.id, stageType: stage.type },
@@ -32,7 +34,9 @@ export function CrmColumn({ stage, count, amount, children }: CrmColumnProps) {
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-xs font-semibold text-foreground">{stage.name}</span>
-          <span className="text-[11px] text-muted-foreground">{count}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {count}{percent !== null && ` · ${percent}%`}
+          </span>
         </div>
         <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{formatBRL(amount)}</span>
       </div>

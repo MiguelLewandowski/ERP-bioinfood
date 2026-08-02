@@ -29,11 +29,15 @@ export interface RiskEntity {
 
 export interface RiskWithOwner extends RiskEntity {
   owner: { id: string; name: string } | null;
+  /** Quem divide a responsabilidade com o `owner`. */
+  coOwners: Array<{ user: { id: string; name: string } }>;
 }
 
 export interface CreateRiskData {
   projectId: string;
   ownerId?: string;
+  /** Corresponsáveis, além do principal. */
+  coOwnerIds?: string[];
   title: string;
   description?: string;
   probability: RiskProbability;
@@ -43,6 +47,8 @@ export interface CreateRiskData {
 
 export interface UpdateRiskData {
   ownerId?: string | null;
+  /** Substitui a lista inteira quando presente; ausente = não mexe. */
+  coOwnerIds?: string[];
   title?: string;
   description?: string | null;
   probability?: RiskProbability;

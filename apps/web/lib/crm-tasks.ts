@@ -13,6 +13,7 @@ export const ACTIVITY_TYPE_LABELS: Record<CrmActivityType, string> = {
   PROPOSAL: 'Proposta',
   MEETING: 'Reunião',
   VISIT: 'Visita',
+  OTHER: 'Outro',
 };
 
 /** Data de hoje em ISO curto (yyyy-mm-dd), no fuso local. */

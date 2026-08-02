@@ -16,53 +16,26 @@ Status: **🔍 triagem** = só o esqueleto, tipo/escopo/complexidade são palpit
 
 ## Índice
 
-### Bugs
-- [ ] [Nomes de ADMIN não aparecem nos selects de responsável](bug-admin-nao-aparece-nos-selects.md) — bug · api · baixa · 🔍 triagem
-- [ ] [Não deixa mudar tarefa de TODO para DONE ao salvar](bug-nao-salva-status-todo-para-done.md) — bug · web · média · 🔍 triagem
+### CRM — Importação (planejamento futuro)
+- [ ] [Importar contatos/empresas/negócios de planilha do Agendor](feat-importar-planilha-agendor.md) — feature · api/web · alta · 🔍 triagem — **só planejar, sem arquivo de exemplo ainda**
 
-### Qualidade
-- [ ] [Estabilizar a suíte web, que falha de forma não determinística sob carga](test-suite-web-instavel-sob-carga.md) — bug · web · baixa · ✅ detalhada
+## Lote CRM de 2026-07-31 — concluído
 
-### Projeto / TAP
-- [ ] [Adicionar tipos de projeto (INTERNO, PARCERIA, CONTRATO, SERVIÇO, SUBVENÇÃO)](feat-tipos-de-projeto.md) — feature · db · média · 🔍 triagem
-- [ ] [Retirar o campo "Restrições" do TAP](feat-remover-restricoes-tap.md) — feature · web · baixa · 🔍 triagem
-- [ ] [Criar seção de Riscos no TAP, com atalho para a aba Riscos](feat-secao-riscos-no-tap.md) — feature · web · baixa · 🔍 triagem
-- [ ] [Adicionar ordenação e hierarquia de texto nas caixas do TAP](feat-hierarquia-texto-tap.md) — feature · web · alta · 🔍 triagem
+As demais 20 anotações do lote de CRM (breadcrumb, funil, tarefas, congelamento,
+timeline por oportunidade, tags de status, nomenclatura negócio→oportunidade,
+persistência de rascunho ao fechar modal) foram implementadas na sessão de
+2026-07-31 e os documentos de tarefa removidos. Duas notas que não viraram
+arquivo por não terem alvo identificável na anotação ("adicionar uma tela",
+"contatos") foram descartadas a pedido do desenvolvedor.
 
-### Tarefas
-- [ ] [Padronizar o formulário de nova tarefa do "Novo" global com o do Backlog](feat-padronizar-form-nova-tarefa.md) — feature · web · baixa · 🔍 triagem
-- [ ] [Permitir mais de um responsável por tarefa](feat-multiplos-responsaveis-tarefa.md) — feature · db · alta · 🔍 triagem
+Decisão de escopo tomada durante a implementação, registrada aqui por não
+estar em nenhum outro doc:
+- **Remoção de ponderação (`probability`) do funil**: só saiu da UI (config de
+  funil, card do kanban, dialog, métrica "Ponderado" do resumo) — a coluna
+  continua no banco, sem migration destrutiva.
 
-### Riscos
-- [ ] [Permitir mais de um responsável por risco](feat-multiplos-responsaveis-risco.md) — feature · db · média · 🔍 triagem
-
-### Stakeholders
-- [ ] [Stakeholder: tornar o contato opcional e permitir digitar só o nome](feat-stakeholder-contato-opcional.md) — feature · db · média · 🔍 triagem
-
-### Atividades
-- [ ] [Calendário: ver todas as atividades do dia sem precisar clicar](feat-calendario-mostrar-mais-atividades.md) — feature · web · baixa · 🔍 triagem
-- [ ] [Melhoria visual da tela de Atividades](feat-melhoria-visual-atividades.md) — feature · web · média · 🔍 triagem
-
-### Gantt
-- [ ] [Manter a barra de rolagem horizontal sempre visível](feat-gantt-barra-horizontal-fixa.md) — feature · web · baixa · 🔍 triagem
-- [ ] [Tentar adicionar desfazer (Ctrl+Z)](feat-gantt-ctrl-z.md) — feature · web · alta · 🔍 triagem
-- [ ] [Aplicar o PATCH condicional também aos marcos](bug-gantt-marco-grava-sem-comparar.md) — bug · web · baixa · ✅ detalhada
-- [ ] [Reduzir a escrita de reordenar, que reescreve o projeto inteiro](perf-gantt-reordenar-reescreve-projeto-inteiro.md) — feature · web · média · ✅ detalhada
-
-> As duas acima saíram de `docs/incidentes/timezone-cronograma.md` §10. Ler o
-> incidente antes de implementar: ele explica por que o Gantt escreve como
-> escreve, e o que já foi corrigido ali.
-
-### Estoque (módulo novo)
-- [ ] [Checklist de equipamentos no projeto + CRUD de equipamentos](feat-checklist-equipamentos-projeto.md) — feature · api · alta · 🔍 triagem
-- [ ] [Adicionar materiais de insumo em Recursos e Orçamento](feat-materiais-insumo-recursos-tap.md) — feature · api · média · 🔍 triagem
-
-### Notas (módulo novo)
-- [ ] [Criar módulo de anotações pessoais](feat-modulo-anotacoes-pessoais.md) — feature · api · alta · 🔍 triagem
-
-## Feedback registrado (não é tarefa)
-
-**Reunião de teste — Bruna e Luana, 28/07/2026:** o ERP foi considerado *menos fluido que
-o Notion por ter mais abas*. As próprias usuárias atribuíram isso à ambientação a um
-sistema novo, não a um defeito. Não vira tarefa agora — mas se reaparecer em outra
-reunião, é sinal de problema real de navegação e deve virar `/analisar-uiux`.
+"Categoria do funil" (esclarecido depois: são as etapas dentro de cada funil,
+tipo "To Do"/"Em andamento") — a tela de config só permitia adicionar/excluir
+etapa, não renomear uma já existente. Adicionado edição inline do nome em
+`funis-client.tsx` (`StageRow`), reaproveitando `pipelinesApi.updateStage`
+(a API já aceitava `name`, só faltava expor na UI).

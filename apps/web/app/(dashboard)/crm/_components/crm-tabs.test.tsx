@@ -7,7 +7,7 @@ import { CrmTabs } from './crm-tabs';
 vi.mock('@/components/clientes/clientes-client', () => ({
   default: () => <div>painel de empresas</div>,
 }));
-vi.mock('./crm-client', () => ({ CrmClient: () => <div>painel de negócios</div> }));
+vi.mock('./crm-client', () => ({ CrmClient: () => <div>painel de oportunidades</div> }));
 vi.mock('./pessoas-tab', () => ({ PessoasTab: () => <div>painel de pessoas</div> }));
 vi.mock('./tarefas-tab', () => ({ TarefasTab: () => <div>painel de tarefas</div> }));
 
@@ -18,7 +18,7 @@ const PROPS = {
   initialOpportunities: [], summary: null, opportunityTasks: [], canEdit: true,
 };
 
-function setup(initialTab: 'empresas' | 'pessoas' | 'negocios' | 'tarefas' = 'empresas') {
+function setup(initialTab: 'empresas' | 'pessoas' | 'oportunidades' | 'tarefas' = 'empresas') {
   renderWithProviders(<CrmTabs {...PROPS} initialTab={initialTab} />);
 }
 
@@ -28,10 +28,10 @@ beforeEach(() => {
 
 describe('CrmTabs', () => {
   it('should open on the tab the server resolved', () => {
-    setup('negocios');
+    setup('oportunidades');
 
-    expect(screen.getByText('painel de negócios')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Negócios/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('painel de oportunidades')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Oportunidades/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('should switch the panel when another tab is clicked', async () => {

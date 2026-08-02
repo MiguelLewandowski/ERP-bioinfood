@@ -5,7 +5,7 @@ import {
 
 export class CreateInteractionDto {
   @IsString()
-  orgId: string;
+  opportunityId: string;
 
   @IsOptional()
   @IsString()

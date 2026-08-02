@@ -26,9 +26,12 @@ export interface TaskDto {
   status: TaskStatus;
   priority: TaskPriority;
   storyPoints: number | null;
+  requiresSOP: boolean;
   order: number;
   parentId: string | null;
   assignee: { id: string; name: string } | null;
+  /** Corresponsáveis, além do `assignee`. Vazio quando ninguém divide. */
+  coAssignees: Array<{ id: string; name: string }>;
   wbsNode: { id: string; code: string; title: string } | null;
   startDate: Date | null;
   dueDate: Date | null;
@@ -63,9 +66,11 @@ export function toTaskDto(t: TaskWithRelations): TaskDto {
     status: t.status,
     priority: t.priority,
     storyPoints: t.storyPoints,
+    requiresSOP: t.requiresSOP,
     order: t.order,
     parentId: t.parentId,
     assignee: t.assignee,
+    coAssignees: (t.coAssignees ?? []).map((c) => c.user),
     wbsNode: t.wbsNode,
     startDate: t.startDate,
     dueDate: t.dueDate,

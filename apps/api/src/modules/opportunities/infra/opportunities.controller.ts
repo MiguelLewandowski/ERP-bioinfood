@@ -7,13 +7,16 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { ListOpportunitiesUseCase } from '../application/list-opportunities.use-case';
 import { ListOrgOpportunitiesUseCase } from '../application/list-org-opportunities.use-case';
+import { GetOpportunityUseCase } from '../application/get-opportunity.use-case';
 import { CreateOpportunityUseCase } from '../application/create-opportunity.use-case';
 import { UpdateOpportunityUseCase } from '../application/update-opportunity.use-case';
 import { DeleteOpportunityUseCase } from '../application/delete-opportunity.use-case';
 import { MoveOpportunityUseCase } from '../application/move-opportunity.use-case';
 import { ReorderOpportunitiesUseCase } from '../application/reorder-opportunities.use-case';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
-import { UpdateOpportunityDto, MoveOpportunityDto, ReorderOpportunitiesDto } from './dto/update-opportunity.dto';
+import {
+  UpdateOpportunityDto, MoveOpportunityDto, ReorderOpportunitiesDto, FreezeOpportunityDto,
+} from './dto/update-opportunity.dto';
 import { toOpportunityDto } from './opportunity.mapper';
 
 // Ler = todos os papéis internos; escrever/mover = só ADMIN (decisão do owner).
@@ -24,6 +27,7 @@ export class OpportunitiesController {
   constructor(
     private listOpportunities: ListOpportunitiesUseCase,
     private listOrgOpportunities: ListOrgOpportunitiesUseCase,
+    private getOpportunity: GetOpportunityUseCase,
     private createOpportunity: CreateOpportunityUseCase,
     private updateOpportunity: UpdateOpportunityUseCase,
     private deleteOpportunity: DeleteOpportunityUseCase,
@@ -36,6 +40,11 @@ export class OpportunitiesController {
     if (orgId) return (await this.listOrgOpportunities.execute(orgId)).map(toOpportunityDto);
     if (!pipelineId) throw new BadRequestException('pipelineId ou orgId é obrigatório');
     return (await this.listOpportunities.execute(pipelineId)).map(toOpportunityDto);
+  }
+
+  @Get(':id')
+  async getOne(@Param('id') id: string) {
+    return toOpportunityDto(await this.getOpportunity.execute(id));
   }
 
   // Reordena os cards dentro de uma etapa (drag reorder no kanban). Path com
@@ -81,14 +90,16 @@ export class OpportunitiesController {
   // crm-redesign-2026-07): não mexe em stage/probability/closedAt.
   @Patch(':id/freeze')
   @Roles(SystemRole.ADMIN)
-  async freeze(@Param('id') id: string) {
-    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: new Date() }));
+  async freeze(@Param('id') id: string, @Body() dto: FreezeOpportunityDto) {
+    return toOpportunityDto(
+      await this.updateOpportunity.execute(id, { frozenAt: new Date(), frozenReason: dto.reason ?? null }),
+    );
   }
 
   @Patch(':id/unfreeze')
   @Roles(SystemRole.ADMIN)
   async unfreeze(@Param('id') id: string) {
-    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: null }));
+    return toOpportunityDto(await this.updateOpportunity.execute(id, { frozenAt: null, frozenReason: null }));
   }
 
   @Delete(':id')

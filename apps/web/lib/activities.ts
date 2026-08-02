@@ -1,51 +1,115 @@
 import {
-  parseISO, isWithinInterval, format,
+  parseISO, format,
   startOfDay, startOfMonth, startOfWeek, addDays, max as maxDate, min as minDate,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { taskAnchorDate } from '@bioinfood/shared';
 import type { ActivityDto, TaskStatus, TaskPriority } from '@bioinfood/shared';
+import { parseCalendarDate, hasTimeComponent } from './dates';
 
-// Data-âncora da atividade (regra única em @bioinfood/shared), já parseada.
+/**
+ * Data-âncora da atividade (regra única em `@bioinfood/shared`), já parseada.
+ *
+ * ⚠️ `Task.startDate`/`dueDate` são **dia de calendário**, não instante — estão
+ * nominalmente na tabela da seção "Datas" do CLAUDE.md. A API os devolve como
+ * meia-noite **UTC**; `parseISO` os lia em hora local e, em `America/Sao_Paulo`,
+ * meia-noite UTC do dia 02 virava 21:00 do dia **01**.
+ *
+ * O efeito era visível na tela: uma atividade de 02/08 a 21/08 aparecia como
+ * "01 de ago, 21:00 — 20 de ago, 21:00" no detalhe, e caía no bloco do dia
+ * errado na lista. Ver docs/incidentes/timezone-cronograma.md e o achado A2 de
+ * docs/analise-uiux-atividades.md.
+ *
+ * Atividade COM hora de verdade (uma reunião às 14h) continua sendo lida como
+ * instante — daí o `hasTimeComponent` em vez de converter tudo.
+ */
 export function anchorDate(activity: Pick<ActivityDto, 'startDate' | 'dueDate'>): Date | null {
   const raw = taskAnchorDate(activity);
-  return raw ? parseISO(raw) : null;
+  if (!raw) return null;
+  return hasTimeComponent(raw) ? parseISO(raw) : parseCalendarDate(raw);
 }
 
 export interface DayBlock {
   key: string; // yyyy-MM-dd
   date: Date;
-  activities: ActivityDto[];
+  /** Vence neste dia — é o que exige ação. */
+  due: ActivityDto[];
+  /** Já começou e ainda não vence — contexto, mostrado recolhido. */
+  ongoing: ActivityDto[];
 }
 
-// Agrupa atividades por dia (dentro do intervalo), ordenando os blocos por data.
+/**
+ * Agrupa atividades por dia dentro do intervalo.
+ *
+ * ## O defeito que isto corrige
+ *
+ * A versão anterior agrupava pela **data-âncora** (`startDate ?? dueDate`) e
+ * descartava tudo que caísse fora do intervalo. Consequência medida na semana
+ * 27/07–02/08 do banco de demonstração: o resumo dizia "6 Total" e a lista
+ * mostrava **uma** atividade. As outras cinco tinham começado antes de segunda
+ * — e **quatro delas venciam naquela mesma semana**.
+ *
+ * Ou seja: a visão onde se planeja a semana escondia os prazos da semana. A
+ * visão Mês nunca teve o problema, porque usa `effectiveInterval`.
+ *
+ * ## Como funciona agora
+ *
+ * A atividade entra em todo dia coberto pelo seu período, separada em dois
+ * baldes por dia: `due` (vence hoje) e `ongoing` (em andamento). A separação
+ * evita o efeito colateral óbvio de simplesmente listar tudo em todo dia — uma
+ * tarefa de cinco semanas apareceria 35 vezes com o mesmo peso da que vence
+ * hoje, e o ruído substituiria um problema por outro.
+ */
 export function groupByDay(
   activities: ActivityDto[],
   interval: { start: Date; end: Date },
 ): DayBlock[] {
   const blocks = new Map<string, DayBlock>();
 
-  for (const activity of activities) {
-    const date = anchorDate(activity);
-    if (!date || !isWithinInterval(date, interval)) continue;
-    const key = format(date, 'yyyy-MM-dd');
-    if (!blocks.has(key)) blocks.set(key, { key, date, activities: [] });
-    blocks.get(key)!.activities.push(activity);
+  const dayStart = startOfDay(interval.start);
+  const dayEnd = startOfDay(interval.end);
+  for (let d = dayStart; d <= dayEnd; d = addDays(d, 1)) {
+    const key = format(d, 'yyyy-MM-dd');
+    blocks.set(key, { key, date: d, due: [], ongoing: [] });
   }
 
-  return Array.from(blocks.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+  for (const activity of activities) {
+    const iv = effectiveInterval(activity);
+    if (!iv) continue;
+    const from = maxDate([iv.start, dayStart]);
+    const to = minDate([iv.end, dayEnd]);
+    if (to < from) continue;
+
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      const block = blocks.get(format(d, 'yyyy-MM-dd'));
+      if (!block) continue;
+      // "Vence" é o último dia do período — o dia acionável.
+      if (d.getTime() === iv.end.getTime()) block.due.push(activity);
+      else block.ongoing.push(activity);
+    }
+  }
+
+  return Array.from(blocks.values())
+    .filter((b) => b.due.length > 0 || b.ongoing.length > 0)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 export function formatDayLabel(date: Date): string {
   return format(date, "EEEE, dd 'de' MMMM", { locale: ptBR });
 }
 
+/**
+ * Horário da atividade — `null` quando ela é de dia inteiro.
+ *
+ * A checagem é `hasTimeComponent` (componentes **UTC**), não `HH:mm !== '00:00'`
+ * em hora local. Um dia puro é `00:00:00.000Z`, que em `America/Sao_Paulo` vira
+ * 21:00 — a comparação antiga concluía "tem horário marcado" e exibia um 21:00
+ * que não existe em lugar nenhum, em toda atividade sem hora.
+ */
 export function formatTime(activity: Pick<ActivityDto, 'startDate' | 'dueDate'>): string | null {
   const raw = taskAnchorDate(activity);
-  if (!raw) return null;
-  const date = parseISO(raw);
-  const time = format(date, 'HH:mm');
-  return time === '00:00' ? null : time;
+  if (!raw || !hasTimeComponent(raw)) return null;
+  return format(parseISO(raw), 'HH:mm');
 }
 
 // ————————————————————————————————————————————————————————————
@@ -60,8 +124,12 @@ export function effectiveInterval(
   const rawStart = activity.startDate ?? activity.dueDate;
   const rawEnd = activity.dueDate ?? activity.startDate;
   if (!rawStart || !rawEnd) return null;
-  const start = startOfDay(parseISO(rawStart));
-  const end = startOfDay(parseISO(rawEnd));
+  // Mesmo cuidado de `anchorDate`: dia puro não pode passar por `parseISO`,
+  // senão a barra do calendário começa e termina um dia antes.
+  const parse = (raw: string) =>
+    startOfDay(hasTimeComponent(raw) ? parseISO(raw) : parseCalendarDate(raw));
+  const start = parse(rawStart);
+  const end = parse(rawEnd);
   return { start, end: end < start ? start : end };
 }
 
@@ -123,21 +191,36 @@ export function layoutWeekBars(weekDays: Date[], activities: ActivityDto[]): Wee
   });
 }
 
+/**
+ * Cores desta tela — **só token semântico**, nunca hex.
+ *
+ * Este arquivo guardava 11 hex crus, consumidos por `style={{}}` nos
+ * componentes. O ESLint não acusava porque a regra mira `className` em JSX, e
+ * estes atravessavam por um `.ts` de lib. O `design-tokens.md` abre proibindo
+ * exatamente isso.
+ *
+ * Não era só higiene: `CRITICAL` era `#D64550`, que **não é** o token
+ * `destructive`. A mesma tarefa crítica tinha um vermelho aqui e outro no
+ * `PriorityBadge` do Kanban — a unificação da escala de prioridade registrada
+ * como resolvida em docs/analise-uiux.md nunca alcançou este arquivo.
+ */
 export const STATUS_META: Record<TaskStatus, { label: string; bg: string; color: string }> = {
-  TODO:        { label: 'A fazer',     bg: '#F0F0F0', color: '#575756' },
-  IN_PROGRESS: { label: 'Em andamento', bg: '#FCEBD2', color: '#C16C06' },
-  DONE:        { label: 'Concluída',   bg: '#DCEFD6', color: '#156D1D' },
+  TODO:        { label: 'A fazer',      bg: 'hsl(var(--muted))',        color: 'hsl(var(--muted-foreground))' },
+  IN_PROGRESS: { label: 'Em andamento', bg: 'hsl(var(--accent) / 0.15)', color: 'hsl(var(--accent))' },
+  DONE:        { label: 'Concluída',    bg: 'hsl(var(--success) / 0.2)', color: 'hsl(var(--primary-dark))' },
 };
 
+// Mesma escala do `PriorityBadge` (LOW→neutro, MEDIUM→success, HIGH→accent,
+// CRITICAL→destructive). Mudou lá, muda aqui.
 export const PRIORITY_META: Record<TaskPriority, { label: string; color: string }> = {
-  LOW:      { label: 'Baixa',    color: '#878787' },
-  MEDIUM:   { label: 'Média',    color: '#46AD48' },
-  HIGH:     { label: 'Alta',     color: '#DD8005' },
-  CRITICAL: { label: 'Crítica',  color: '#D64550' },
+  LOW:      { label: 'Baixa',   color: 'hsl(var(--muted-foreground))' },
+  MEDIUM:   { label: 'Média',   color: 'hsl(var(--success))' },
+  HIGH:     { label: 'Alta',    color: 'hsl(var(--accent))' },
+  CRITICAL: { label: 'Crítica', color: 'hsl(var(--destructive))' },
 };
 
-// Cor de destaque para atividades atrasadas (mesma escala de "crítico").
-export const OVERDUE_COLOR = '#D64550';
+/** Atraso usa a mesma cor de "crítico" — agora o token, não um vermelho vizinho. */
+export const OVERDUE_COLOR = 'hsl(var(--destructive))';
 
 // ————————————————————————————————————————————————————————————
 // Atraso, filtros e resumo
@@ -157,11 +240,13 @@ export interface ActivityFilters {
   status: TaskStatus | '';
   priority: TaskPriority | '';
   mine: boolean;       // só atividades do usuário atual
+  /** Só as atrasadas — ligado pelo chip "Atrasadas" do resumo. */
+  onlyOverdue: boolean;
   currentUserId: string;
 }
 
 export const EMPTY_FILTERS: Omit<ActivityFilters, 'currentUserId'> = {
-  projectId: '', assigneeId: '', status: '', priority: '', mine: false,
+  projectId: '', assigneeId: '', status: '', priority: '', mine: false, onlyOverdue: false,
 };
 
 export function filterActivities(activities: ActivityDto[], f: ActivityFilters): ActivityDto[] {
@@ -172,6 +257,7 @@ export function filterActivities(activities: ActivityDto[], f: ActivityFilters):
     if (f.status && a.status !== f.status) return false;
     if (f.priority && a.priority !== f.priority) return false;
     if (f.mine && a.assignee?.id !== f.currentUserId) return false;
+    if (f.onlyOverdue && !isOverdue(a)) return false;
     return true;
   });
 }
