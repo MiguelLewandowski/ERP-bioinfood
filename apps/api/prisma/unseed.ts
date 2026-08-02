@@ -146,7 +146,7 @@ async function analyze() {
   for (const org of orgs) {
     const [opportunities, interactions, realProjects, labOrders] = await Promise.all([
       prisma.opportunity.count({ where: { orgId: org.id } }),
-      prisma.interaction.count({ where: { orgId: org.id } }),
+      prisma.interaction.count({ where: { opportunity: { orgId: org.id } } }),
       prisma.project.count({ where: { clientId: org.id, id: { notIn: SEED_PROJECT_IDS } } }),
       prisma.labOrder.count({ where: { orgId: org.id } }),
     ]);

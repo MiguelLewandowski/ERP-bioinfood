@@ -329,7 +329,6 @@ model Organization {
   contactLinks ContactOrganizationLink[]
 
   // CRM
-  interactions  Interaction[]
   activities    Activity[]
   opportunities Opportunity[]
 
@@ -463,16 +462,13 @@ model ContactOrganizationLink {
 
 model Interaction {
   id            String               @id @default(cuid())
-  orgId         String
-  organization  Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
   contactId     String?
   contact       Contact?             @relation(fields: [contactId], references: [id])
   userId        String?
   user          User?                @relation(fields: [userId], references: [id])
-  // Vínculo opcional: interação de uma oportunidade específica compõe a
-  // timeline dela, além da timeline geral da empresa.
-  opportunityId String?
-  opportunity   Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  // Timeline pertence ao negócio, não à empresa.
+  opportunityId String
+  opportunity   Opportunity          @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   type          InteractionType
   direction     InteractionDirection @default(OUTBOUND)
   subject       String?
@@ -485,9 +481,8 @@ model Interaction {
 
   activities Activity[]
 
-  @@index([orgId, interactionAt])
+  @@index([opportunityId, interactionAt])
   @@index([contactId])
-  @@index([opportunityId])
 }
 
 model Activity {
