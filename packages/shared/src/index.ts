@@ -309,10 +309,9 @@ export type InteractionDirection = 'INBOUND' | 'OUTBOUND' | 'INTERNAL';
 
 export interface InteractionDto {
   id: string;
-  orgId: string;
   contactId: string | null;
   userId: string | null;
-  opportunityId: string | null;
+  opportunityId: string;
   type: InteractionType;
   direction: InteractionDirection;
   subject: string | null;
