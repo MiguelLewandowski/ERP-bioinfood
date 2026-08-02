@@ -2,10 +2,9 @@ import { InteractionDirection, InteractionType } from '@prisma/client';
 
 export interface InteractionListItem {
   id: string;
-  orgId: string;
   contactId: string | null;
   userId: string | null;
-  opportunityId: string | null;
+  opportunityId: string;
   type: InteractionType;
   direction: InteractionDirection;
   subject: string | null;
@@ -18,10 +17,9 @@ export interface InteractionListItem {
 }
 
 export interface CreateInteractionData {
-  orgId: string;
+  opportunityId: string;
   contactId?: string;
   userId?: string;
-  opportunityId?: string;
   type: InteractionType;
   direction?: InteractionDirection;
   subject?: string;
@@ -42,7 +40,6 @@ export interface UpdateInteractionData {
 
 export interface ListInteractionsFilter {
   contactId?: string;
-  opportunityId?: string;
   type?: InteractionType;
   from?: Date;
   to?: Date;

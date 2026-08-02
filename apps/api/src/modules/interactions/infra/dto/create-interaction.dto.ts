@@ -5,15 +5,11 @@ import {
 
 export class CreateInteractionDto {
   @IsString()
-  orgId: string;
+  opportunityId: string;
 
   @IsOptional()
   @IsString()
   contactId?: string;
-
-  @IsOptional()
-  @IsString()
-  opportunityId?: string;
 
   @IsEnum(InteractionType)
   type: InteractionType;

@@ -8,7 +8,7 @@ export class ListInteractionsUseCase {
     @Inject(INTERACTION_REPOSITORY) private repo: IInteractionRepository,
   ) {}
 
-  execute(orgId: string, filter: ListInteractionsFilter) {
-    return this.repo.findByOrg(orgId, filter);
+  execute(opportunityId: string, filter: ListInteractionsFilter) {
+    return this.repo.findByOpportunity(opportunityId, filter);
   }
 }
