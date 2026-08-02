@@ -12,6 +12,7 @@ const freezeMock = vi.fn();
 const unfreezeMock = vi.fn();
 const listCrmActivitiesMock = vi.fn();
 const listOrganizationsMock = vi.fn();
+const listInteractionsMock = vi.fn();
 const toastErrorMock = vi.fn();
 const toastSuccessMock = vi.fn();
 
@@ -31,6 +32,10 @@ vi.mock('@/lib/api-hooks', () => ({
   },
   organizationsApi: {
     list: (...args: unknown[]) => listOrganizationsMock(...args),
+    create: vi.fn(),
+  },
+  interactionsApi: {
+    list: (...args: unknown[]) => listInteractionsMock(...args),
     create: vi.fn(),
   },
 }));
@@ -70,6 +75,7 @@ function setup(props: Partial<React.ComponentProps<typeof OpportunityDialog>> = 
       defaultStageId="stage-1"
       pipelines={[]}
       users={USERS}
+      contacts={[]}
       canEdit
       onSaved={onSaved}
       onDeleted={onDeleted}
@@ -87,6 +93,7 @@ describe('OpportunityDialog — create mode', () => {
       { id: 'org-1', legalName: 'ACME LTDA', tradeName: 'ACME' },
     ]);
     listCrmActivitiesMock.mockResolvedValue([]);
+    listInteractionsMock.mockResolvedValue([]);
   });
 
   it('should render the create title when mode is create', () => {
@@ -185,6 +192,7 @@ describe('OpportunityDialog — edit mode', () => {
     unfreezeMock.mockResolvedValue({ ...EXISTING_OPPORTUNITY, frozenAt: null });
     listCrmActivitiesMock.mockResolvedValue([]);
     listOrganizationsMock.mockResolvedValue([]);
+    listInteractionsMock.mockResolvedValue([]);
   });
 
   it('should prefill the form from the opportunity being edited', () => {

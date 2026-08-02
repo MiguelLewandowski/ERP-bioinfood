@@ -115,6 +115,7 @@ export function CrmTabs(props: CrmTabsProps) {
             summary={props.summary}
             initialTasks={props.opportunityTasks}
             users={props.users}
+            contacts={props.contacts}
             canEdit={props.canEdit}
           />
         )}
