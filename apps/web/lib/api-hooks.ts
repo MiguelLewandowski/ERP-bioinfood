@@ -403,6 +403,9 @@ export const opportunitiesApi = {
   listByOrg: (orgId: string, token: string) =>
     api.get<OpportunityDto[]>(`/opportunities?orgId=${orgId}`, token),
 
+  get: (id: string, token: string) =>
+    api.get<OpportunityDto>(`/opportunities/${id}`, token),
+
   create: (data: Record<string, unknown>, token: string) =>
     api.post<OpportunityDto>('/opportunities', data, token),
 
@@ -428,10 +431,8 @@ export const opportunitiesApi = {
 // ── Interações (timeline do CRM — escrita só ADMIN) ────────────────────────────
 
 export const interactionsApi = {
-  list: (orgId: string, token: string, opportunityId?: string) =>
-    api.get<InteractionDto[]>(
-      `/interactions?orgId=${orgId}${opportunityId ? `&opportunityId=${opportunityId}` : ''}`, token,
-    ),
+  list: (opportunityId: string, token: string) =>
+    api.get<InteractionDto[]>(`/interactions?opportunityId=${opportunityId}`, token),
 
   create: (data: Record<string, unknown>, token: string) =>
     api.post<InteractionDto>('/interactions', data, token),
