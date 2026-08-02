@@ -5,6 +5,7 @@ import { OpportunitiesPrismaRepository } from './infra/opportunities.prisma.repo
 import { OpportunitiesController } from './infra/opportunities.controller';
 import { ListOpportunitiesUseCase } from './application/list-opportunities.use-case';
 import { ListOrgOpportunitiesUseCase } from './application/list-org-opportunities.use-case';
+import { GetOpportunityUseCase } from './application/get-opportunity.use-case';
 import { CreateOpportunityUseCase } from './application/create-opportunity.use-case';
 import { UpdateOpportunityUseCase } from './application/update-opportunity.use-case';
 import { DeleteOpportunityUseCase } from './application/delete-opportunity.use-case';
@@ -18,6 +19,7 @@ import { ReorderOpportunitiesUseCase } from './application/reorder-opportunities
     { provide: OPPORTUNITY_REPOSITORY, useClass: OpportunitiesPrismaRepository },
     ListOpportunitiesUseCase,
     ListOrgOpportunitiesUseCase,
+    GetOpportunityUseCase,
     CreateOpportunityUseCase,
     UpdateOpportunityUseCase,
     DeleteOpportunityUseCase,

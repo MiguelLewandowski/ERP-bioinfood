@@ -7,6 +7,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { ListOpportunitiesUseCase } from '../application/list-opportunities.use-case';
 import { ListOrgOpportunitiesUseCase } from '../application/list-org-opportunities.use-case';
+import { GetOpportunityUseCase } from '../application/get-opportunity.use-case';
 import { CreateOpportunityUseCase } from '../application/create-opportunity.use-case';
 import { UpdateOpportunityUseCase } from '../application/update-opportunity.use-case';
 import { DeleteOpportunityUseCase } from '../application/delete-opportunity.use-case';
@@ -26,6 +27,7 @@ export class OpportunitiesController {
   constructor(
     private listOpportunities: ListOpportunitiesUseCase,
     private listOrgOpportunities: ListOrgOpportunitiesUseCase,
+    private getOpportunity: GetOpportunityUseCase,
     private createOpportunity: CreateOpportunityUseCase,
     private updateOpportunity: UpdateOpportunityUseCase,
     private deleteOpportunity: DeleteOpportunityUseCase,
@@ -38,6 +40,11 @@ export class OpportunitiesController {
     if (orgId) return (await this.listOrgOpportunities.execute(orgId)).map(toOpportunityDto);
     if (!pipelineId) throw new BadRequestException('pipelineId ou orgId é obrigatório');
     return (await this.listOpportunities.execute(pipelineId)).map(toOpportunityDto);
+  }
+
+  @Get(':id')
+  async getOne(@Param('id') id: string) {
+    return toOpportunityDto(await this.getOpportunity.execute(id));
   }
 
   // Reordena os cards dentro de uma etapa (drag reorder no kanban). Path com
